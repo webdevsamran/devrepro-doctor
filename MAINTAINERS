@@ -1,0 +1,15 @@
+DevRepro Doctor — Maintainers
+
+Lead Maintainer:
+    @webdevsamran (creator, founder)
+
+Maintainer responsibilities:
+- Review and merge pull requests into `main`.
+- Triage issues and label roadmap items.
+- Cut releases with provenance/checksums per RELEASE process.
+- Enforce the security policy and privacy guarantees.
+
+Becoming a maintainer:
+Sustained high-quality contributions across at least three areas of the
+codebase plus a demonstrated understanding of the privacy model. Nominated
+by an existing maintainer and confirmed by the lead maintainer.

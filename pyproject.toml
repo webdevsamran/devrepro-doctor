@@ -1,0 +1,126 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "devrepro-doctor"
+version = "0.1.0"
+description = "Cross-platform diagnostics, reproducibility auditing and safe repair planning for developer machines, project toolchains, SDKs, containers and build dependencies."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.11"
+authors = [{ name = "@webdevsamran" }]
+keywords = [
+  "diagnostics", "reproducibility", "developer-tools", "toolchain",
+  "environment", "works-on-my-machine", "snapshots", "diff",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Build Tools",
+  "Topic :: System :: Systems Administration",
+  "Typing :: Typed",
+]
+dependencies = [
+  "typer>=0.12,<1.0",
+  "rich>=13.7,<14.0",
+  "pydantic>=2.6,<3.0",
+  "tomli>=2.0; python_version < '3.11'",
+]
+
+[project.optional-dependencies]
+serve = ["uvicorn>=0.29,<1.0"]
+test = [
+  "pytest>=8.0,<9.0",
+  "pytest-cov>=5.0,<7.0",
+  "hypothesis>=6.100,<7.0",
+  "httpx>=0.27,<1.0",
+]
+lint = [
+  "ruff>=0.4,<1.0",
+  "mypy>=1.10,<2.0",
+  "types-toml; python_version < '3.11'",
+]
+
+[project.scripts]
+devrepro = "devrepro.cli.app:main"
+
+[project.urls]
+Homepage = "https://github.com/webdevsamran/devrepro-doctor"
+Repository = "https://github.com/webdevsamran/devrepro-doctor"
+Issues = "https://github.com/webdevsamran/devrepro-doctor/issues"
+Changelog = "https://github.com/webdevsamran/devrepro-doctor/blob/main/CHANGELOG.md"
+
+# Plugin entry points (documented API surface)
+[project.entry-points."devrepro.probes"]
+# example: my_probe = "my_package.probes:MyProbe"
+
+[project.entry-points."devrepro.rules"]
+[project.entry-points."devrepro.remediations"]
+[project.entry-points."devrepro.project_detectors"]
+[project.entry-points."devrepro.exporters"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["devrepro"]
+
+[tool.hatch.build.targets.sdist]
+include = ["devrepro", "tests", "schemas", "docs", "README.md", "LICENSE", "NOTICE"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["devrepro", "tests"]
+
+[tool.ruff.lint]
+select = [
+  "E", "F", "W", "I", "N", "UP", "B", "A", "C4", "SIM", "TCH", "PTH",
+  "RUF", "PL", "S", "D",
+]
+ignore = [
+  "D203", "D213",          # conflicting docstring style rules
+  "PLR0913",               # many probe args are fine
+  "S101",                  # asserts are used in tests
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "D", "PLR2004"]
+"web/**" = []
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+show_error_codes = true
+files = ["devrepro"]
+
+[[tool.mypy.overrides]]
+module = ["uvicorn.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra --strict-markers"
+testpaths = ["tests"]
+markers = [
+  "slow: long-running tests",
+  "integration: tests that exercise multiple subsystems",
+]
+
+[tool.coverage.run]
+source = ["devrepro"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "@abstractmethod",
+]

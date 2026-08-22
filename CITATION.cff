@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: >-
+  If you use DevRepro Doctor in research or engineering work, please cite it.
+title: DevRepro Doctor
+type: software
+authors:
+  - alias: webdevsamran
+    name: "@webdevsamran"
+    website: "https://github.com/webdevsamran"
+repository-code: "https://github.com/webdevsamran/devrepro-doctor"
+url: "https://github.com/webdevsamran/devrepro-doctor"
+abstract: >-
+  Cross-platform diagnostics, reproducibility auditing and safe repair
+  planning for developer machines, project toolchains, SDKs, containers
+  and build dependencies. Read-only by default and privacy-safe.
+keywords:
+  - reproducibility
+  - developer-environment
+  - diagnostics
+  - toolchain
+  - works-on-my-machine
+license: Apache-2.0
+version: 0.1.0
+date-released: "2026-08-22"

@@ -1,0 +1,14 @@
+DevRepro Doctor
+Copyright 2026 @webdevsamran and contributors
+
+This product includes software developed by the DevRepro Doctor project
+(https://github.com/webdevsamran/devrepro-doctor).
+
+Licensed under the Apache License, Version 2.0.
+
+Third-party components:
+- Typer, Rich, Pydantic, Hatchling: MIT license.
+- React, TypeScript, Vite ecosystem tooling: MIT license.
+
+DevRepro Doctor is read-only by default and never uploads machine data to
+any cloud service. See SECURITY.md for reporting vulnerabilities.
