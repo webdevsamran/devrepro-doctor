@@ -1,0 +1,13 @@
+C:\Program Files\Git\cmd
+C:\Program Files\GitHub CLI
+C:\Python314
+C:\Python314\Scripts
+C:\Users\<user>\AppData\Local\Microsoft\WindowsApps
+C:\Program Files\Docker\Docker\resources\bin
+C:\Program Files\Git\cmd
+C:\Tools
+vm4w
+odejs
+C:\Program Files\Go\bin
+C:\Users\<user>\.cargo\bin
+C:\Nonexistent\DeadEntry

@@ -1,0 +1,3 @@
+Default Distribution: docker-desktop
+
+Default Version: 2
