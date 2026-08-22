@@ -1,0 +1,10 @@
+# Default owners for everything in the repository.
+*       @webdevsamran
+
+# Core engine changes require the lead maintainer.
+/devrepro/core/        @webdevsamran
+/devrepro/privacy/     @webdevsamran
+/devrepro/remediation/ @webdevsamran
+
+# CI and release infrastructure.
+/.github/              @webdevsamran
