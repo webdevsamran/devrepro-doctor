@@ -1,0 +1,11 @@
+/home/<user>/.pyenv/shims
+/home/<user>/.local/bin
+/usr/local/sbin
+/usr/local/bin
+/usr/sbin
+/usr/bin
+/sbin
+/bin
+/snap/bin
+/usr/lib/go/bin
+/home/<user>/.nvm/versions/node/v20.11.0/bin

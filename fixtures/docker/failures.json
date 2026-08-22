@@ -1,0 +1,38 @@
+{
+  "daemon_pipe_missing": {
+    "command": [
+      "docker",
+      "info"
+    ],
+    "returncode": 1,
+    "stderr": "error during connect: Get http://%2F%2F.%2Fpipe%2FdockerDesktopLinuxEngine/v1.47/info: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.",
+    "classification": "daemon-unreachable"
+  },
+  "daemon_socket_missing": {
+    "command": [
+      "docker",
+      "info"
+    ],
+    "returncode": 1,
+    "stderr": "Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?",
+    "classification": "daemon-unreachable"
+  },
+  "permission_denied": {
+    "command": [
+      "docker",
+      "info"
+    ],
+    "returncode": 1,
+    "stderr": "permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock",
+    "classification": "permissions"
+  },
+  "client_server_mismatch": {
+    "command": [
+      "docker",
+      "version"
+    ],
+    "returncode": 1,
+    "stderr": "Error response from daemon: client version 1.44 is too new. Maximum supported API version is 1.41",
+    "classification": "version-mismatch"
+  }
+}
