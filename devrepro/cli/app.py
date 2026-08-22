@@ -53,6 +53,50 @@ def _exit_for(findings_states: set[str]) -> int:
     return ExitCode.READY
 
 
+@app.command("check")
+def check_cmd(
+    policy_path: Path = typer.Option(
+        Path(".devrepro.toml"), "--policy", help="Path to .devrepro.toml policy."
+    ),
+    project_dir: Optional[Path] = typer.Option(None, "--project", help="Project root."),
+    json_out: bool = JsonOption,
+) -> None:
+    """Validate a .devrepro.toml policy and check the machine against it.
+
+    Stable exit codes: 0 READY, 1 READY_WITH_WARNINGS, 2 BLOCKED,
+    4 invalid policy (see devrepro.core.exit_codes).
+    """
+    from devrepro.core.exit_codes import ExitCode
+    from devrepro.project.policy import load_policy
+
+    try:
+        policy = load_policy(policy_path)
+    except Exception as exc:  # noqa: BLE001 - user-facing validation error
+        if json_out:
+            typer.echo(json.dumps({"error": f"invalid policy: {exc}"}, indent=2))
+        else:
+            typer.secho(f"Invalid policy {policy_path}: {exc}", fg=typer.RED)
+        raise SystemExit(ExitCode.USAGE_ERROR) from exc
+
+    from devrepro.cli.pipeline import run_scan
+
+    report = run_scan(project_dir=project_dir, policy=policy)
+    findings = list(report.findings)
+    states = {f.state.value for f in findings}
+    payload = {
+        "policy": str(policy_path),
+        "verdict": (
+            "BLOCKED" if ("BLOCKED" in states or "ERROR" in states)
+            else "READY_WITH_WARNINGS" if (states - {"PASS", "INFO"})
+            else "READY"
+        ),
+        "findings": [f.model_dump(mode="json") for f in findings],
+        "privacy": report.privacy,
+    }
+    _emit(payload, json_out)
+    raise SystemExit(_exit_for(states))
+
+
 @app.command()
 def doctor(
     json_out: bool = JsonOption,
