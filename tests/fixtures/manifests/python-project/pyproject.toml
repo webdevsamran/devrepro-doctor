@@ -1,0 +1,7 @@
+[project]
+name = "sample-app"
+requires-python = ">=3.11,<3.14"
+dependencies = ["requests>=2.31"]
+
+[tool.uv]
+dev-dependencies = ["pytest>=8"]
