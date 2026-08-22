@@ -1,0 +1,25 @@
+[project]
+name = "policy-fixture"
+
+[supported_os]
+windows = true
+linux = true
+macos = true
+
+[required_runtimes]
+python = ">=3.11,<3.14"
+
+[required_tools]
+git = "*"
+
+[optional_tools]
+docker = "*"
+
+[known_bad_versions]
+openssl = "<1.1.1"
+
+[container]
+required = false
+
+[required_env_names]
+names = ["GITHUB_TOKEN", "CI"]
