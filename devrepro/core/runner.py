@@ -74,7 +74,14 @@ class SubprocessRunner:
             return CommandResult(argv, 124, "", "", timed_out=True)
         except OSError as exc:
             return CommandResult(argv, 126, "", str(exc))
-        return CommandResult(argv, proc.returncode, proc.stdout or "", proc.stderr or "")
+        # Windows tools like wsl.exe emit UTF-16LE; decoding as UTF-8 leaves
+        # NUL padding characters that would leak into evidence excerpts.
+        return CommandResult(
+            argv,
+            proc.returncode,
+            (proc.stdout or "").replace("\x00", ""),
+            (proc.stderr or "").replace("\x00", ""),
+        )
 
 
 class RecordingRunner:

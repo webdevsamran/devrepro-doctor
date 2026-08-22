@@ -27,7 +27,7 @@ __all__ = ["Version", "SpecClause", "SpecSet", "parse_version", "satisfies", "sp
 
 _VERSION_RE = re.compile(
     r"^v?(?P<nums>\d+(?:\.\d+)*)"
-    r"(?:[-+](?P<tag>[0-9A-Za-z.-]+))?$"
+    r"[.\-+]?(?P<tag>[0-9A-Za-z][0-9A-Za-z.-]*)?$"
 )
 
 _CLAUSE_RE = re.compile(
@@ -219,7 +219,13 @@ def parse_spec(spec: str) -> SpecSet:
 
 
 def satisfies(version: str, spec: str) -> bool:
-    """Convenience: does ``version`` satisfy ``spec``?"""
+    """Convenience: does ``version`` satisfy ``spec``?
+
+    The wildcard spec ``*`` (also "" / "any") is satisfied by any version,
+    even one we cannot fully parse (e.g. ``2.55.0.windows.3``).
+    """
+    if spec.strip() in ("*", "", "any"):
+        return True
     return parse_spec(spec).satisfied_by(parse_version(version))
 
 
