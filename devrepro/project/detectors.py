@@ -10,13 +10,10 @@ from __future__ import annotations
 import json
 import re
 import tomllib
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 from devrepro.core.errors import ProjectParseError
 from devrepro.core.models import ProjectRequirement, RequirementKind
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 __all__ = ["ProjectDetector", "detect_project_kind", "detect_requirements"]
 
@@ -370,8 +367,9 @@ _BUILTIN_DETECTORS = (
 )
 
 
-def detect_requirements(root: Path) -> list[ProjectRequirement]:
+def detect_requirements(root: Path | str) -> list[ProjectRequirement]:
     """Run all built-in detectors against a project directory."""
+    root = Path(root)
     out: list[ProjectRequirement] = []
     for detector in _BUILTIN_DETECTORS:
         try:
