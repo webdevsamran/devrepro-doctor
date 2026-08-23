@@ -1,43 +1,55 @@
-# Product Gaps
+# Product gaps — what DevRepro Doctor deliberately does and does not do
 
-Derived from verified competitor research
-([analysis](docs/competitive-analysis.md),
-[data](data/competitive-capabilities.json)). Each gap is tracked to an
-implementation area; items marked ✅ are implemented in this repository.
+Derived from the verified competitor research in
+[`docs/competitive-analysis.md`](docs/competitive-analysis.md) and
+[`data/competitive-capabilities.json`](data/competitive-capabilities.json).
+This file is honest about gaps so contributors can pick real work.
 
-## Gaps we close that competitors leave open
+## Gaps we are aware of (and want)
 
-1. ✅ **Cross-manager conflict detection** — no competitor explains why nvm,
-   pyenv, mise, asdf, conda and system installs fight each other on one machine.
-2. ✅ **PATH precedence explanation** — every candidate executable, its source,
-   version, and why PATH resolution picks one (`devrepro path`).
-3. ✅ **Privacy-sanitized machine snapshots** — shareable state for human-to-human
-   "works on my machine" triage; competitors only share lockfiles.
-4. ✅ **Semantic machine↔machine / time↔time diffs** — categorized as missing,
-   extra, changed, shadowed, project-critical or platform-expected.
-5. ✅ **Local-vs-CI environment diff** — explain why CI passes while a laptop fails.
-6. ✅ **Windows/WSL first-class depth** — App Execution Aliases, MSVC/SDK,
-   PowerShell policy, long paths, WSL distro/interop/PATH-contamination probes.
-7. ✅ **Safe remediation planning** — risk-classified plans with rollback and
-   post-checks; never silent mutation.
-8. ✅ **Reviewable config generation** — draft `.devrepro.toml`, devcontainer.json,
-   tool-version files behind a diff-preview guardrail.
-9. ✅ **Fleet baselines & policy-as-code** — self-hosted org→team→project→machine
-   inheritance without exposing secret machine data.
-10. ✅ **Stable exit codes + JSON everywhere** — deterministic READY /
-    READY_WITH_WARNINGS / BLOCKED for scripts and CI bootstrap.
+### 1. No live managed cloud
+The self-hosted fleet service (`devrepro/server`) is real and tested, but there is
+no hosted/managed offering. **Status: by design for now.** The architecture docs
+describe what a managed layer would add; nothing is claimed as live.
 
-## Gaps in our own product this pass addresses
+### 2. OIDC/SAML is an abstraction, not an integration
+`ServerDB` supports service-account tokens and RBAC today. Real enterprise IdP
+federation (OIDC/SAML) needs a live IdP to validate against.
+**Status: BLOCKED on external validation** — see issue tracker.
 
-- Snapshot protocol v2: probe/policy versions, provenance, migrations, signing.
-- Monorepo discovery, nested-project conflicts, lockfile coverage analysis.
-- CI parser support (GitHub Actions, GitLab CI, Azure Pipelines).
-- Drift timelines with root-cause hints across snapshot history.
-- Plugin API v2 with capability declarations and failure isolation.
-- Self-hosted server foundation (RBAC, audit, policy, webhooks, retention).
+### 3. Agent daemon mode is not yet shipped
+Scheduled sanitized snapshots from enrolled machines are designed
+(enrollment tokens, snapshot ingestion, retention all exist server-side), but the
+resident agent process with its own installer is future work.
 
-## Deliberately out of scope
+### 4. Remote scanning (SSH/WinRM) is not implemented
+Enterprise remote machine scanning requires strict credential handling and
+authorization review; it is intentionally absent rather than half-built.
 
-- Package/build management; cloud workspace provisioning; telemetry;
-  auto-execution of generated files; certification claims (SOC 2/ISO/etc.)
-  without actual audits.
+### 5. Frontend e2e coverage is thin
+Playwright smoke tests exist in CI scope but route-level e2e across every page is
+an open contributor opportunity.
+
+### 6. PostgreSQL backend for the fleet service
+SQLite ships today; a PostgreSQL adapter for large multi-user deployments is
+planned behind the same `ServerDB` call sites.
+
+## Features deliberately NOT copied from competitors
+
+| Competitor capability | Why we skip it |
+|---|---|
+| Installing/managing toolchains (mise, Devbox, Nix) | We diagnose; they manage. Duplicating invites conflicts with provenance. |
+| Reproducible build guarantees (Nix) | A score can never guarantee identical builds; we explain declaration completeness instead. |
+| Shell-agnostic script runners (devenv processes) | Out of scope; we validate their config, not run them. |
+| Cloud workspace streaming (DevPod providers) | Different product category; no diagnostic value for us. |
+| Telemetry-driven version recommendations | Conflicts with our no-telemetry privacy stance. |
+
+## Where we are ahead
+
+- Cross-platform depth including Windows App Execution Aliases, WSL interop,
+  PowerShell execution policy, long-path and case-sensitivity diagnostics.
+- Explainable PATH precedence ("why does this executable win?").
+- Privacy-sanitized snapshots with field classification and secret-scan gates.
+- Semantic machine-to-machine diff with project-critical classification.
+- Local-vs-CI toolchain comparison.
+- Remediation plans with risk, rollback and dry-run transactions — never one-click magic.
