@@ -53,15 +53,22 @@ class PathProbe(Probe):
                 dead.append(part)
 
         store_aliases = [
-            e.raw for e in entries
+            e.raw
+            for e in entries
             if any(marker.lower() in e.normalized.lower() for marker in _STORE_ALIAS_MARKERS)
         ]
         tool_manager_markers = (
-            ".pyenv", ".nvm", ".volta", ".fnm", "conda", "mise", "asdf", ".cargo/bin",
+            ".pyenv",
+            ".nvm",
+            ".volta",
+            ".fnm",
+            "conda",
+            "mise",
+            "asdf",
+            ".cargo/bin",
         )
         interference = [
-            e.raw for e in entries
-            if any(m in e.normalized.lower() for m in tool_manager_markers)
+            e.raw for e in entries if any(m in e.normalized.lower() for m in tool_manager_markers)
         ]
 
         analysis = PathAnalysis(
@@ -79,7 +86,8 @@ class PathProbe(Probe):
                 self.finding(
                     "path/duplicates",
                     FindingState.WARN,
-                    f"{len(duplicates)} duplicate PATH entr{'y' if len(duplicates) == 1 else 'ies'} detected.",
+                    f"{len(duplicates)} duplicate PATH "
+                    f"entr{'y' if len(duplicates) == 1 else 'ies'} detected.",
                     evidence=(ev_dup,),
                     detected=", ".join(duplicates[:5]),
                     component="path",
@@ -97,7 +105,9 @@ class PathProbe(Probe):
                     evidence=(ev_dead,),
                     detected=", ".join(dead[:5]),
                     component="path",
-                    remediation_hint="Dead PATH entries slow every process start; remove them (LOW risk).",
+                    remediation_hint=(
+                        "Dead PATH entries slow every process start; remove them (LOW risk)."
+                    ),
                 )
             )
         if store_aliases:
@@ -105,8 +115,11 @@ class PathProbe(Probe):
                 self.finding(
                     "path/store-aliases",
                     FindingState.INFO,
-                    "Windows Store app-execution aliases are on PATH; they can shadow real installs.",
-                    evidence=(Evidence(source="env", excerpt="WindowsApps alias directory on PATH"),),
+                    "Windows Store app-execution aliases are on PATH; "
+                    "they can shadow real installs.",
+                    evidence=(
+                        Evidence(source="env", excerpt="WindowsApps alias directory on PATH"),
+                    ),
                     detected=", ".join(store_aliases[:3]),
                     component="path",
                 )
@@ -120,7 +133,8 @@ class PathProbe(Probe):
 
     def _origin(self, index: int) -> str:
         """Best-effort origin classification. Machine PATH order is
-        typically inherited(system) then user-appended."""
+        typically inherited(system) then user-appended.
+        """
         if self.ctx.platform == "windows":
             return "inherited"
         return "profile" if index > 0 else "inherited"

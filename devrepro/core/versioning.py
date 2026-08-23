@@ -23,22 +23,20 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-__all__ = ["Version", "SpecClause", "SpecSet", "parse_version", "satisfies", "spec_satisfied_by"]
+__all__ = ["SpecClause", "SpecSet", "Version", "parse_version", "satisfies", "spec_satisfied_by"]
 
 _VERSION_RE = re.compile(
     r"^v?(?P<nums>\d+(?:\.\d+)*)"
     r"[.\-+]?(?P<tag>[0-9A-Za-z][0-9A-Za-z.-]*)?$"
 )
 
-_CLAUSE_RE = re.compile(
-    r"^(?P<op>\*|>=|<=|!=|==|=|>|<)?\s*(?P<ver>.+)$"
-)
+_CLAUSE_RE = re.compile(r"^(?P<op>\*|>=|<=|!=|==|=|>|<)?\s*(?P<ver>.+)$")
 
 
 class Version:
     """A parsed version with total ordering."""
 
-    __slots__ = ("raw", "nums", "tag")
+    __slots__ = ("nums", "raw", "tag")
 
     def __init__(self, raw: str) -> None:
         text = raw.strip()
@@ -101,7 +99,7 @@ def _cmp_versions(a: Version, b: Version) -> int:
     if an > bn:
         return 1
     # equal numerics: pre-release < release
-    at, bt = (1, ()) if a.tag is None else (0, tuple(ord(c) for c in a.tag))
+    at, _bt = (1, ()) if a.tag is None else (0, tuple(ord(c) for c in a.tag))
     bt2 = (1, ()) if b.tag is None else (0, tuple(ord(c) for c in b.tag))
     if at != bt2[0]:
         return -1 if at < bt2[0] else 1
@@ -148,15 +146,10 @@ class SpecSet:
     groups: tuple[tuple[SpecClause, ...], ...]
 
     def satisfied_by(self, candidate: Version) -> bool:
-        return any(
-            all(clause.satisfied_by(candidate) for clause in group)
-            for group in self.groups
-        )
+        return any(all(clause.satisfied_by(candidate) for clause in group) for group in self.groups)
 
     def __str__(self) -> str:
-        return " || ".join(
-            ",".join(f"{c.op}{c.version}" for c in group) for group in self.groups
-        )
+        return " || ".join(",".join(f"{c.op}{c.version}" for c in group) for group in self.groups)
 
 
 def parse_version(raw: str) -> Version:

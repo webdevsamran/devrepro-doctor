@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from devrepro.core.models import Evidence, Finding, FindingState
-from devrepro.rules.base import RuleContext
 from devrepro.rules.packs.common import tool_findings
+
+if TYPE_CHECKING:
+    from devrepro.rules.base import RuleContext
 
 __all__ = ["evaluate"]
 
@@ -14,7 +18,8 @@ def evaluate(ctx: RuleContext) -> list[Finding]:
     container_reqs = [r for r in ctx.requirements if r.ecosystem == "container"]
 
     needs_docker = bool(container_reqs) or (
-        ctx.policy is not None and (
+        ctx.policy is not None
+        and (
             ctx.policy.containers.require_devcontainer
             or ctx.policy.containers.require_compose
             or "docker" in ctx.policy.required_tools
@@ -42,7 +47,9 @@ def evaluate(ctx: RuleContext) -> list[Finding]:
                 rule_id="containers/docker-missing",
                 state=FindingState.BLOCKED,
                 summary="Project requires containers but neither Docker nor Podman CLI found.",
-                evidence=(Evidence(source="command", excerpt="docker --version / podman --version"),),
+                evidence=(
+                    Evidence(source="command", excerpt="docker --version / podman --version"),
+                ),
                 component="docker",
                 remediation_hint="Install Docker Desktop (or Podman) — MEDIUM risk; "
                 "DevRepro will not install it automatically.",
@@ -55,8 +62,13 @@ def evaluate(ctx: RuleContext) -> list[Finding]:
                 state=FindingState.BLOCKED,
                 summary=f"Docker CLI {c.docker_cli_version} present but daemon unreachable. "
                 + "; ".join(c.errors),
-                evidence=(Evidence(source="command", command=("docker", "info"),
-                                   excerpt="daemon did not respond"),),
+                evidence=(
+                    Evidence(
+                        source="command",
+                        command=("docker", "info"),
+                        excerpt="daemon did not respond",
+                    ),
+                ),
                 component="docker",
                 remediation_hint="Start Docker Desktop / systemctl start docker, then re-scan.",
             )
@@ -70,8 +82,13 @@ def evaluate(ctx: RuleContext) -> list[Finding]:
                     rule_id="containers/devcontainer-required",
                     state=FindingState.WARN,
                     summary="Policy requires a devcontainer definition but none was found.",
-                    evidence=(Evidence(source="file", path=".devcontainer/devcontainer.json",
-                                       excerpt="not found"),),
+                    evidence=(
+                        Evidence(
+                            source="file",
+                            path=".devcontainer/devcontainer.json",
+                            excerpt="not found",
+                        ),
+                    ),
                     component="devcontainer",
                     remediation_hint="Add .devcontainer/devcontainer.json to the repository.",
                 )

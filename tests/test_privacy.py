@@ -5,15 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from hypothesis import given
-from hypothesis import strategies as st
-
 from devrepro.privacy.gate import (
     PrivacyGate,
     assert_no_secrets,
     redact,
     scan_for_secrets,
 )
+from hypothesis import given
+from hypothesis import strategies as st
 
 SYNTHETIC_SECRETS = Path(__file__).parent / "fixtures" / "secrets" / "synthetic.txt"
 

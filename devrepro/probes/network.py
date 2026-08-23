@@ -9,11 +9,11 @@ Never disables certificate validation, ever.
 
 from __future__ import annotations
 
+import contextlib
 import re
 import socket
 import ssl
-import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from devrepro.core.models import Evidence, FindingState
 from devrepro.probes.base import Probe, ProbeResult
@@ -27,8 +27,14 @@ _ENDPOINTS: tuple[tuple[str, int], ...] = (
 )
 
 _PROXY_ENV_KEYS = (
-    "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
-    "http_proxy", "https_proxy", "all_proxy", "no_proxy",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "ALL_PROXY",
+    "NO_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "all_proxy",
+    "no_proxy",
 )
 
 _RATE_LIMIT_RE = re.compile(r"(429|rate limit)", re.IGNORECASE)
@@ -57,9 +63,7 @@ class NetworkTlsProbe(Probe):
 
         # -- proxy configuration (names + host only, never credentials) ----
         proxies = {k: self.ctx.env[k] for k in _PROXY_ENV_KEYS if self.ctx.env.get(k)}
-        redacted_proxies = {
-            k: re.sub(r"//[^@/]+@", "//***@", v) for k, v in proxies.items()
-        }
+        redacted_proxies = {k: re.sub(r"//[^@/]+@", "//***@", v) for k, v in proxies.items()}
         data["proxies"] = redacted_proxies
 
         # -- clock skew -------------------------------------------------------
@@ -106,7 +110,11 @@ class NetworkTlsProbe(Probe):
                     "network/endpoints-ok",
                     FindingState.PASS,
                     "All checked development endpoints reachable with valid TLS.",
-                    evidence=(Evidence(source="network", excerpt="github.com, registry.npmjs.org, pypi.org OK"),),
+                    evidence=(
+                        Evidence(
+                            source="network", excerpt="github.com, registry.npmjs.org, pypi.org OK"
+                        ),
+                    ),
                     component="network",
                 )
             )
@@ -130,10 +138,8 @@ class NetworkTlsProbe(Probe):
         except OSError as exc:
             return False, f"tls-handshake failed: {exc}"
         finally:
-            try:
+            with contextlib.suppress(OSError):
                 sock.close()
-            except OSError:
-                pass
 
     @staticmethod
     def _clock_skew_seconds() -> float | None:
@@ -143,9 +149,13 @@ class NetworkTlsProbe(Probe):
             ctx = ssl.create_default_context()
             crlf = chr(13) + chr(10)
             request = (
-                "HEAD / HTTP/1.1" + crlf
-                + "Host: github.com" + crlf
-                + "Connection: close" + crlf + crlf
+                "HEAD / HTTP/1.1"
+                + crlf
+                + "Host: github.com"
+                + crlf
+                + "Connection: close"
+                + crlf
+                + crlf
             ).encode("latin-1")
             with ctx.wrap_socket(sock, server_hostname="github.com") as tls:
                 tls.sendall(request)
@@ -167,16 +177,10 @@ class NetworkTlsProbe(Probe):
 
             remote = parsedate_to_datetime(date_line.split(":", 1)[1].strip())
             if remote.tzinfo is None:
-                remote = remote.replace(tzinfo=timezone.utc)
-            return (datetime.now(timezone.utc) - remote).total_seconds()
-        except Exception:  # noqa: BLE001 - diagnostics must degrade gracefully
+                remote = remote.replace(tzinfo=UTC)
+            return (datetime.now(UTC) - remote).total_seconds()
+        except Exception:
             return None
         finally:
-            try:
-                sock.close()  # type: ignore[possibly-undefined]
-            except Exception:  # noqa: BLE001
-                pass
-
-
-def _unused_time_guard() -> None:  # pragma: no cover
-    assert time.monotonic() >= 0
+            with contextlib.suppress(Exception):
+                sock.close()

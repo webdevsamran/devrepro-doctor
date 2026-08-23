@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 __all__ = ["build_default_probes", "load_plugin_probes"]
 
 
-def build_default_probes(ctx: "ProbeContext") -> list["Probe"]:
+def build_default_probes(ctx: ProbeContext) -> list[Probe]:
     """Instantiate every built-in probe applicable to this platform."""
     from devrepro.probes.containers import ContainerProbe
     from devrepro.probes.env_probe import EnvAuditProbe
@@ -41,30 +41,31 @@ def build_default_probes(ctx: "ProbeContext") -> list["Probe"]:
     probes: list[Probe] = []
     for cls in classes:
         try:
-            probe = cls(ctx)
-        except Exception:  # noqa: BLE001 - registry must never crash
+            probe = cls(ctx)  # type: ignore[abstract]
+        except Exception:
             continue
         if probe.supported():
             probes.append(probe)
     return probes
 
 
-def load_plugin_probes(ctx: "ProbeContext") -> list["Probe"]:
+def load_plugin_probes(ctx: ProbeContext) -> list[Probe]:
     """Load third-party probes registered under entry point group
-    ``devrepro.probes``. Failures are skipped, never fatal."""
+    ``devrepro.probes``. Failures are skipped, never fatal.
+    """
     probes: list[Probe] = []
     try:
         from importlib.metadata import entry_points
 
         eps = entry_points(group="devrepro.probes")
-    except Exception:  # noqa: BLE001
+    except Exception:
         return probes
     for ep in eps:
         try:
             obj = ep.load()
-            probe = obj(ctx)  # type: ignore[call-arg]
+            probe = obj(ctx)
             if probe.supported():
                 probes.append(probe)
-        except Exception:  # noqa: BLE001 - plugin isolation
+        except Exception:
             continue
     return probes

@@ -35,14 +35,16 @@ class EnvAuditProbe(Probe):
                 self.finding(
                     "env/required-names-present",
                     state,
-                    f"{len(required_names) - len(missing)}/{len(required_names)} required environment "
-                    "variable names are set (values never inspected).",
+                    f"{len(required_names) - len(missing)}/{len(required_names)} required "
+                    "environment variable names are set (values never inspected).",
                     evidence=(ev,),
                     detected=", ".join(missing) if missing else None,
                     required=", ".join(required_names),
                     component="environment",
-                    remediation_hint="Set the missing variables in your shell profile or .env loader. "
-                    "DevRepro never reads or prints their values.",
+                    remediation_hint=(
+                        "Set the missing variables in your shell profile or .env loader. "
+                        "DevRepro never reads or prints their values."
+                    ),
                 )
             )
 
@@ -60,4 +62,6 @@ class EnvAuditProbe(Probe):
                 )
             )
 
-        return ProbeResult(self.id, findings=tuple(findings), data={"cred_name_count": len(cred_names)})
+        return ProbeResult(
+            self.id, findings=tuple(findings), data={"cred_name_count": len(cred_names)}
+        )

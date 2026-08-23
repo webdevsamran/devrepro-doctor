@@ -8,13 +8,16 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from devrepro.core.models import Evidence, FindingState, ToolInstallation
-from devrepro.core.runner import CommandRunner
 from devrepro.probes.base import Probe, ProbeResult
 from devrepro.probes.helpers import extract_version, resolve_all_on_path
 
-__all__ = ["ToolSpec", "TOOL_SPECS", "detect_toolchain", "ToolchainProbe", "COMPILER_SPECS"]
+if TYPE_CHECKING:
+    from devrepro.core.runner import CommandRunner
+
+__all__ = ["COMPILER_SPECS", "TOOL_SPECS", "ToolSpec", "ToolchainProbe", "detect_toolchain"]
 
 
 @dataclass(frozen=True)
@@ -31,7 +34,9 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
     ToolSpec("git", ("git",), ("--version",), "tool", r"git version (\d[\w.\-+]*)"),
     ToolSpec("gh", ("gh",), ("--version",), "tool", r"gh version (\d[\w.\-+]*)"),
     # --- language runtimes ------------------------------------------------
-    ToolSpec("python", ("python", "python3"), ("--version",), "runtime", r"[Pp]ython (\d[\w.\-+]*)"),
+    ToolSpec(
+        "python", ("python", "python3"), ("--version",), "runtime", r"[Pp]ython (\d[\w.\-+]*)"
+    ),
     ToolSpec("node", ("node",), ("--version",), "runtime", r"v(\d[\w.\-+]*)"),
     ToolSpec("npm", ("npm",), ("--version",), "tool"),
     ToolSpec("pnpm", ("pnpm",), ("--version",), "tool"),
@@ -39,7 +44,7 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
     ToolSpec("bun", ("bun",), ("--version",), "runtime"),
     ToolSpec("deno", ("deno",), ("--version",), "runtime"),
     ToolSpec("java", ("java",), ("-version",), "runtime", r'version "(\d[\w._\-]*)"'),
-    ToolSpec("javac", ("javac",), ("-version",), "compiler", r'javac (\d[\w._\-]*)'),
+    ToolSpec("javac", ("javac",), ("-version",), "compiler", r"javac (\d[\w._\-]*)"),
     ToolSpec("dotnet", ("dotnet",), ("--version",), "runtime"),
     ToolSpec("go", ("go",), ("version",), "runtime", r"go version go(\d[\w.\-+]*)"),
     ToolSpec("rustc", ("rustc",), ("--version",), "compiler", r"rustc (\d[\w.\-+]*)"),
@@ -55,7 +60,13 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
     # --- containers ---------------------------------------------------------
     ToolSpec("docker", ("docker",), ("--version",), "container", r"Docker version (\d[\w.\-+]*)"),
     ToolSpec("podman", ("podman",), ("--version",), "container", r"podman version (\d[\w.\-+]*)"),
-    ToolSpec("kubectl", ("kubectl",), ("version", "--client"), "container", r"v?Client Version.*?v(\d[\w.\-+]*)"),
+    ToolSpec(
+        "kubectl",
+        ("kubectl",),
+        ("version", "--client"),
+        "container",
+        r"v?Client Version.*?v(\d[\w.\-+]*)",
+    ),
     ToolSpec("helm", ("helm",), ("version", "--short"), "container"),
     ToolSpec("terraform", ("terraform",), ("--version",), "tool", r"Terraform v(\d[\w.\-+]*)"),
     # --- cloud CLIs ----------------------------------------------------------
@@ -120,9 +131,7 @@ def _install_source(path: str) -> str:
     return "unknown"
 
 
-def _run_version(
-    runner: CommandRunner, exe: str, spec: ToolSpec
-) -> tuple[str | None, str]:
+def _run_version(runner: CommandRunner, exe: str, spec: ToolSpec) -> tuple[str | None, str]:
     argv = (exe, *spec.version_args) if spec.version_args != ("",) else (exe,)
     res = runner.run(argv, timeout=15.0)
     output = res.stdout or res.stderr
@@ -141,7 +150,8 @@ def detect_toolchain(
     specs: tuple[ToolSpec, ...] = TOOL_SPECS,
 ) -> list[ToolInstallation]:
     """Resolve every tool spec against PATH. Returns all installations,
-    including duplicates of the same tool at different paths."""
+    including duplicates of the same tool at different paths.
+    """
     installs: list[ToolInstallation] = []
     for spec in specs:
         for cmd in spec.commands:
@@ -182,7 +192,11 @@ class ToolchainProbe(Probe):
         findings = []
         ev_dup = Evidence(
             source="command",
-            command=("where.exe <tool>" if self.ctx.platform == "windows" else "which -a <tool>"),
+            command=(
+                ("where.exe", "<tool>")
+                if self.ctx.platform == "windows"
+                else ("which", "-a", "<tool>")
+            ),
             excerpt="multiple installations resolved across PATH",
         )
         for name, group in sorted(dups.items()):
@@ -192,7 +206,11 @@ class ToolchainProbe(Probe):
                     f"{name}/multiple-installations",
                     FindingState.WARN if len(versions) > 1 else FindingState.INFO,
                     f"{len(group)} installations of '{name}' found"
-                    + (f" with differing versions: {', '.join(versions)}" if len(versions) > 1 else ""),
+                    + (
+                        f" with differing versions: {', '.join(versions)}"
+                        if len(versions) > 1
+                        else ""
+                    ),
                     evidence=(ev_dup,),
                     detected=", ".join(versions),
                     component=name,
@@ -212,8 +230,13 @@ class ToolchainProbe(Probe):
                         "python/store-alias-shadow",
                         FindingState.WARN,
                         "A Windows Store python alias shadows a real Python installation.",
-                        evidence=(Evidence(source="command", command=("where", "python"),
-                                           excerpt="WindowsApps alias precedes real install"),),
+                        evidence=(
+                            Evidence(
+                                source="command",
+                                command=("where", "python"),
+                                excerpt="WindowsApps alias precedes real install",
+                            ),
+                        ),
                         detected=aliases[0].exe_path,
                         component="python",
                         remediation_hint="Disable App execution aliases for python.exe "

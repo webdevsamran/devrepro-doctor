@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from devrepro.core.errors import RemediationRefusedError
 from devrepro.core.models import Evidence, Finding, FindingState
 from devrepro.remediation.planner import AUTOMATABLE_RISKS, build_plan, execute_plan
@@ -11,8 +10,11 @@ from devrepro.remediation.planner import AUTOMATABLE_RISKS, build_plan, execute_
 
 def _finding(rule_id: str, component: str = "path") -> Finding:
     return Finding(
-        rule_id=rule_id, state=FindingState.WARN, summary="s",
-        evidence=(Evidence(source="system", excerpt="e"),), component=component,
+        rule_id=rule_id,
+        state=FindingState.WARN,
+        summary="s",
+        evidence=(Evidence(source="system", excerpt="e"),),
+        component=component,
     )
 
 
@@ -25,10 +27,12 @@ def test_plan_is_dry_run_by_construction() -> None:
 
 
 def test_only_safe_low_automatable() -> None:
-    steps = build_plan([
-        _finding("path/duplicates"),
-        _finding("python/version-mismatch", "python"),
-    ])
+    steps = build_plan(
+        [
+            _finding("path/duplicates"),
+            _finding("python/version-mismatch", "python"),
+        ]
+    )
     for s in steps:
         if s.automatable:
             assert s.risk in AUTOMATABLE_RISKS
@@ -43,10 +47,12 @@ def test_execute_refuses_without_confirmation() -> None:
 
 
 def test_execute_runs_only_automatable() -> None:
-    steps = build_plan([
-        _finding("path/duplicates"),
-        _finding("python/version-mismatch", "python"),
-    ])
+    steps = build_plan(
+        [
+            _finding("path/duplicates"),
+            _finding("python/version-mismatch", "python"),
+        ]
+    )
     executed: list[tuple] = []
 
     def fake_exec(cmd):
@@ -61,12 +67,14 @@ def test_execute_runs_only_automatable() -> None:
 
 def test_no_destructive_actions_in_catalog() -> None:
     forbidden = ("uninstall", "delete user data", "driver", "registry edit")
-    steps = build_plan([
-        _finding("path/duplicates"),
-        _finding("path/dead-entries"),
-        _finding("wsl/no-default-distro", "wsl"),
-        _finding("network/clock-skew", "network"),
-    ])
+    steps = build_plan(
+        [
+            _finding("path/duplicates"),
+            _finding("path/dead-entries"),
+            _finding("wsl/no-default-distro", "wsl"),
+            _finding("network/clock-skew", "network"),
+        ]
+    )
     for s in steps:
         blob = (s.title + " ".join(s.changes)).lower()
         assert not any(w in blob for w in forbidden), s.id

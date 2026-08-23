@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
-from devrepro.core.models import Finding
-from devrepro.rules.base import RuleContext
+from typing import TYPE_CHECKING
+
 from devrepro.rules.packs.common import runtime_findings, tool_findings
+
+if TYPE_CHECKING:
+    from devrepro.core.models import Finding
+    from devrepro.rules.base import RuleContext
 
 __all__ = ["evaluate"]
 

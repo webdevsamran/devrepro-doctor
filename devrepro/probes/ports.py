@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 import socket
-import subprocess  # noqa: S404 - read-only netstat queries only
+import subprocess
 
 from devrepro.core.models import Evidence, FindingState
 from devrepro.probes.base import Probe, ProbeResult
@@ -14,7 +14,18 @@ from devrepro.probes.base import Probe, ProbeResult
 __all__ = ["PortsServicesProbe"]
 
 _COMMON_DEV_PORTS: tuple[int, ...] = (
-    3000, 3001, 4200, 5000, 5173, 5432, 6379, 8000, 8080, 8081, 9000, 27017,
+    3000,
+    3001,
+    4200,
+    5000,
+    5173,
+    5432,
+    6379,
+    8000,
+    8080,
+    8081,
+    9000,
+    27017,
 )
 
 
@@ -36,7 +47,9 @@ class PortsServicesProbe(Probe):
                     "ports/port-in-use",
                     FindingState.INFO,
                     f"Port {port} is in use by PID {pid}.",
-                    evidence=(Evidence(source="system", excerpt=f"port {port} listening, pid={pid}"),),
+                    evidence=(
+                        Evidence(source="system", excerpt=f"port {port} listening, pid={pid}"),
+                    ),
                     detected=str(port),
                     component="ports",
                 )
@@ -67,13 +80,11 @@ class PortsServicesProbe(Probe):
     @staticmethod
     def _owner_pid(port: int) -> int | None:
         try:
-            if subprocess is None:  # pragma: no cover
-                return None
-            out = subprocess.run(  # noqa: S603
+            out = subprocess.run(
                 ["netstat", "-ano"], capture_output=True, text=True, timeout=10, check=False
             ).stdout
             pattern = re.compile(rf":{port}\s+.*LISTENING\s+(\d+)", re.IGNORECASE)
             m = pattern.search(out)
             return int(m.group(1)) if m else None
-        except Exception:  # noqa: BLE001
+        except Exception:
             return None

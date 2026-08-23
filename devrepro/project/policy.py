@@ -13,7 +13,7 @@ from devrepro.core.models import (
     PolicySupportedOS,
 )
 
-__all__ = ["load_policy", "POLICY_FILENAME"]
+__all__ = ["POLICY_FILENAME", "load_policy"]
 
 POLICY_FILENAME = ".devrepro.toml"
 

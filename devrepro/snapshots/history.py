@@ -7,14 +7,14 @@ Drift is computed between the newest stored snapshot and the previous one.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from devrepro.core.models import DiffClassification, Snapshot
 from devrepro.diff.engine import diff_snapshots
 from devrepro.snapshots.store import SNAPSHOT_SUFFIX, load_snapshot
 
-__all__ = ["HistoryStore", "DriftItem", "compute_drift"]
+__all__ = ["DriftItem", "HistoryStore", "compute_drift"]
 
 
 class HistoryStore:
@@ -26,7 +26,7 @@ class HistoryStore:
         return sorted(self.dir.glob("*" + SNAPSHOT_SUFFIX), key=lambda p: p.stat().st_mtime)
 
     def save(self, snapshot: Snapshot) -> Path:
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         path = self.dir / f"{stamp}-{snapshot.snapshot_id}{SNAPSHOT_SUFFIX}"
         from devrepro.snapshots.store import save_snapshot
 
@@ -37,13 +37,13 @@ class HistoryStore:
         for path in reversed(self.list_snapshots()[-n:]):
             try:
                 out.append(load_snapshot(path))
-            except Exception:  # noqa: BLE001 - skip corrupt entries
+            except Exception:
                 continue
         return out
 
 
 class DriftItem:
-    __slots__ = ("name", "kind", "detail")
+    __slots__ = ("detail", "kind", "name")
 
     def __init__(self, name: str, kind: str, detail: str) -> None:
         self.name = name

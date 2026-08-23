@@ -8,7 +8,7 @@ written. Loading validates against the embedded schema version.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -16,7 +16,7 @@ from pydantic import ValidationError
 from devrepro.core.errors import SnapshotError, SnapshotSchemaError
 from devrepro.core.models import ScanReport, Snapshot
 
-__all__ = ["snapshot_from_report", "save_snapshot", "load_snapshot", "SNAPSHOT_SUFFIX"]
+__all__ = ["SNAPSHOT_SUFFIX", "load_snapshot", "save_snapshot", "snapshot_from_report"]
 
 SNAPSHOT_SUFFIX = ".devrepro-snapshot.json"
 SUPPORTED_SCHEMA_VERSIONS = ("1.0",)
@@ -26,12 +26,14 @@ def snapshot_from_report(report: ScanReport) -> Snapshot:
     """Build a Snapshot from a completed (already sanitized) ScanReport."""
     return Snapshot(
         schema_version="1.0",
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
         devrepro_version=report.devrepro_version,
         platform=report.platform,
         tools=report.tools,
         path_analysis=report.path_analysis,
-        compilers=tuple(t for t in report.tools if t.name in ("gcc", "clang", "cl", "rustc", "javac")),
+        compilers=tuple(
+            t for t in report.tools if t.name in ("gcc", "clang", "cl", "rustc", "javac")
+        ),
         requirements_fingerprint=report.requirements,
         containers=None,
         wsl=None,
@@ -83,11 +85,23 @@ def load_snapshot(path: Path) -> Snapshot:
     if {"findings", "requirements", "policy_applied"} & set(data):
         try:
             coerced = {
-                k: v for k, v in data.items()
-                if k in {
-                    "schema_version", "created_at", "devrepro_version", "platform",
-                    "tools", "path_analysis", "compilers", "containers", "wsl",
-                    "gpu", "virtualenvs", "score", "privacy",
+                k: v
+                for k, v in data.items()
+                if k
+                in {
+                    "schema_version",
+                    "created_at",
+                    "devrepro_version",
+                    "platform",
+                    "tools",
+                    "path_analysis",
+                    "compilers",
+                    "containers",
+                    "wsl",
+                    "gpu",
+                    "virtualenvs",
+                    "score",
+                    "privacy",
                 }
             }
             coerced.setdefault("devrepro_version", data.get("devrepro_version", "unknown"))

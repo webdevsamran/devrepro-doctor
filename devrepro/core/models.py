@@ -7,41 +7,41 @@ source of truth for JSON schemas under ``schemas/``. Models are immutable
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 __all__ = [
-    "FindingState",
-    "RiskLevel",
-    "DiffClassification",
-    "RequirementKind",
-    "Evidence",
-    "Finding",
-    "ToolInstallation",
-    "PathEntry",
-    "PathAnalysis",
-    "ProjectRequirement",
-    "PlatformInfo",
     "ContainerState",
-    "WslState",
-    "GpuStack",
-    "VirtualenvInfo",
-    "ReproducibilityPoint",
-    "ReproducibilityScore",
-    "Snapshot",
+    "DiffClassification",
     "DiffEntry",
     "EnvironmentDiff",
-    "Remediation",
+    "Evidence",
+    "Finding",
+    "FindingState",
+    "GpuStack",
+    "PathAnalysis",
+    "PathEntry",
+    "PlatformInfo",
     "Policy",
+    "ProjectRequirement",
+    "Remediation",
+    "ReproducibilityPoint",
+    "ReproducibilityScore",
+    "RequirementKind",
+    "RiskLevel",
     "ScanReport",
+    "Snapshot",
+    "ToolInstallation",
+    "VirtualenvInfo",
+    "WslState",
 ]
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class _FrozenModel(BaseModel):
@@ -50,10 +50,10 @@ class _FrozenModel(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
-class FindingState(str, Enum):
+class FindingState(StrEnum):
     """Lifecycle states for a finding."""
 
-    PASS = "PASS"
+    PASS = "PASS"  # noqa: S105 - finding state name, not a credential
     INFO = "INFO"
     WARN = "WARN"
     ERROR = "ERROR"
@@ -61,7 +61,7 @@ class FindingState(str, Enum):
     UNKNOWN = "UNKNOWN"
 
 
-class RiskLevel(str, Enum):
+class RiskLevel(StrEnum):
     """Risk tiers for remediations. Only SAFE/LOW may be automated."""
 
     SAFE = "SAFE"
@@ -70,7 +70,7 @@ class RiskLevel(str, Enum):
     HIGH = "HIGH"
 
 
-class DiffClassification(str, Enum):
+class DiffClassification(StrEnum):
     """How a component differs between two snapshots."""
 
     SAME = "same"
@@ -82,7 +82,7 @@ class DiffClassification(str, Enum):
     PROJECT_CRITICAL = "project-critical"
 
 
-class RequirementKind(str, Enum):
+class RequirementKind(StrEnum):
     RUNTIME = "runtime"
     TOOL = "tool"
     ENV_NAME = "env-name"
@@ -143,9 +143,7 @@ class ToolInstallation(_FrozenModel):
         "nvm, pyenv, official-installer, store-alias, unknown",
     )
     is_active: bool = False
-    precedence: int | None = Field(
-        default=None, description="PATH precedence rank; lower wins"
-    )
+    precedence: int | None = Field(default=None, description="PATH precedence rank; lower wins")
 
 
 class PathEntry(_FrozenModel):
@@ -176,7 +174,11 @@ class PathAnalysis(_FrozenModel):
 class ProjectRequirement(_FrozenModel):
     """A requirement *declared* by a project manifest/lockfile/policy."""
 
-    ecosystem: str = Field(description="python | node | dotnet | go | rust | php | ruby | java | cpp | container | generic")
+    ecosystem: str = Field(
+        description=(
+            "python | node | dotnet | go | rust | php | ruby | java | cpp | container | generic"
+        )
+    )
     name: str
     spec: str = Field(description="Version range as declared; never invented")
     kind: RequirementKind
@@ -280,7 +282,9 @@ class Snapshot(_FrozenModel):
 
 
 class DiffEntry(_FrozenModel):
-    component: str = Field(description="tool | path | compiler | container | wsl | gpu | requirement")
+    component: str = Field(
+        description="tool | path | compiler | container | wsl | gpu | requirement"
+    )
     name: str
     classification: DiffClassification
     a_value: str | None = None
@@ -309,9 +313,7 @@ class Remediation(_FrozenModel):
     title: str
     risk: RiskLevel
     preconditions: tuple[str, ...] = ()
-    changes: tuple[str, ...] = Field(
-        description="Exact intended changes; no side effects implied"
-    )
+    changes: tuple[str, ...] = Field(description="Exact intended changes; no side effects implied")
     rollback: str
     automatable: bool = False
     finding_ids: tuple[str, ...] = ()
@@ -375,13 +377,21 @@ class ScanReport(_FrozenModel):
             "redacted": True,
             "secrets_blocked": True,
             "collected": [
-                "os/arch/kernel", "cpu/ram/disk totals", "shell name",
-                "PATH entries (normalized)", "tool names/versions/exe paths",
-                "declared project requirements", "container/wsl/gpu state",
+                "os/arch/kernel",
+                "cpu/ram/disk totals",
+                "shell name",
+                "PATH entries (normalized)",
+                "tool names/versions/exe paths",
+                "declared project requirements",
+                "container/wsl/gpu state",
             ],
             "never_collected": [
-                "usernames", "home directory absolute paths", "tokens/secrets",
-                "file contents beyond manifests", "browser history", "emails",
+                "usernames",
+                "home directory absolute paths",
+                "tokens/secrets",
+                "file contents beyond manifests",
+                "browser history",
+                "emails",
             ],
         }
     )

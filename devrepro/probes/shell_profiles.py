@@ -72,7 +72,8 @@ class ShellProfileProbe(Probe):
             sanitized = _redact_home(text, home)
             for manager, patterns in _MANAGER_INIT_PATTERNS.items():
                 hits = [
-                    ln.strip() for ln in sanitized.splitlines()
+                    ln.strip()
+                    for ln in sanitized.splitlines()
                     if any(re.search(p, ln) for p in patterns)
                 ]
                 if hits:
@@ -110,8 +111,13 @@ class ShellProfileProbe(Probe):
                         FindingState.WARN,
                         f"Multiple {ecosystem} version managers initialize in your shell profiles: "
                         f"{', '.join(present)}. The last one to run wins unpredictably per-shell.",
-                        evidence=(Evidence(source="file", path="<profile>",
-                                           excerpt="; ".join(conflicts[p][0] for p in present)),),
+                        evidence=(
+                            Evidence(
+                                source="file",
+                                path="<profile>",
+                                excerpt="; ".join(conflicts[p][0] for p in present),
+                            ),
+                        ),
                         detected=", ".join(present),
                         component=ecosystem,
                         remediation_hint="Pick one manager and remove the other's init lines "
@@ -125,8 +131,13 @@ class ShellProfileProbe(Probe):
                 "shell/managers-initialized",
                 FindingState.INFO,
                 f"Tool-manager initialization found in shell profiles: {summary}.",
-                evidence=(Evidence(source="file", path="<profile>",
-                                   excerpt=f"managers={summary}; active={active_kind or 'none'}"),),
+                evidence=(
+                    Evidence(
+                        source="file",
+                        path="<profile>",
+                        excerpt=f"managers={summary}; active={active_kind or 'none'}",
+                    ),
+                ),
                 component="shell",
             )
         )

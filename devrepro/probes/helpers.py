@@ -4,17 +4,18 @@ from __future__ import annotations
 
 import os
 import re
-import shutil
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from devrepro.core.runner import CommandRunner
+if TYPE_CHECKING:
+    from devrepro.core.runner import CommandRunner
 
 __all__ = [
-    "first_line",
     "extract_version",
-    "resolve_all_on_path",
-    "read_text_safe",
     "file_exists_safe",
+    "first_line",
+    "read_text_safe",
+    "resolve_all_on_path",
 ]
 
 _VERSION_PATTERNS = [
@@ -23,10 +24,10 @@ _VERSION_PATTERNS = [
 
 
 def first_line(text: str) -> str:
-    for line in text.splitlines():
-        line = line.strip()
-        if line:
-            return line
+    for raw in text.splitlines():
+        stripped = raw.strip()
+        if stripped:
+            return stripped
     return ""
 
 
@@ -48,7 +49,11 @@ def resolve_all_on_path(name: str, *, path_env: str | None = None) -> list[str]:
     matches: list[str] = []
     exts: list[str]
     if os.name == "nt":
-        exts = [e.strip().lower() for e in os.environ.get("PATHEXT", ".COM;.EXE;.BAT;.CMD").split(";") if e.strip()]
+        exts = [
+            e.strip().lower()
+            for e in os.environ.get("PATHEXT", ".COM;.EXE;.BAT;.CMD").split(";")
+            if e.strip()
+        ]
         base = name.lower()
         candidates = [base] + [base + e for e in exts]
     else:
@@ -58,14 +63,14 @@ def resolve_all_on_path(name: str, *, path_env: str | None = None) -> list[str]:
         if not directory:
             continue
         for cand in candidates:
-            full = os.path.join(directory, cand)
-            real = os.path.normcase(os.path.abspath(full))
+            full = str(Path(directory) / cand)
+            real = os.path.normcase(str(Path(full).resolve()))
             if real in seen:
                 continue
-            if os.path.isfile(full) and (os.name != "nt" or True):
-                if os.access(full, os.X_OK) or os.name == "nt":
-                    seen.add(real)
-                    matches.append(full)
+            is_exec = os.access(full, os.X_OK) or os.name == "nt"
+            if Path(full).is_file() and is_exec:
+                seen.add(real)
+                matches.append(full)
     return matches
 
 
@@ -91,6 +96,6 @@ def file_exists_safe(path: Path) -> bool:
         return False
 
 
-def which_first(name: str, runner: CommandRunner | None = None) -> str | None:  # noqa: ARG001
+def which_first(name: str, runner: CommandRunner | None = None) -> str | None:
     found = resolve_all_on_path(name)
     return found[0] if found else None

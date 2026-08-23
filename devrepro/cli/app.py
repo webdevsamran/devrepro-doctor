@@ -9,14 +9,17 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import typer
 
 from devrepro import __version__
 from devrepro.core.errors import DevReproError
 from devrepro.core.exit_codes import ExitCode
-from devrepro.core.models import FindingState
+from devrepro.core.models import FindingState, Policy
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 app = typer.Typer(
     name="devrepro",
@@ -30,7 +33,8 @@ JsonOption = typer.Option(False, "--json", help="Emit machine-readable JSON.")
 PolicyOption = typer.Option(None, "--policy", help="Path to .devrepro.toml policy.")
 
 
-def _load_policy(path: Optional[Path]):
+def _load_policy(path: Path | None) -> Policy | None:
+    """Load a .devrepro.toml policy; None when no path given."""
     if path is None:
         return None
     from devrepro.project.policy import load_policy
@@ -58,7 +62,7 @@ def check_cmd(
     policy_path: Path = typer.Option(
         Path(".devrepro.toml"), "--policy", help="Path to .devrepro.toml policy."
     ),
-    project_dir: Optional[Path] = typer.Option(None, "--project", help="Project root."),
+    project_dir: Path | None = typer.Option(None, "--project", help="Project root."),
     json_out: bool = JsonOption,
 ) -> None:
     """Validate a .devrepro.toml policy and check the machine against it.
@@ -71,11 +75,11 @@ def check_cmd(
 
     try:
         policy = load_policy(policy_path)
-    except Exception as exc:  # noqa: BLE001 - user-facing validation error
+    except Exception as exc:
         if json_out:
             typer.echo(json.dumps({"error": f"invalid policy: {exc}"}, indent=2))
         else:
-            typer.secho(f"Invalid policy {policy_path}: {exc}", fg=typer.RED)
+            typer.secho(f"Invalid policy {policy_path}: {exc}", fg="red")
         raise SystemExit(ExitCode.USAGE_ERROR) from exc
 
     from devrepro.cli.pipeline import run_scan
@@ -86,8 +90,10 @@ def check_cmd(
     payload = {
         "policy": str(policy_path),
         "verdict": (
-            "BLOCKED" if ("BLOCKED" in states or "ERROR" in states)
-            else "READY_WITH_WARNINGS" if (states - {"PASS", "INFO"})
+            "BLOCKED"
+            if ("BLOCKED" in states or "ERROR" in states)
+            else "READY_WITH_WARNINGS"
+            if (states - {"PASS", "INFO"})
             else "READY"
         ),
         "findings": [f.model_dump(mode="json") for f in findings],
@@ -100,8 +106,8 @@ def check_cmd(
 @app.command()
 def doctor(
     json_out: bool = JsonOption,
-    policy_path: Optional[Path] = PolicyOption,
-    project_dir: Optional[Path] = typer.Option(None, "--project", help="Project root."),
+    policy_path: Path | None = PolicyOption,
+    project_dir: Path | None = typer.Option(None, "--project", help="Project root."),
 ) -> None:
     """Full read-only diagnostic scan of machine + project."""
     from devrepro.cli.pipeline import run_scan
@@ -110,7 +116,7 @@ def doctor(
         report = run_scan(project_dir=project_dir, policy=_load_policy(policy_path))
     except DevReproError as exc:
         typer.secho(f"error: {exc.message}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(exc.exit_code.value)
+        raise typer.Exit(exc.exit_code.value) from exc
     if json_out:
         from devrepro.reports.renderers import render_json
 
@@ -126,11 +132,17 @@ def doctor(
         table.add_column("Summary")
         for f in sorted(
             report.findings,
-            key=lambda x: ["BLOCKED", "ERROR", "WARN", "UNKNOWN", "INFO", "PASS"].index(x.state.value),
+            key=lambda x: ["BLOCKED", "ERROR", "WARN", "UNKNOWN", "INFO", "PASS"].index(
+                x.state.value
+            ),
         ):
             color = {
-                "BLOCKED": "red", "ERROR": "red", "WARN": "yellow",
-                "UNKNOWN": "grey50", "INFO": "blue", "PASS": "green",
+                "BLOCKED": "red",
+                "ERROR": "red",
+                "WARN": "yellow",
+                "UNKNOWN": "grey50",
+                "INFO": "blue",
+                "PASS": "green",
             }[f.state.value]
             table.add_row(f"[{color}]{f.state.value}[/{color}]", f.rule_id, f.summary[:100])
         console.print(table)
@@ -146,12 +158,11 @@ def doctor(
 @app.command()
 def info(json_out: bool = JsonOption) -> None:
     """Quick machine summary (OS, shell, key tool versions)."""
+    from devrepro.core.runner import SubprocessRunner
     from devrepro.probes.base import ProbeContext
     from devrepro.probes.registry import build_default_probes
-    from devrepro.core.runner import SubprocessRunner
 
     ctx = ProbeContext.capture(SubprocessRunner())
-    engine_results = {}
     from devrepro.probes.base import ProbeEngine
 
     wanted = {"system/os", "system/shell", "system/resources"}
@@ -169,24 +180,35 @@ def info(json_out: bool = JsonOption) -> None:
 @app.command()
 def scan(
     json_out: bool = JsonOption,
-    output: Optional[Path] = typer.Option(None, "-o", "--output", help="Write report to file."),
+    output: Path | None = typer.Option(None, "-o", "--output", help="Write report to file."),
     fmt: str = typer.Option("json", "--format", help="json|markdown|junit|html"),
-    policy_path: Optional[Path] = PolicyOption,
+    policy_path: Path | None = PolicyOption,
 ) -> None:
     """Run a scan and emit a report artifact (default format: json)."""
     from devrepro.cli.pipeline import run_scan
 
     report = run_scan(policy=_load_policy(policy_path))
     renderers = {
-        "json": lambda: __import__("devrepro.reports.renderers", fromlist=["render_json"]).render_json(report),
-        "markdown": lambda: __import__("devrepro.reports.renderers", fromlist=["render_markdown"]).render_markdown(report),
-        "junit": lambda: __import__("devrepro.reports.renderers", fromlist=["render_junit"]).render_junit(report),
-        "html": lambda: __import__("devrepro.reports.renderers", fromlist=["render_html"]).render_html(report),
+        "json": lambda: __import__(
+            "devrepro.reports.renderers", fromlist=["render_json"]
+        ).render_json(report),
+        "markdown": lambda: __import__(
+            "devrepro.reports.renderers", fromlist=["render_markdown"]
+        ).render_markdown(report),
+        "junit": lambda: __import__(
+            "devrepro.reports.renderers", fromlist=["render_junit"]
+        ).render_junit(report),
+        "html": lambda: __import__(
+            "devrepro.reports.renderers", fromlist=["render_html"]
+        ).render_html(report),
     }
     renderer = renderers.get(fmt)
     if renderer is None:
-        typer.secho(f"unknown format {fmt!r}; choose json|markdown|junit|html",
-                    fg=typer.colors.RED, err=True)
+        typer.secho(
+            f"unknown format {fmt!r}; choose json|markdown|junit|html",
+            fg=typer.colors.RED,
+            err=True,
+        )
         raise typer.Exit(ExitCode.USAGE_ERROR)
     content = renderer()
     if output is not None:
@@ -200,7 +222,7 @@ def scan(
 
 @app.command()
 def project(
-    path: Path = typer.Argument(Path("."), help="Project root."),
+    path: Path = typer.Argument(Path(), help="Project root."),
     json_out: bool = JsonOption,
 ) -> None:
     """Show what this project declares (requirements, lockfiles, CI)."""
@@ -270,8 +292,9 @@ def which(
         typer.secho(f"'{name}' not found on PATH.", fg=typer.colors.RED)
         raise typer.Exit(ExitCode.BLOCKED)
     typer.echo(f"'{name}' resolves to: {matches[0]}")
-    typer.echo("Why it wins: its directory appears earliest in PATH "
-               "(earlier entries take precedence).")
+    typer.echo(
+        "Why it wins: its directory appears earliest in PATH (earlier entries take precedence)."
+    )
     if all_matches and len(matches) > 1:
         typer.echo("Shadowed installations:")
         for m in matches[1:]:
@@ -281,10 +304,10 @@ def which(
 
 @app.command()
 def snapshot(
-    output: Optional[Path] = typer.Option(None, "-o", "--output"),
+    output: Path | None = typer.Option(None, "-o", "--output"),
     save_history: bool = typer.Option(True, "--history/--no-history"),
     json_out: bool = JsonOption,
-    policy_path: Optional[Path] = PolicyOption,
+    policy_path: Path | None = PolicyOption,
 ) -> None:
     """Create a privacy-sanitized environment snapshot."""
     from devrepro.cli.pipeline import run_scan
@@ -309,7 +332,7 @@ def diff(
     a: Path = typer.Argument(..., exists=True, readable=True),
     b: Path = typer.Argument(..., exists=True, readable=True),
     fmt: str = typer.Option("terminal", "--format", help="terminal|json|markdown|html"),
-    output: Optional[Path] = typer.Option(None, "-o", "--output"),
+    output: Path | None = typer.Option(None, "-o", "--output"),
     json_out: bool = JsonOption,
 ) -> None:
     """Diff two snapshots to explain 'works on my machine'."""
@@ -355,7 +378,7 @@ def diff(
 
 @app.command()
 def preflight(
-    policy_path: Optional[Path] = PolicyOption,
+    policy_path: Path | None = PolicyOption,
     json_out: bool = JsonOption,
 ) -> None:
     """CI/onboarding gate: READY / READY_WITH_WARNINGS / BLOCKED + exit code."""
@@ -364,13 +387,15 @@ def preflight(
     report = run_scan(policy=_load_policy(policy_path))
     worst = report.worst_state().value
     verdict = {
-        "PASS": "READY", "INFO": "READY",
-        "WARN": "READY_WITH_WARNINGS", "UNKNOWN": "READY_WITH_WARNINGS",
-        "ERROR": "BLOCKED", "BLOCKED": "BLOCKED",
+        "PASS": "READY",
+        "INFO": "READY",
+        "WARN": "READY_WITH_WARNINGS",
+        "UNKNOWN": "READY_WITH_WARNINGS",
+        "ERROR": "BLOCKED",
+        "BLOCKED": "BLOCKED",
     }.get(worst, "READY_WITH_WARNINGS")
     blockers = [
-        f.rule_id for f in report.findings
-        if f.state in (FindingState.ERROR, FindingState.BLOCKED)
+        f.rule_id for f in report.findings if f.state in (FindingState.ERROR, FindingState.BLOCKED)
     ]
     payload = {"verdict": verdict, "blockers": blockers}
     if json_out:
@@ -379,16 +404,18 @@ def preflight(
         typer.echo(f"PREFLIGHT: {verdict}")
         for b in blockers:
             typer.echo(f"  blocker: {b}")
-    raise typer.Exit({
-        "READY": ExitCode.READY,
-        "READY_WITH_WARNINGS": ExitCode.READY_WITH_WARNINGS,
-        "BLOCKED": ExitCode.BLOCKED,
-    }[verdict])
+    raise typer.Exit(
+        {
+            "READY": ExitCode.READY,
+            "READY_WITH_WARNINGS": ExitCode.READY_WITH_WARNINGS,
+            "BLOCKED": ExitCode.BLOCKED,
+        }[verdict]
+    )
 
 
 @app.command()
 def plan(
-    policy_path: Optional[Path] = PolicyOption,
+    policy_path: Path | None = PolicyOption,
     json_out: bool = JsonOption,
 ) -> None:
     """Dry-run remediation plan. Nothing is executed."""
@@ -426,7 +453,7 @@ def fix(
         results = execute_plan(steps, confirmed=yes, executor=lambda cmd: 0)
     except DevReproError as exc:
         typer.secho(f"refused: {exc.message}", fg=typer.colors.YELLOW, err=True)
-        raise typer.Exit(ExitCode.USAGE_ERROR)
+        raise typer.Exit(ExitCode.USAGE_ERROR) from exc
     _emit(results, json_out)
     raise typer.Exit(ExitCode.READY)
 
@@ -443,7 +470,7 @@ def rules(json_out: bool = JsonOption) -> None:
 @app.command()
 def plugins(json_out: bool = JsonOption) -> None:
     """List installed plugins per entry-point group."""
-    from devrepro.plugins.loader import PLUGIN_GROUPS, API_VERSION, list_plugins
+    from devrepro.plugins.loader import API_VERSION, PLUGIN_GROUPS, list_plugins
 
     found = list_plugins()
     payload = {"api_version": API_VERSION, "groups": found}
@@ -461,20 +488,28 @@ def plugins(json_out: bool = JsonOption) -> None:
 
 @app.command()
 def report(
-    input_file: Path = typer.Argument(..., exists=True, readable=True,
-                                     help="A saved JSON scan report."),
+    input_file: Path = typer.Argument(
+        ..., exists=True, readable=True, help="A saved JSON scan report."
+    ),
     fmt: str = typer.Option("markdown", "--format", help="markdown|junit|html|json"),
-    output: Optional[Path] = typer.Option(None, "-o", "--output"),
+    output: Path | None = typer.Option(None, "-o", "--output"),
 ) -> None:
     """Re-render a saved JSON report into another format."""
     from devrepro.core.models import ScanReport
     from devrepro.reports.renderers import (
-        render_html, render_junit, render_json, render_markdown,
+        render_html,
+        render_json,
+        render_junit,
+        render_markdown,
     )
 
     data = ScanReport.model_validate(json.loads(input_file.read_text(encoding="utf-8")))
-    renderers = {"markdown": render_markdown, "junit": render_junit,
-                 "html": render_html, "json": render_json}
+    renderers = {
+        "markdown": render_markdown,
+        "junit": render_junit,
+        "html": render_html,
+        "json": render_json,
+    }
     renderer = renderers.get(fmt)
     if renderer is None:
         typer.secho(f"unknown format {fmt!r}", fg=typer.colors.RED, err=True)
@@ -494,20 +529,26 @@ def export(
     out_dir: Path = typer.Option(Path("./devrepro-export"), "--out-dir"),
 ) -> None:
     """Export a report/snapshot to all formats in a directory."""
+    from devrepro.core.models import ScanReport
     from devrepro.exporters.base import FileExporter
     from devrepro.reports.renderers import (
-        render_html, render_junit, render_json, render_markdown,
+        render_html,
+        render_json,
+        render_junit,
+        render_markdown,
     )
-
-    from devrepro.core.models import ScanReport
 
     raw = input_file.read_text(encoding="utf-8")
     exporter = FileExporter(out_dir)
     locations = []
     if '"findings"' in raw:
         data = ScanReport.model_validate(json.loads(raw))
-        for fmt, fn in (("json", render_json), ("md", render_markdown),
-                        ("junit.xml", render_junit), ("html", render_html)):
+        for fmt, fn in (
+            ("json", render_json),
+            ("md", render_markdown),
+            ("junit.xml", render_junit),
+            ("html", render_html),
+        ):
             locations.append(exporter.export(fn(data), filename=f"report.{fmt}"))
     else:
         locations.append(exporter.export(raw, filename=input_file.name))
@@ -526,8 +567,10 @@ def history(
     store = HistoryStore()
     snaps = store.latest(2)
     if len(snaps) < 2:
-        _emit({"message": "Need at least two stored snapshots; run `devrepro snapshot` twice."},
-              json_out)
+        _emit(
+            {"message": "Need at least two stored snapshots; run `devrepro snapshot` twice."},
+            json_out,
+        )
         raise typer.Exit(ExitCode.READY)
     drift = compute_drift(snaps[0], snaps[1])
     payload = [d.as_dict() for d in drift]
@@ -557,16 +600,16 @@ def self_test(json_out: bool = JsonOption) -> None:
     """Verify the probe/rule/privacy machinery works on this install."""
     checks: dict[str, str] = {}
 
-    def check(name: str, fn) -> None:
+    def check(name: str, fn: Callable[[], None]) -> None:
         try:
             fn()
             checks[name] = "ok"
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             checks[name] = f"fail: {type(exc).__name__}: {exc}"
 
-    check("versioning", lambda: _selftest_versioning())
-    check("privacy-redaction", lambda: _selftest_privacy())
-    check("models-roundtrip", lambda: _selftest_models())
+    check("versioning", _selftest_versioning)
+    check("privacy-redaction", _selftest_privacy)
+    check("models-roundtrip", _selftest_models)
     ok = all(v == "ok" for v in checks.values())
     _emit(checks, json_out)
     raise typer.Exit(ExitCode.READY if ok else ExitCode.INTERNAL_ERROR)
@@ -575,9 +618,9 @@ def self_test(json_out: bool = JsonOption) -> None:
 def _selftest_versioning() -> None:
     from devrepro.core.versioning import satisfies
 
-    assert satisfies("3.12.4", ">=3.11,<3.14")
-    assert not satisfies("3.14.0", ">=3.11,<3.14")
-    assert satisfies("20.1.0", ">=20")
+    assert satisfies("3.12.4", ">=3.11,<3.14")  # noqa: S101
+    assert not satisfies("3.14.0", ">=3.11,<3.14")  # noqa: S101
+    assert satisfies("20.1.0", ">=20")  # noqa: S101
 
 
 def _selftest_privacy() -> None:
@@ -585,8 +628,8 @@ def _selftest_privacy() -> None:
 
     gate = PrivacyGate(home=Path("/home/testuser"), username="testuser")
     red = gate.redact("/home/testuser/project by testuser")
-    assert "/home/testuser" not in red and "testuser" not in red
-    assert scan_for_secrets("token ghp_" + "a" * 30)
+    assert "/home/testuser" not in red and "testuser" not in red  # noqa: S101
+    assert scan_for_secrets("token ghp_" + "a" * 30)  # noqa: S101
     try:
         assert_no_secrets("AKIA" + "B" * 16)
     except Exception:
@@ -597,17 +640,25 @@ def _selftest_privacy() -> None:
 
 def _selftest_models() -> None:
     from devrepro.core.models import (
-        Evidence, Finding, FindingState, PlatformInfo, ScanReport,
+        Evidence,
+        Finding,
+        FindingState,
+        PlatformInfo,
+        ScanReport,
     )
 
     f = Finding(
-        rule_id="t/x", state=FindingState.INFO, summary="s",
+        rule_id="t/x",
+        state=FindingState.INFO,
+        summary="s",
         evidence=(Evidence(source="system", excerpt="e"),),
     )
-    r = ScanReport(devrepro_version=__version__,
-                   platform=PlatformInfo(os_name="Test", os_version="1", arch="x"))
+    r = ScanReport(
+        devrepro_version=__version__,
+        platform=PlatformInfo(os_name="Test", os_version="1", arch="x"),
+    )
     ScanReport.model_validate(json.loads(json.dumps(r.model_dump(mode="json"), default=str)))
-    assert f.rule_id == "t/x"
+    assert f.rule_id == "t/x"  # noqa: S101
 
 
 def main() -> None:

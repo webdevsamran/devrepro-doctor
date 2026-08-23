@@ -26,29 +26,47 @@ _LOCKFILES = {
     "ruby": ("Gemfile.lock",),
 }
 
-_TOOL_MANAGER_FILES = (".nvmrc", ".node-version", ".python-version", ".ruby-version",
-                       ".java-version", ".tool-versions", "mise.toml", "rust-toolchain",
-                       "rust-toolchain.toml", "global.json")
+_TOOL_MANAGER_FILES = (
+    ".nvmrc",
+    ".node-version",
+    ".python-version",
+    ".ruby-version",
+    ".java-version",
+    ".tool-versions",
+    "mise.toml",
+    "rust-toolchain",
+    "rust-toolchain.toml",
+    "global.json",
+)
 
 
-def compute_score(root: Path | None, requirements: list[ProjectRequirement]) -> ReproducibilityScore:
+def compute_score(
+    root: Path | None, requirements: list[ProjectRequirement]
+) -> ReproducibilityScore:
     points: list[ReproducibilityPoint] = []
 
     def add(criterion: str, earned: int, possible: int, explanation: str) -> None:
-        points.append(ReproducibilityPoint(
-            criterion=criterion, earned=earned, possible=possible, explanation=explanation,
-        ))
+        points.append(
+            ReproducibilityPoint(
+                criterion=criterion,
+                earned=earned,
+                possible=possible,
+                explanation=explanation,
+            )
+        )
 
     # 1. Declared runtime versions -------------------------------------------
-    runtime_reqs = [r for r in requirements if r.kind.value == "runtime" and r.ecosystem != "generic"]
+    runtime_reqs = [
+        r for r in requirements if r.kind.value == "runtime" and r.ecosystem != "generic"
+    ]
     has_runtime_decl = bool(runtime_reqs)
     add(
         "declared-runtime-versions",
         2 if has_runtime_decl else 0,
         2,
         f"{len(runtime_reqs)} runtime version requirement(s) declared in manifests"
-        if has_runtime_decl else
-        "No runtime versions declared (e.g. requires-python, engines.node). "
+        if has_runtime_decl
+        else "No runtime versions declared (e.g. requires-python, engines.node). "
         "Add them so machines converge on the same runtimes.",
     )
 
@@ -69,8 +87,8 @@ def compute_score(root: Path | None, requirements: list[ProjectRequirement]) -> 
         1 if pinned_tool_files else 0,
         1,
         f"Tool-manager pin files found: {len(pinned_tool_files)}"
-        if pinned_tool_files else
-        "No .nvmrc/.tool-versions/rust-toolchain/global.json style pins; "
+        if pinned_tool_files
+        else "No .nvmrc/.tool-versions/rust-toolchain/global.json style pins; "
         "contributors may get different compiler/runtime versions.",
     )
 
@@ -81,8 +99,8 @@ def compute_score(root: Path | None, requirements: list[ProjectRequirement]) -> 
     earned = 1 if devc else 0
     explanation = (
         "Devcontainer definition present — one-command reproducible editor environment."
-        if devc else
-        "No devcontainer definition; consider adding .devcontainer/devcontainer.json."
+        if devc
+        else "No devcontainer definition; consider adding .devcontainer/devcontainer.json."
     )
     if docker:
         earned += 1
@@ -97,8 +115,8 @@ def compute_score(root: Path | None, requirements: list[ProjectRequirement]) -> 
         1 if tm_present else 0,
         1,
         f"Tool-manager files committed: {', '.join(tm_present)}"
-        if tm_present else
-        "No tool-manager files committed (.tool-versions, mise.toml, ...).",
+        if tm_present
+        else "No tool-manager files committed (.tool-versions, mise.toml, ...).",
     )
 
     # 6. CI parity ---------------------------------------------------------------------
@@ -108,8 +126,8 @@ def compute_score(root: Path | None, requirements: list[ProjectRequirement]) -> 
         1 if ci_reqs else 0,
         1,
         f"CI workflows declare runtimes ({', '.join(r.name for r in ci_reqs)})"
-        if ci_reqs else
-        "CI does not declare explicit runtime versions; local/CI drift is likely.",
+        if ci_reqs
+        else "CI does not declare explicit runtime versions; local/CI drift is likely.",
     )
 
     total = sum(p.earned for p in points)

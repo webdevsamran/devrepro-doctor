@@ -13,12 +13,12 @@ Safety model
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from devrepro.core.errors import RemediationRefusedError
 from devrepro.core.models import Finding, FindingState, Remediation, RiskLevel
 
-__all__ = ["build_plan", "execute_plan", "AUTOMATABLE_RISKS"]
+__all__ = ["AUTOMATABLE_RISKS", "build_plan", "execute_plan"]
 
 AUTOMATABLE_RISKS: frozenset[RiskLevel] = frozenset({RiskLevel.SAFE, RiskLevel.LOW})
 
@@ -82,7 +82,9 @@ def build_plan(findings: list[Finding]) -> list[Remediation]:
                 title="Start the Docker daemon",
                 risk=RiskLevel.SAFE,
                 preconditions=("Docker Desktop installed or docker.service present",),
-                changes=("Start Docker Desktop (Windows/macOS) or systemctl start docker (Linux).",),
+                changes=(
+                    "Start Docker Desktop (Windows/macOS) or systemctl start docker (Linux).",
+                ),
                 rollback="Stop the daemon again (`systemctl stop docker` / quit Docker Desktop).",
                 automatable=False,
                 finding_ids=(f.rule_id,),
@@ -143,9 +145,11 @@ def execute_plan(
             continue
         for command in step.commands:
             rc = executor(command)
-            results.append({
-                "id": step.id,
-                "status": "executed" if rc == 0 else f"failed(rc={rc})",
-                "command": " ".join(command),
-            })
+            results.append(
+                {
+                    "id": step.id,
+                    "status": "executed" if rc == 0 else f"failed(rc={rc})",
+                    "command": " ".join(command),
+                }
+            )
     return results

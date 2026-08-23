@@ -5,8 +5,8 @@ affected component, safe remediation hint and references.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable
 
 from devrepro.core.models import (
     ContainerState,
@@ -22,11 +22,19 @@ from devrepro.core.models import (
 )
 from devrepro.core.versioning import parse_spec, parse_version
 
-__all__ = ["RuleContext", "RuleEngine", "check_version_requirement", "PACK_NAMES"]
+__all__ = ["PACK_NAMES", "RuleContext", "RuleEngine", "check_version_requirement"]
 
 PACK_NAMES: tuple[str, ...] = (
-    "python", "node", "dotnet", "java", "cpp", "go", "rust",
-    "containers", "wsl", "ai-gpu",
+    "python",
+    "node",
+    "dotnet",
+    "java",
+    "cpp",
+    "go",
+    "rust",
+    "containers",
+    "wsl",
+    "ai-gpu",
 )
 
 
@@ -67,7 +75,9 @@ def check_version_requirement(
     from devrepro.core.models import Evidence
 
     findings: list[Finding] = []
-    evidence = (Evidence(source="command", excerpt=evidence_excerpt or f"{tool_name} version check"),)
+    evidence = (
+        Evidence(source="command", excerpt=evidence_excerpt or f"{tool_name} version check"),
+    )
 
     if active is None or not active.version:
         findings.append(
@@ -95,7 +105,9 @@ def check_version_requirement(
             Finding(
                 rule_id=f"{rule_prefix}/version-unparseable",
                 state=FindingState.UNKNOWN,
-                summary=f"Could not parse {tool_name} version {version!r} against {required_spec!r}.",
+                summary=(
+                    f"Could not parse {tool_name} version {version!r} against {required_spec!r}."
+                ),
                 evidence=evidence,
                 detected=version,
                 required=required_spec,
@@ -159,7 +171,8 @@ PackFunc = Callable[[RuleContext], list[Finding]]
 
 class RuleEngine:
     """Runs rule packs against a context. Packs are isolated: one failing
-    pack yields an UNKNOWN finding, never a crashed evaluation."""
+    pack yields an UNKNOWN finding, never a crashed evaluation.
+    """
 
     def __init__(self) -> None:
         self._packs: dict[str, PackFunc] = {}
@@ -179,14 +192,16 @@ class RuleEngine:
                 continue
             try:
                 findings.extend(func(ctx))
-            except Exception as exc:  # noqa: BLE001 - isolation boundary
+            except Exception as exc:
                 from devrepro.core.models import Evidence
 
                 findings.append(
                     Finding(
                         rule_id=f"rulepack/{name}/failed",
                         state=FindingState.UNKNOWN,
-                        summary=f"Rule pack '{name}' failed internally: {type(exc).__name__}: {exc}",
+                        summary=(
+                            f"Rule pack '{name}' failed internally: {type(exc).__name__}: {exc}"
+                        ),
                         evidence=(Evidence(source="system", excerpt=str(exc)[:500]),),
                     )
                 )

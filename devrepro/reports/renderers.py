@@ -10,19 +10,28 @@ from __future__ import annotations
 import html as _html
 import json
 import xml.etree.ElementTree as ET
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from devrepro.core.models import EnvironmentDiff, FindingState, ScanReport, Snapshot
 from devrepro.privacy.gate import PrivacyGate, assert_no_secrets
 
 __all__ = [
-    "render_json", "render_markdown", "render_junit", "render_html",
-    "render_diff_json", "render_diff_markdown", "render_diff_html",
+    "render_diff_html",
+    "render_diff_json",
+    "render_diff_markdown",
+    "render_html",
+    "render_json",
+    "render_junit",
+    "render_markdown",
 ]
 
 _STATE_ORDER = (
-    FindingState.BLOCKED, FindingState.ERROR, FindingState.WARN,
-    FindingState.UNKNOWN, FindingState.INFO, FindingState.PASS,
+    FindingState.BLOCKED,
+    FindingState.ERROR,
+    FindingState.WARN,
+    FindingState.UNKNOWN,
+    FindingState.INFO,
+    FindingState.PASS,
 )
 
 
@@ -36,14 +45,20 @@ def render_markdown(report: ScanReport) -> str:
     lines: list[str] = []
     lines.append(f"# DevRepro Doctor report — {report.created_at.isoformat()}")
     lines.append("")
-    lines.append(f"- Platform: {report.platform.os_name} {report.platform.os_version} "
-                 f"({report.platform.arch})")
+    lines.append(
+        f"- Platform: {report.platform.os_name} {report.platform.os_version} "
+        f"({report.platform.arch})"
+    )
     if report.score:
-        lines.append(f"- Reproducibility completeness: **{report.score.total}/{report.score.possible}** "
-                     f"({report.score.percent}%) — *describes declaration completeness only; "
-                     "it does not guarantee reproducibility.*")
-    lines.append(f"- Privacy: redacted={report.privacy.get('redacted')}, "
-                 f"secrets_blocked={report.privacy.get('secrets_blocked')}")
+        lines.append(
+            f"- Reproducibility completeness: **{report.score.total}/{report.score.possible}** "
+            f"({report.score.percent}%) — *describes declaration completeness only; "
+            "it does not guarantee reproducibility.*"
+        )
+    lines.append(
+        f"- Privacy: redacted={report.privacy.get('redacted')}, "
+        f"secrets_blocked={report.privacy.get('secrets_blocked')}"
+    )
     lines.append("")
 
     ordered = sorted(report.findings, key=lambda f: _STATE_ORDER.index(f.state))
@@ -97,21 +112,30 @@ def render_markdown(report: ScanReport) -> str:
 
 
 def render_junit(report: ScanReport) -> str:
-    suite = ET.Element("testsuite", {
-        "name": "devrepro-doctor",
-        "timestamp": report.created_at.isoformat(),
-        "tests": str(len(report.findings)),
-    })
-    failures = sum(1 for f in report.findings if f.state in (FindingState.ERROR, FindingState.BLOCKED))
+    suite = ET.Element(
+        "testsuite",
+        {
+            "name": "devrepro-doctor",
+            "timestamp": report.created_at.isoformat(),
+            "tests": str(len(report.findings)),
+        },
+    )
+    failures = sum(
+        1 for f in report.findings if f.state in (FindingState.ERROR, FindingState.BLOCKED)
+    )
     warnings = sum(1 for f in report.findings if f.state == FindingState.WARN)
     suite.set("failures", str(failures))
     suite.set("errors", "0")
     suite.set("warnings", str(warnings))
     for f in report.findings:
-        case = ET.SubElement(suite, "testcase", {
-            "name": f.rule_id,
-            "classname": f.component or "devrepro",
-        })
+        case = ET.SubElement(
+            suite,
+            "testcase",
+            {
+                "name": f.rule_id,
+                "classname": f.component or "devrepro",
+            },
+        )
         if f.state in (FindingState.ERROR, FindingState.BLOCKED):
             fail = ET.SubElement(case, "failure", {"message": f.summary})
             fail.text = f.evidence[0].excerpt or ""
@@ -178,9 +202,17 @@ def render_html(report: ScanReport) -> str:
             f"<span class='badge {f.state.value}'>{f.state.value}</span> "
             f"<code>{_html.escape(f.rule_id)}</code>"
             f"<p>{_html.escape(f.summary)}</p>"
-            + (f"<p><b>Detected:</b> {_html.escape(str(f.detected))} "
-               f"<b>Required:</b> {_html.escape(str(f.required))}</p>" if f.detected or f.required else "")
-            + (f"<p><b>Remediation:</b> {_html.escape(f.remediation_hint)}</p>" if f.remediation_hint else "")
+            + (
+                f"<p><b>Detected:</b> {_html.escape(str(f.detected))} "
+                f"<b>Required:</b> {_html.escape(str(f.required))}</p>"
+                if f.detected or f.required
+                else ""
+            )
+            + (
+                f"<p><b>Remediation:</b> {_html.escape(f.remediation_hint)}</p>"
+                if f.remediation_hint
+                else ""
+            )
             + "<details><summary>Evidence</summary><pre>"
             + _html.escape(src + (chr(10) + (ev.excerpt or ""))[:800])
             + "</pre></details></section>"
@@ -209,6 +241,7 @@ def render_html(report: ScanReport) -> str:
 
 # ------------------------------------------------------------------ diff ---
 
+
 def render_diff_json(diff: EnvironmentDiff) -> str:
     payload = json.dumps(diff.model_dump(mode="json"), indent=2, default=str)
     assert_no_secrets(payload)
@@ -223,8 +256,6 @@ def render_diff_markdown(diff: EnvironmentDiff) -> str:
     lines.append("| Component | Name | Classification | A | B | Critical |")
     lines.append("|---|---|---|---|---|---|")
     for e in diff.entries:
-        if e.classification == FindingState and False:  # pragma: no cover
-            continue
         lines.append(
             f"| {e.component} | {e.name} | {e.classification.value} | "
             f"{e.a_value or '—'} | {e.b_value or '—'} | {'yes' if e.project_critical else ''} |"
@@ -266,7 +297,7 @@ def render_diff_html(diff: EnvironmentDiff) -> str:
 
 
 def _unused_dt() -> None:  # pragma: no cover
-    datetime.now(timezone.utc)
+    datetime.now(UTC)
 
 
 def _unused_snapshot_guard(s: Snapshot) -> Snapshot:  # pragma: no cover

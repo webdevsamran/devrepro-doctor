@@ -53,7 +53,9 @@ class ContainerProbe(Probe):
                         f"containers/docker-{kind}",
                         FindingState.BLOCKED,
                         f"Docker CLI {docker_cli_version} present but daemon unreachable ({kind}).",
-                        evidence=(self.cmd_evidence(("docker", "info"), (info.stderr or "")[:500]),),
+                        evidence=(
+                            self.cmd_evidence(("docker", "info"), (info.stderr or "")[:500]),
+                        ),
                         detected=docker_cli_version,
                         component="docker",
                         remediation_hint="Start Docker Desktop / the docker service, then re-run "
@@ -66,8 +68,11 @@ class ContainerProbe(Probe):
                     "containers/docker-missing",
                     FindingState.INFO,
                     "Docker CLI not found on PATH.",
-                    evidence=(Evidence(source="command", command=("docker", "--version"),
-                                       excerpt="not found"),),
+                    evidence=(
+                        Evidence(
+                            source="command", command=("docker", "--version"), excerpt="not found"
+                        ),
+                    ),
                     component="docker",
                 )
             )
@@ -119,4 +124,6 @@ class ContainerProbe(Probe):
                 )
             )
 
-        return ProbeResult(self.id, findings=tuple(findings), data={"state": state.model_dump(mode="json")})
+        return ProbeResult(
+            self.id, findings=tuple(findings), data={"state": state.model_dump(mode="json")}
+        )

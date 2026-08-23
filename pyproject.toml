@@ -36,6 +36,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Convenience meta-extra used by CI: pip install -e ".[dev]"
+dev = ["devrepro-doctor[test,lint]"]
 serve = ["uvicorn>=0.29,<1.0"]
 test = [
   "pytest>=8.0,<9.0",
@@ -85,12 +87,19 @@ select = [
 ]
 ignore = [
   "D203", "D213",          # conflicting docstring style rules
+  "D101", "D102", "D103", "D105", "D107", "D205", "D400", "D401",
+  # docstring presence is encouraged but not enforced per-symbol
   "PLR0913",               # many probe args are fine
-  "S101",                  # asserts are used in tests
+  "PLR0911", "PLR0912", "PLR0915",  # CLI dispatch is intentionally branchy
+  "PLR2004",               # magic values are readable in diagnostics code
+  "PLC0415",               # lazy imports: fast CLI startup + optional deps
+  "B008",                  # typer.Option() in defaults is the Typer idiom
+  "S110", "S112",          # probe isolation intentionally swallows errors
+  "S607",                  # probes intentionally call PATH tools by name
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "D", "PLR2004"]
+"tests/*" = ["S101", "D", "PLR2004", "B017"]
 "web/**" = []
 
 [tool.mypy]

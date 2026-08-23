@@ -23,7 +23,7 @@ from pathlib import Path
 
 from devrepro.core.errors import PrivacyViolationError
 
-__all__ = ["PrivacyGate", "redact", "assert_no_secrets", "scan_for_secrets"]
+__all__ = ["PrivacyGate", "assert_no_secrets", "redact", "scan_for_secrets"]
 
 _EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 
@@ -33,11 +33,18 @@ _SECRET_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("openai-style-key", re.compile(r"sk-[A-Za-z0-9_-]{20,}")),
     ("jwt", re.compile(r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{5,}")),
     ("bearer", re.compile(r"(?i)bearer\s+[A-Za-z0-9._\-]{16,}")),
-    ("private-key-block", re.compile(
-        "-----BEGIN (?:RSA |EC |OPENSSH |PGP |DSA )?PRIVATE KEY( BLOCK)?-----")),
-    ("generic-secret-assignment", re.compile(
-        r"(?i)(?:api[_-]?key|secret|token|password|passwd|credential)"
-        r"\s*[=:]\s*\S{8,}")),)
+    (
+        "private-key-block",
+        re.compile("-----BEGIN (?:RSA |EC |OPENSSH |PGP |DSA )?PRIVATE KEY( BLOCK)?-----"),
+    ),
+    (
+        "generic-secret-assignment",
+        re.compile(
+            r"(?i)(?:api[_-]?key|secret|token|password|passwd|credential)"
+            r"\s*[=:]\s*\S{8,}"
+        ),
+    ),
+)
 
 
 class PrivacyGate:
@@ -88,7 +95,7 @@ def _safe_user() -> str:
     try:
         name = getpass.getuser()
         return name if name and name != "unknown" else ""
-    except Exception:  # noqa: BLE001
+    except Exception:
         return ""
 
 

@@ -11,17 +11,17 @@ from devrepro.core.exit_codes import ExitCode
 
 __all__ = [
     "DevReproError",
+    "DiffError",
+    "PluginError",
+    "PolicyError",
+    "PrivacyViolationError",
     "ProbeError",
     "ProbeTimeoutError",
-    "PolicyError",
-    "SnapshotError",
-    "SnapshotSchemaError",
-    "DiffError",
+    "ProjectParseError",
     "RemediationError",
     "RemediationRefusedError",
-    "PrivacyViolationError",
-    "ProjectParseError",
-    "PluginError",
+    "SnapshotError",
+    "SnapshotSchemaError",
 ]
 
 
@@ -66,7 +66,8 @@ class RemediationError(DevReproError):
 
 class RemediationRefusedError(RemediationError):
     """Execution refused: risk too high, preconditions unmet, or the
-    user declined confirmation. Never a partial mutation."""
+    user declined confirmation. Never a partial mutation.
+    """
 
 
 class PrivacyViolationError(DevReproError):

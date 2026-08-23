@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from devrepro.core.models import Evidence, Finding, FindingState
-from devrepro.rules.base import RuleContext
+
+if TYPE_CHECKING:
+    from devrepro.rules.base import RuleContext
 
 __all__ = ["evaluate"]
 
@@ -12,7 +16,8 @@ def evaluate(ctx: RuleContext) -> list[Finding]:
     findings: list[Finding] = []
     gpu = ctx.gpu
     ai_reqs = [
-        r for r in ctx.requirements
+        r
+        for r in ctx.requirements
         if r.ecosystem in ("python", "generic")
         and any(k in r.name.lower() for k in ("torch", "tensorflow", "cuda", "onnxruntime", "jax"))
     ]
@@ -36,7 +41,9 @@ def evaluate(ctx: RuleContext) -> list[Finding]:
                 state=FindingState.WARN,
                 summary="AI frameworks are project dependencies but no GPU/AI accelerator "
                 "stack was detected; training/inference will fall back to CPU.",
-                evidence=(Evidence(source="command", excerpt="nvidia-smi/rocminfo/sycl-ls all absent"),),
+                evidence=(
+                    Evidence(source="command", excerpt="nvidia-smi/rocminfo/sycl-ls all absent"),
+                ),
                 component="gpu",
             )
         )
@@ -47,8 +54,11 @@ def evaluate(ctx: RuleContext) -> list[Finding]:
                 state=FindingState.INFO,
                 summary=f"NVIDIA driver {gpu.nvidia_driver} present but CUDA toolkit (nvcc) "
                 "not found — building CUDA extensions from source will fail.",
-                evidence=(Evidence(source="command", command=("nvcc", "--version"),
-                                   excerpt="nvcc not found"),),
+                evidence=(
+                    Evidence(
+                        source="command", command=("nvcc", "--version"), excerpt="nvcc not found"
+                    ),
+                ),
                 component="cuda",
                 remediation_hint="Install the CUDA toolkit matching your framework's "
                 "supported versions (MEDIUM risk).",
