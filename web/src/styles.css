@@ -67,3 +67,12 @@ pre { background: var(--bg); border: 1px solid var(--border); border-radius: .45
 .small { font-size: .82rem; }
 .refs { color: var(--muted); font-size: .78rem; }
 @media (max-width: 640px) { .grid-4 { grid-template-columns: 1fr 1fr; } .footer { flex-direction: column; } }
+
+/* severity + skeleton (wave 3/4/7 pages) */
+.sev { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+.sev-ok { background: #1a7f37; color: #fff; }
+.sev-warn { background: #9a6700; color: #fff; }
+.sev-blocker, .sev-error { background: #cf222e; color: #fff; }
+.skeleton { min-height: 8rem; border-radius: 8px; background: linear-gradient(90deg, var(--card) 25%, var(--border) 50%, var(--card) 75%); background-size: 200% 100%; animation: skeleton 1.2s infinite; }
+@keyframes skeleton { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .skeleton, .spinner { animation: none; } }
