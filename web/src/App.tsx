@@ -7,19 +7,30 @@ import {
   HomePage, OverviewPage, PathPage, ReadinessPage, RemediationPage, RulesPage,
   SnapshotsPage, ToolchainsPage,
 } from './pages'
+import {
+  BaselinePage, EnvVarsPage, FleetDashboardPage, GitHealthPage,
+  NetworkTlsPage, ProfilePage, ServicesPage,
+} from './pages2'
 
 const NAV = [
   ['home', 'Home'],
   ['overview', 'Machine Overview'],
   ['readiness', 'Project Readiness'],
+  ['profile', 'Profile & Maturity'],
+  ['baseline', 'Baseline'],
   ['toolchains', 'Toolchains'],
   ['path', 'PATH Explorer'],
+  ['envvars', 'Env Vars'],
+  ['services', 'Ports & Services'],
+  ['githealth', 'Git Health'],
+  ['network', 'Network & TLS'],
   ['findings', 'Findings'],
   ['diff', 'Environment Diff'],
   ['snapshots', 'Snapshots'],
   ['rules', 'Rules'],
   ['remediation', 'Remediation Plan'],
   ['history', 'History'],
+  ['fleet', 'Fleet Dashboard'],
   ['docs', 'Docs'],
   ['contributors', 'Contributors'],
   ['about', 'About'],
@@ -78,14 +89,21 @@ export default function App() {
             {page === 'home' && <HomePage onStart={() => navigate('overview')} />}
             {page === 'overview' && <OverviewPage report={report} />}
             {page === 'readiness' && <ReadinessPage report={report} />}
+            {page === 'profile' && <ProfilePage />}
+            {page === 'baseline' && <BaselinePage />}
             {page === 'toolchains' && <ToolchainsPage report={report} />}
             {page === 'path' && <PathPage report={report} />}
+            {page === 'envvars' && <EnvVarsPage />}
+            {page === 'services' && <ServicesPage />}
+            {page === 'githealth' && <GitHealthPage />}
+            {page === 'network' && <NetworkTlsPage />}
             {page === 'findings' && <FindingsPage report={report} />}
             {page === 'diff' && <DiffPage />}
             {page === 'snapshots' && <SnapshotsPage report={report} />}
             {page === 'rules' && <RulesPage report={report} />}
             {page === 'remediation' && <RemediationPage report={report} />}
             {page === 'history' && <HistoryPage />}
+            {page === 'fleet' && <FleetDashboardPage />}
             {page === 'docs' && <DocsPage />}
             {page === 'contributors' && <ContributorsPage />}
             {page === 'about' && <AboutPage report={report} />}
