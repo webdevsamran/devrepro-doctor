@@ -11,8 +11,8 @@ from devrepro.core.models import (
     ToolInstallation,
 )
 from devrepro.diff.engine import diff_snapshots
-from devrepro.snapshots.store import load_snapshot, save_snapshot
 from devrepro.snapshots.history import compute_drift
+from devrepro.snapshots.store import load_snapshot, save_snapshot
 
 
 def _snap(sid: str, pyver: str, extra_tool: bool = False) -> Snapshot:

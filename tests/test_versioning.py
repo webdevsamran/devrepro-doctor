@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import pytest
+from devrepro.core.versioning import parse_spec, parse_version, satisfies
 from hypothesis import given
 from hypothesis import strategies as st
-
-from devrepro.core.versioning import parse_spec, parse_version, satisfies
 
 MAJOR = st.integers(min_value=0, max_value=50)
 MINOR = st.integers(min_value=0, max_value=50)

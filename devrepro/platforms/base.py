@@ -6,21 +6,26 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from devrepro.core.models import PathAnalysis, PathEntry, ToolInstallation
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 __all__ = [
-    "path_separator",
-    "split_path",
-    "normalize_path",
     "build_path_analysis",
     "explain_resolution",
+    "normalize_path",
+    "path_separator",
     "profile_locations",
+    "split_path",
 ]
 
 
 def path_separator(platform: str) -> str:
     return ";" if platform == "windows" else ":"
+
 
 def split_path(raw: str, platform: str) -> list[str]:
     return [p for p in raw.split(path_separator(platform)) if p.strip()]
@@ -38,7 +43,7 @@ def build_path_analysis(
     raw_path: str,
     platform: str,
     *,
-    origin_for: "callable[[int], str] | None" = None,  # type: ignore[valid-type]
+    origin_for: Callable[[int], str] | None = None,
 ) -> PathAnalysis:
     """Full PATH analysis including duplicate/dead/shadowing detection."""
     parts = split_path(raw_path, platform)
@@ -61,13 +66,11 @@ def build_path_analysis(
 
     shadowed = _find_shadowed(parts, platform)
     store_aliases = [
-        e.raw for e in entries
-        if platform == "windows" and "windowsapps" in e.normalized.lower()
+        e.raw for e in entries if platform == "windows" and "windowsapps" in e.normalized.lower()
     ]
     manager_markers = (".pyenv", ".nvm", ".volta", ".fnm", "conda", "mise", "asdf", ".cargo")
     interference = [
-        e.raw for e in entries
-        if any(m in e.normalized.lower() for m in manager_markers)
+        e.raw for e in entries if any(m in e.normalized.lower() for m in manager_markers)
     ]
     return PathAnalysis(
         entries=tuple(entries),
@@ -81,7 +84,8 @@ def build_path_analysis(
 
 def _find_shadowed(parts: list[str], platform: str) -> list[tuple[str, str, str]]:
     """Find executable names that appear in more than one PATH directory;
-    the earlier directory wins. Returns (name, winner, loser)."""
+    the earlier directory wins. Returns (name, winner, loser).
+    """
     by_name: dict[str, list[str]] = {}
     exts = (
         [e.strip().lower() for e in os.environ.get("PATHEXT", "").split(";") if e.strip()]
@@ -128,12 +132,14 @@ def explain_resolution(
         lines.append(f"  install source: {active.install_source}")
     entries = split_path(raw_path, platform)
     if active.exe_path:
-        exe_norm = os.path.normcase(os.path.abspath(active.exe_path))
+        exe_norm = os.path.normcase(str(Path(active.exe_path).resolve()))
         for idx, directory in enumerate(entries):
             dir_norm = os.path.normcase(os.path.normpath(directory))
             if exe_norm.startswith(dir_norm + os.sep) or exe_norm.startswith(dir_norm + "/"):
-                lines.append(f"  wins because its directory is entry #{idx} in PATH "
-                             "(earlier entries take precedence).")
+                lines.append(
+                    f"  wins because its directory is entry #{idx} in PATH "
+                    "(earlier entries take precedence)."
+                )
                 break
     others = [i for i in matches if i is not active]
     if others:
@@ -143,15 +149,19 @@ def explain_resolution(
             lines.append(f"    - {o.exe_path}{v}")
     return chr(10).join(lines)
 
+
 def profile_locations(platform: str) -> dict[str, str]:
     """Shell profile locations per platform (for docs/UI display)."""
     home = Path.home()
     if platform == "windows":
         return {
-            "powershell": str(home / "Documents/WindowsPowerShell/Microsoft.PowerShell_profile.ps1"),
+            "powershell": str(
+                home / "Documents/WindowsPowerShell/Microsoft.PowerShell_profile.ps1"
+            ),
             "pwsh": str(home / "Documents/PowerShell/Microsoft.PowerShell_profile.ps1"),
         }
     shell = os.environ.get("SHELL", "")
+    keys: tuple[str, ...]
     if "zsh" in shell:
         keys = ("zshrc", "zprofile", "zshenv")
     elif "fish" in shell:
@@ -159,8 +169,12 @@ def profile_locations(platform: str) -> dict[str, str]:
     else:
         keys = ("bashrc", "bash_profile", "profile")
     mapping = {
-        "bashrc": ".bashrc", "bash_profile": ".bash_profile", "profile": ".profile",
-        "zshrc": ".zshrc", "zprofile": ".zprofile", "zshenv": ".zshenv",
+        "bashrc": ".bashrc",
+        "bash_profile": ".bash_profile",
+        "profile": ".profile",
+        "zshrc": ".zshrc",
+        "zprofile": ".zprofile",
+        "zshenv": ".zshenv",
         "fish_config": ".config/fish/config.fish",
     }
     return {k: str(home / mapping[k]) for k in keys}

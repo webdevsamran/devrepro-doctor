@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from devrepro.core.models import PlatformInfo
 from devrepro.core.runner import CommandResult, RecordingRunner
 from devrepro.probes.base import ProbeContext

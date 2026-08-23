@@ -10,12 +10,15 @@ from __future__ import annotations
 import json
 import re
 import tomllib
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-from devrepro.core.models import ProjectRequirement, RequirementKind
 from devrepro.core.errors import ProjectParseError
+from devrepro.core.models import ProjectRequirement, RequirementKind
 
-__all__ = ["detect_requirements", "detect_project_kind", "ProjectDetector"]
+if TYPE_CHECKING:
+    from pathlib import Path
+
+__all__ = ["ProjectDetector", "detect_project_kind", "detect_requirements"]
 
 
 def _read(path: Path) -> str | None:
@@ -50,6 +53,7 @@ def _req(
 
 # ---------------------------------------------------------------- python --
 
+
 def _python_deps(root: Path) -> list[ProjectRequirement]:
     out: list[ProjectRequirement] = []
     pyproject = root / "pyproject.toml"
@@ -71,14 +75,16 @@ def _python_deps(root: Path) -> list[ProjectRequirement]:
             if dep_name == "python":
                 continue
             spec = dep_spec if isinstance(dep_spec, str) else "*"
-            out.append(_req("python", dep_name, spec.lstrip("^~"), RequirementKind.RUNTIME, pyproject))
+            out.append(
+                _req("python", dep_name, spec.lstrip("^~"), RequirementKind.RUNTIME, pyproject)
+            )
     for reqfile in sorted(root.glob("requirements*.txt")):
         txt = _read(reqfile) or ""
-        for line in txt.splitlines():
-            line = line.strip()
-            if not line or line.startswith(("#", "-")):
+        for raw_line in txt.splitlines():
+            entry = raw_line.strip()
+            if not entry or entry.startswith(("#", "-")):
                 continue
-            name, _, spec = _pep508_split(line)
+            name, _, spec = _pep508_split(entry)
             out.append(_req("python", name, spec or "*", RequirementKind.RUNTIME, reqfile))
     return out
 
@@ -116,6 +122,7 @@ def _lockfiles(root: Path) -> list[ProjectRequirement]:
 
 # ------------------------------------------------------------------ node --
 
+
 def _node_deps(root: Path) -> list[ProjectRequirement]:
     out: list[ProjectRequirement] = []
     pkg = root / "package.json"
@@ -135,8 +142,14 @@ def _node_deps(root: Path) -> list[ProjectRequirement]:
         for section in ("dependencies", "devDependencies"):
             for name, spec in (data.get(section) or {}).items():
                 out.append(
-                    _req("node", name, str(spec), RequirementKind.RUNTIME, pkg,
-                         optional=(section == "devDependencies"))
+                    _req(
+                        "node",
+                        name,
+                        str(spec),
+                        RequirementKind.RUNTIME,
+                        pkg,
+                        optional=(section == "devDependencies"),
+                    )
                 )
     for marker in (".nvmrc", ".node-version"):
         p = root / marker
@@ -147,6 +160,7 @@ def _node_deps(root: Path) -> list[ProjectRequirement]:
 
 
 # ------------------------------------------------------------- runtimes ---
+
 
 def _dotnet_deps(root: Path) -> list[ProjectRequirement]:
     out: list[ProjectRequirement] = []
@@ -163,7 +177,9 @@ def _dotnet_deps(root: Path) -> list[ProjectRequirement]:
     for csproj in list(root.glob("*.csproj"))[:10]:
         t = _read(csproj) or ""
         for fw in re.findall(r"<TargetFramework>([^<]+)</TargetFramework>", t):
-            out.append(_req("dotnet", "target-framework", fw.strip(), RequirementKind.RUNTIME, csproj))
+            out.append(
+                _req("dotnet", "target-framework", fw.strip(), RequirementKind.RUNTIME, csproj)
+            )
     return out
 
 
@@ -232,19 +248,29 @@ def _php_ruby_java_deps(root: Path) -> list[ProjectRequirement]:
         for line in t.splitlines():
             parts = line.split()
             if len(parts) >= 2:
-                out.append(_req("generic", f"tool-versions:{parts[0]}",
-                                parts[1], RequirementKind.TOOL, tv))
+                out.append(
+                    _req("generic", f"tool-versions:{parts[0]}", parts[1], RequirementKind.TOOL, tv)
+                )
     mise = root / "mise.toml"
     t = _read(mise)
     if t:
         for line in t.splitlines():
             m = re.match(r"^\s*([\w-]+)\s*=\s*(.+)$", line)
             if m:
-                out.append(_req("generic", f"mise:{m.group(1)}", m.group(2).strip(chr(34)).strip(chr(39)), RequirementKind.TOOL, mise))
+                out.append(
+                    _req(
+                        "generic",
+                        f"mise:{m.group(1)}",
+                        m.group(2).strip(chr(34)).strip(chr(39)),
+                        RequirementKind.TOOL,
+                        mise,
+                    )
+                )
     return out
 
 
 # ------------------------------------------------------------------- c/c++
+
 
 def _cpp_deps(root: Path) -> list[ProjectRequirement]:
     out: list[ProjectRequirement] = []
@@ -253,7 +279,9 @@ def _cpp_deps(root: Path) -> list[ProjectRequirement]:
     if text:
         m = re.search(r"cmake_minimum_required\s*\(\s*VERSION\s+([\d.]+)", text)
         if m:
-            out.append(_req("cpp", "cmake", ">=" + m.group(1), RequirementKind.COMPILER, cmake_lists))
+            out.append(
+                _req("cpp", "cmake", ">=" + m.group(1), RequirementKind.COMPILER, cmake_lists)
+            )
     vcpkg = root / "vcpkg.json"
     if vcpkg.is_file():
         out.append(_req("cpp", "vcpkg-manifest", "*", RequirementKind.TOOL, vcpkg))
@@ -264,6 +292,7 @@ def _cpp_deps(root: Path) -> list[ProjectRequirement]:
 
 
 # ------------------------------------------------------------- containers -
+
 
 def _container_deps(root: Path) -> list[ProjectRequirement]:
     out: list[ProjectRequirement] = []
@@ -279,8 +308,15 @@ def _container_deps(root: Path) -> list[ProjectRequirement]:
     if devc.is_file():
         out.append(_req("container", "devcontainer", "*", RequirementKind.CONTAINER, devc))
     elif (root / ".devcontainer.json").is_file():
-        out.append(_req("container", "devcontainer", "*", RequirementKind.CONTAINER,
-                        root / ".devcontainer.json"))
+        out.append(
+            _req(
+                "container",
+                "devcontainer",
+                "*",
+                RequirementKind.CONTAINER,
+                root / ".devcontainer.json",
+            )
+        )
     return out
 
 
@@ -342,7 +378,7 @@ def detect_requirements(root: Path) -> list[ProjectRequirement]:
             out.extend(detector(root))
         except ProjectParseError:
             raise
-        except Exception as exc:  # noqa: BLE001 - one bad manifest must not kill scan
+        except Exception as exc:
             out.append(
                 ProjectRequirement(
                     ecosystem="generic",

@@ -10,7 +10,7 @@ import re
 from devrepro.core.models import Evidence, FindingState, WslState
 from devrepro.probes.base import Probe, ProbeResult
 
-__all__ = ["WslProbe", "VirtualizationProbe"]
+__all__ = ["VirtualizationProbe", "WslProbe"]
 
 
 class WslProbe(Probe):
@@ -42,11 +42,11 @@ class WslProbe(Probe):
             text = list_out.stdout
             if "\x00" in text:
                 text = text.replace("\x00", "")
-            for line in text.splitlines()[1:]:
-                line = line.strip()
-                if not line:
+            for raw_line in text.splitlines()[1:]:
+                stripped = raw_line.strip()
+                if not stripped:
                     continue
-                name = re.split(r"\s{2,}", line)[0].strip()
+                name = re.split(r"\s{2,}", stripped)[0].strip()
                 if name and not name.lower().startswith("windows"):
                     distros.append(name)
 
@@ -94,13 +94,20 @@ class WslProbe(Probe):
                     "wsl/not-installed",
                     FindingState.INFO,
                     "WSL not installed or not initialized.",
-                    evidence=(Evidence(source="command", command=("wsl", "--status"),
-                                       excerpt=(status.stderr or "no output")[:300]),),
+                    evidence=(
+                        Evidence(
+                            source="command",
+                            command=("wsl", "--status"),
+                            excerpt=(status.stderr or "no output")[:300],
+                        ),
+                    ),
                     component="wsl",
                 )
             )
 
-        return ProbeResult(self.id, findings=tuple(findings), data={"state": state.model_dump(mode="json")})
+        return ProbeResult(
+            self.id, findings=tuple(findings), data={"state": state.model_dump(mode="json")}
+        )
 
 
 class VirtualizationProbe(Probe):
@@ -124,7 +131,9 @@ class VirtualizationProbe(Probe):
         else:
             res = r.run(("systeminfo",), timeout=30)
             text = res.stdout
-            data["hyper_v"] = ("Hyper-V Requirements" in text) or ("A hypervisor has been detected" in text)
+            data["hyper_v"] = ("Hyper-V Requirements" in text) or (
+                "A hypervisor has been detected" in text
+            )
 
         findings.append(
             self.finding(

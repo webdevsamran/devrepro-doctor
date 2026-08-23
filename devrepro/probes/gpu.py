@@ -73,8 +73,15 @@ class GpuAiProbe(Probe):
 
         # DirectML (Windows) -----------------------------------------------------------------
         if self.ctx.platform == "windows":
-            dres = r.run(("powershell", "-NoProfile", "-Command",
-                          "Get-Command dxdiag -ErrorAction SilentlyContinue"), timeout=15)
+            dres = r.run(
+                (
+                    "powershell",
+                    "-NoProfile",
+                    "-Command",
+                    "Get-Command dxdiag -ErrorAction SilentlyContinue",
+                ),
+                timeout=15,
+            )
             directml = dres.ok  # presence of DirectX stack implies DML-capable runtime option
 
         # WSL GPU passthrough ------------------------------------------------------------------
@@ -102,8 +109,13 @@ class GpuAiProbe(Probe):
                 "gpu/stack-detected",
                 FindingState.INFO,
                 self._summarize(stack),
-                evidence=(Evidence(source="command", command=("nvidia-smi",),
-                                   excerpt=f"driver={nvidia_driver} cuda={cuda_toolkit}"),),
+                evidence=(
+                    Evidence(
+                        source="command",
+                        command=("nvidia-smi",),
+                        excerpt=f"driver={nvidia_driver} cuda={cuda_toolkit}",
+                    ),
+                ),
                 component="gpu",
             )
         ]
@@ -116,8 +128,13 @@ class GpuAiProbe(Probe):
                         FindingState.WARN,
                         f"NVIDIA driver {nvidia_driver} predates CUDA 11.4 support; "
                         "modern ML frameworks require newer drivers.",
-                        evidence=(Evidence(source="command", command=("nvidia-smi",),
-                                           excerpt=f"driver={nvidia_driver}"),),
+                        evidence=(
+                            Evidence(
+                                source="command",
+                                command=("nvidia-smi",),
+                                excerpt=f"driver={nvidia_driver}",
+                            ),
+                        ),
                         detected=nvidia_driver,
                         required=">=470",
                         component="gpu",
@@ -125,7 +142,9 @@ class GpuAiProbe(Probe):
                         "(MEDIUM risk; DevRepro will not modify drivers).",
                     )
                 )
-        return ProbeResult(self.id, findings=tuple(findings), data={"stack": stack.model_dump(mode="json")})
+        return ProbeResult(
+            self.id, findings=tuple(findings), data={"stack": stack.model_dump(mode="json")}
+        )
 
     @staticmethod
     def _summarize(s: GpuStack) -> str:
@@ -146,4 +165,6 @@ class GpuAiProbe(Probe):
             parts.append("Apple Metal supported")
         if s.wsl_gpu_passthrough:
             parts.append("WSL GPU passthrough OK")
-        return "GPU/AI stack: " + ("; ".join(parts) if parts else "no GPU development stack detected")
+        return "GPU/AI stack: " + (
+            "; ".join(parts) if parts else "no GPU development stack detected"
+        )

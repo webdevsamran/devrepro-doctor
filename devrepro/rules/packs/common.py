@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from devrepro.core.models import (
-    Evidence,
     Finding,
     FindingState,
     ProjectRequirement,
@@ -11,7 +10,7 @@ from devrepro.core.models import (
 )
 from devrepro.rules.base import RuleContext, check_version_requirement
 
-__all__ = ["runtime_findings", "tool_findings", "requirement_for", "active_version_of"]
+__all__ = ["active_version_of", "requirement_for", "runtime_findings", "tool_findings"]
 
 
 def requirement_for(ctx: RuleContext, ecosystem: str, name: str) -> ProjectRequirement | None:

@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+from devrepro.platforms.base import build_path_analysis
 from hypothesis import given
 from hypothesis import strategies as st
-
-from devrepro.platforms.base import build_path_analysis
 
 SAFE_CHARS = st.text(alphabet="abcdefghijklmnopqrstuvwxyz0123456789/._-", min_size=1, max_size=20)
 
@@ -40,7 +39,20 @@ def test_shadowing_order(tmp_path, monkeypatch) -> None:
 
 
 def test_windows_store_alias_flagged() -> None:
-    raw = "C:" + chr(92) + "Users" + chr(92) + "x" + chr(92) + "AppData" + chr(92) \
-        + "Local" + chr(92) + "Microsoft" + chr(92) + "WindowsApps"
+    raw = (
+        "C:"
+        + chr(92)
+        + "Users"
+        + chr(92)
+        + "x"
+        + chr(92)
+        + "AppData"
+        + chr(92)
+        + "Local"
+        + chr(92)
+        + "Microsoft"
+        + chr(92)
+        + "WindowsApps"
+    )
     a = build_path_analysis(raw, "windows")
     assert a.store_aliases

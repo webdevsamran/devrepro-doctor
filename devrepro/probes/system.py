@@ -5,12 +5,13 @@ from __future__ import annotations
 import os
 import platform as pyplatform
 import shutil
-import subprocess  # noqa: S404 - only for read-only system queries
+import subprocess
+from pathlib import Path
 
 from devrepro.core.models import Evidence, FindingState
 from devrepro.probes.base import Probe, ProbeResult
 
-__all__ = ["OsKernelProbe", "CpuRamDiskProbe", "ShellProbe"]
+__all__ = ["CpuRamDiskProbe", "OsKernelProbe", "ShellProbe"]
 
 
 class OsKernelProbe(Probe):
@@ -65,28 +66,31 @@ class CpuRamDiskProbe(Probe):
     def _ram_total_bytes() -> int | None:
         try:
             if hasattr(os, "sysconf"):
-                pages = os.sysconf("SC_PHYS_PAGES")  # type: ignore[attr-defined]
-                page_size = os.sysconf("SC_PAGE_SIZE")  # type: ignore[attr-defined]
+                pages = os.sysconf("SC_PHYS_PAGES")
+                page_size = os.sysconf("SC_PAGE_SIZE")
                 return int(pages) * int(page_size)
         except (ValueError, OSError):
             pass
         try:
-            out = subprocess.run(  # noqa: S603
+            out = subprocess.run(
                 ["wmic", "ComputerSystem", "get", "TotalPhysicalMemory"],
-                capture_output=True, text=True, timeout=10, check=False,
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
             )
-            for line in out.stdout.splitlines():
-                line = line.strip()
-                if line.isdigit():
-                    return int(line)
-        except Exception:  # noqa: BLE001
+            for raw_line in out.stdout.splitlines():
+                stripped = raw_line.strip()
+                if stripped.isdigit():
+                    return int(stripped)
+        except Exception:
             pass
         return None
 
     @staticmethod
     def _disk_free_bytes() -> int | None:
         try:
-            usage = shutil.disk_usage(os.getcwd())
+            usage = shutil.disk_usage(Path.cwd())
             return usage.free
         except OSError:
             return None
@@ -99,9 +103,10 @@ class ShellProbe(Probe):
     def run(self) -> ProbeResult:
         shell_name: str | None = None
         if self.ctx.platform == "windows":
-            shell_name = "powershell" if os.environ.get("PSModulePath") else "cmd"
+            # PSModulePath is the real (mixed-case) Windows env var name.
+            shell_name = "powershell" if os.environ.get("PSModulePath") else "cmd"  # noqa: SIM112
         else:
-            shell_name = os.path.basename(str(os.environ.get("SHELL", ""))) or None
+            shell_name = Path(str(os.environ.get("SHELL", ""))).name or None
         data = {"shell": shell_name}
         ev = Evidence(source="env", excerpt=f"SHELL={shell_name or 'unknown'}")
         finding = self.finding(

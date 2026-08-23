@@ -16,19 +16,23 @@ Failures become UNKNOWN findings with evidence of the failure itself.
 
 from __future__ import annotations
 
+import os
 import platform as _pyplatform
 import sys
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from devrepro.core.errors import ProbeError
 from devrepro.core.models import Evidence, Finding, FindingState, PlatformInfo
-from devrepro.core.runner import CommandRunner
 
-__all__ = ["Probe", "ProbeResult", "ProbeContext", "ProbeEngine", "current_platform"]
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from devrepro.core.runner import CommandRunner
+
+__all__ = ["Probe", "ProbeContext", "ProbeEngine", "ProbeResult", "current_platform"]
 
 Platform = str  # "windows" | "linux" | "macos"
 
@@ -73,7 +77,7 @@ class ProbeContext:
         *,
         project_dir: Path | None = None,
         env: dict[str, str] | None = None,
-    ) -> "ProbeContext":
+    ) -> ProbeContext:
         plat = current_platform()
         info = PlatformInfo(
             os_name=_pyplatform.system(),
@@ -86,7 +90,7 @@ class ProbeContext:
         if env is None:
             # Keep only variable NAMES + non-sensitive values we need.
             # Values are available to probes but never serialized directly.
-            env = dict(_pyplatform.os.environ)  # noqa: SIM112
+            env = dict(os.environ)
         return ProbeContext(
             runner=runner,
             platform=plat,
@@ -161,7 +165,7 @@ class ProbeEngine:
             for future, probe in futures.items():
                 try:
                     results[probe.id] = future.result(timeout=probe.timeout_seconds * 4)
-                except Exception as exc:  # noqa: BLE001 - isolation boundary
+                except Exception as exc:
                     results[probe.id] = ProbeResult(
                         probe_id=probe.id,
                         error=f"engine-level failure: {type(exc).__name__}: {exc}",
@@ -173,7 +177,7 @@ class ProbeEngine:
             return ProbeResult(probe_id=probe.id, error="unsupported on this platform")
         try:
             result = probe.run()
-        except Exception as exc:  # noqa: BLE001 - one probe must not crash scan
+        except Exception as exc:
             ev = Evidence(
                 source="system",
                 excerpt=f"probe raised {type(exc).__name__}: {exc}",

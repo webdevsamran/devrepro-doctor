@@ -10,9 +10,12 @@ from __future__ import annotations
 
 import subprocess
 from dataclasses import dataclass, field
-from typing import Mapping, Protocol, Sequence
+from typing import TYPE_CHECKING, Protocol
 
-__all__ = ["CommandResult", "CommandRunner", "SubprocessRunner", "RecordingRunner"]
+if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+
+__all__ = ["CommandResult", "CommandRunner", "RecordingRunner", "SubprocessRunner"]
 
 
 @dataclass(frozen=True)

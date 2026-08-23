@@ -6,6 +6,7 @@ No telemetry, no cloud upload, ever.
 
 from __future__ import annotations
 
+import contextlib
 import ipaddress
 import json
 import socket
@@ -27,12 +28,11 @@ def _assert_loopback(host: str) -> None:
         if host not in ("localhost",):
             raise ServeError(
                 f"refusing to bind to {host!r}: only loopback addresses are allowed."
-            )
+            ) from None
         return
     if not addr.is_loopback:
         raise ServeError(
-            f"refusing to bind to {host}: DevRepro serves sensitive diagnostics "
-            "on localhost only."
+            f"refusing to bind to {host}: DevRepro serves sensitive diagnostics on localhost only."
         )
 
 
@@ -41,7 +41,8 @@ def build_api_payload() -> dict[str, object]:
     from devrepro.cli.pipeline import run_scan
 
     report = run_scan()
-    return json.loads(json.dumps(report.model_dump(mode="json"), default=str))
+    payload: dict[str, object] = json.loads(json.dumps(report.model_dump(mode="json"), default=str))
+    return payload
 
 
 def serve(*, host: str = "127.0.0.1", port: int = 8642) -> None:
@@ -51,25 +52,25 @@ def serve(*, host: str = "127.0.0.1", port: int = 8642) -> None:
     web_dist = Path(__file__).resolve().parents[2] / "web" / "dist"
     try:
         from fastapi import FastAPI  # type: ignore[import-not-found]
-        from fastapi.responses import FileResponse, JSONResponse  # type: ignore[import-not-found]
+        from fastapi.responses import JSONResponse  # type: ignore[import-not-found]
         from fastapi.staticfiles import StaticFiles  # type: ignore[import-not-found]
     except ImportError:
-        fastapi = None
+        pass
     else:
         fastapi_app = FastAPI(title="DevRepro Doctor (local)", version="1")
 
-        @fastapi_app.get("/api/report")
-        def api_report() -> JSONResponse:  # type: ignore[misc]
+        @fastapi_app.get("/api/report")  # type: ignore[untyped-decorator]
+        def api_report() -> JSONResponse:
             return JSONResponse(build_api_payload())
 
-        @fastapi_app.get("/api/health")
-        def api_health() -> dict[str, str]:  # type: ignore[misc]
+        @fastapi_app.get("/api/health")  # type: ignore[untyped-decorator]
+        def api_health() -> dict[str, str]:
             return {"status": "ok", "privacy": "localhost-only"}
 
         if web_dist.is_dir():
             fastapi_app.mount("/", StaticFiles(directory=str(web_dist), html=True))
 
-        import uvicorn  # type: ignore[import-not-found]
+        import uvicorn  # type: ignore[import-not-found,unused-ignore]
 
         uvicorn.run(fastapi_app, host=host, port=port, log_level="warning")
         return
@@ -78,7 +79,7 @@ def serve(*, host: str = "127.0.0.1", port: int = 8642) -> None:
     from http.server import BaseHTTPRequestHandler, HTTPServer
 
     class Handler(BaseHTTPRequestHandler):
-        def do_GET(self) -> None:  # noqa: N802 - stdlib naming
+        def do_GET(self) -> None:
             if self.path.startswith("/api/health"):
                 body = json.dumps({"status": "ok"}).encode()
                 self.send_response(200)
@@ -98,8 +99,10 @@ def serve(*, host: str = "127.0.0.1", port: int = 8642) -> None:
                     target = web_dist / "index.html"
                 if target.is_file():
                     self.send_response(200)
-                    self.send_header("Content-Type",
-                                     "text/html" if target.suffix == ".html" else "application/octet-stream")
+                    self.send_header(
+                        "Content-Type",
+                        "text/html" if target.suffix == ".html" else "application/octet-stream",
+                    )
                     self.end_headers()
                     self.wfile.write(target.read_bytes())
                 else:
@@ -114,10 +117,8 @@ def serve(*, host: str = "127.0.0.1", port: int = 8642) -> None:
     with HTTPServer((host, port), Handler) as httpd:
         print(f"DevRepro Doctor serving on http://{host}:{port} (localhost only)")
         print("Press Ctrl+C to stop.")
-        try:
+        with contextlib.suppress(KeyboardInterrupt):
             httpd.serve_forever()
-        except KeyboardInterrupt:
-            pass
 
 
 def _unused_socket_guard() -> None:  # pragma: no cover

@@ -7,14 +7,13 @@ from pathlib import Path
 from devrepro.core.models import (
     ContainerState,
     FindingState,
-    PathAnalysis,
     PlatformInfo,
     ProjectRequirement,
     RequirementKind,
     ToolInstallation,
 )
-from devrepro.rules.base import RuleContext, RuleEngine, load_builtin_packs
 from devrepro.project.policy import load_policy
+from devrepro.rules.base import RuleContext, RuleEngine, load_builtin_packs
 
 POLICY = Path(__file__).parent / "fixtures" / "policy" / ".devrepro.toml"
 
@@ -38,14 +37,19 @@ def _ctx(*, tools=(), reqs=(), path=None, containers=None):
 
 def _tool(name: str, version: str | None = "1.0"):
     return ToolInstallation(
-        name=name, version=version, exe_path=f"/usr/bin/{name}",
+        name=name,
+        version=version,
+        exe_path=f"/usr/bin/{name}",
         install_source="system",
     )
 
 
 def _req(name: str, spec: str, eco: str = "python"):
     return ProjectRequirement(
-        ecosystem=eco, name=name, spec=spec, kind=RequirementKind.RUNTIME,
+        ecosystem=eco,
+        name=name,
+        spec=spec,
+        kind=RequirementKind.RUNTIME,
         source_file="pyproject.toml",
     )
 
