@@ -73,7 +73,12 @@ def _parse_github_actions(path: Path, root: Path) -> list[CiToolchain]:
         if current_action and indent > current_indent:
             m_with = re.match(r"([\w-]+)-version:\s*(.+?)\s*(?:#.*)?$", stripped)
             if m_with and m_with.group(1) in _TOOLS:
-                out.append(CiToolchain(m_with.group(1), _unquote(m_with.group(2)), rel, runs_on))
+                spec = _unquote(m_with.group(2))
+                # workflow-expression templates (e.g. ${{ matrix.python-version }})
+                # are not concrete pins; normalize to wildcard
+                if "${{" in spec:
+                    spec = "*"
+                out.append(CiToolchain(m_with.group(1), spec, rel, runs_on))
             elif current_action in _SETUP_ACTIONS and stripped.startswith("version:"):
                 v = _unquote(stripped.split(":", 1)[1])
                 if v:

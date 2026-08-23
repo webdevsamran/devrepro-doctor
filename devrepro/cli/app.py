@@ -584,6 +584,249 @@ def history(
 
 
 @app.command()
+def monorepo(
+    path: Path = typer.Argument(Path(), help="Repository root."),
+    json_out: bool = JsonOption,
+) -> None:
+    """Monorepo discovery, nested-project conflicts, languages, lockfiles."""
+    from devrepro.project.monorepo import analyze_monorepo
+
+    report = analyze_monorepo(path)
+    payload = {
+        "root": report.root,
+        "is_monorepo": report.is_monorepo,
+        "workspace_markers": list(report.workspace_markers),
+        "projects": [
+            {"path": p.path, "ecosystem": p.ecosystem, "depth": p.depth} for p in report.projects
+        ],
+        "conflicts": [
+            {
+                "tool": c.tool,
+                "parent_path": c.parent_path,
+                "parent_spec": c.parent_spec,
+                "child_path": c.child_path,
+                "child_spec": c.child_spec,
+                "detail": c.detail,
+            }
+            for c in report.conflicts
+        ],
+        "inventory": {
+            "languages": report.inventory.languages,
+            "manifest_languages": list(report.inventory.manifest_languages),
+        },
+        "lockfiles": {
+            "covered": list(report.lockfiles.covered),
+            "uncovered": list(report.lockfiles.uncovered),
+        },
+    }
+    if json_out:
+        _emit(payload, True)
+    else:
+        markers = ", ".join(report.workspace_markers) or "no markers"
+        typer.echo(f"Monorepo: {report.is_monorepo} ({markers})")
+        typer.echo(f"Projects: {len(report.projects)}")
+        for c in report.conflicts:
+            typer.secho(
+                f"  CONFLICT {c.tool}: {c.parent_path} wants {c.parent_spec}; "
+                f"{c.child_path} wants {c.child_spec}",
+                fg=typer.colors.RED,
+            )
+        if report.lockfiles.uncovered:
+            typer.secho(
+                f"No lockfile for: {', '.join(report.lockfiles.uncovered)}",
+                fg=typer.colors.YELLOW,
+            )
+    raise typer.Exit(ExitCode.BLOCKED if report.conflicts else ExitCode.READY)
+
+
+@app.command("ci-diff")
+def ci_diff_cmd(
+    path: Path = typer.Argument(Path(), help="Repository root."),
+    json_out: bool = JsonOption,
+) -> None:
+    """Compare CI-declared toolchains with the local machine."""
+    from devrepro.project.ci_parsers import collect_ci_toolchains, local_vs_ci_diff
+
+    ci = collect_ci_toolchains(path)
+    local_versions = _local_tool_versions()
+    rows = local_vs_ci_diff(ci, local_versions)
+    if json_out:
+        _emit(
+            {
+                "ci_toolchains": [
+                    {"tool": t.tool, "spec": t.spec, "source_file": t.source_file} for t in ci
+                ],
+                "rows": rows,
+            },
+            True,
+        )
+    else:
+        typer.echo(f"CI toolchains found: {len(ci)}")
+        for r in rows:
+            mark = {
+                "match": "+",
+                "mismatch": "!",
+                "unknown-local": "?",
+                "wildcard": "~",
+                "ci-absent": "-",
+            }[r["status"]]
+            color = {
+                "match": "green",
+                "mismatch": "red",
+                "unknown-local": "yellow",
+                "wildcard": "yellow",
+                "ci-absent": "grey50",
+            }[r["status"]]
+            typer.secho(
+                f"  [{mark}] {r['tool']}: CI={r['ci_spec']} local={r['local_version']}"
+                f" — {r['detail']}",
+                fg=color,
+            )
+    bad = any(r["status"] == "mismatch" for r in rows)
+    raise typer.Exit(ExitCode.READY_WITH_WARNINGS if bad else ExitCode.READY)
+
+
+def _local_tool_versions() -> dict[str, str]:
+    """Best-effort active versions of common tools (never raises)."""
+    from devrepro.core.runner import SubprocessRunner
+
+    runner = SubprocessRunner()
+    out: dict[str, str] = {}
+    probes = {
+        "python": ("python", ("--version",)),
+        "node": ("node", ("--version",)),
+        "go": ("go", ("version",)),
+        "dotnet": ("dotnet", ("--version",)),
+        "java": ("java", ("-version",)),
+        "ruby": ("ruby", ("--version",)),
+        "php": ("php", ("--version",)),
+    }
+    for name, (exe, args) in probes.items():
+        try:
+            res = runner.run((exe, *args), timeout=5.0)
+            text = (res.stdout or "") + (res.stderr or "")
+            first = text.strip().splitlines()[0] if text.strip() else ""
+            # extract a version-looking token
+            import re as _re
+
+            m = _re.search(r"(\d+\.\d+(\.\d+)?)", first)
+            if m and res.returncode == 0:
+                out[name] = m.group(1)
+        except Exception:
+            pass
+    return out
+
+
+@app.command()
+def generate(
+    what: str = typer.Argument(..., help="devrepro-toml | mise | asdf | devcontainer"),
+    path: Path = typer.Argument(Path(), help="Project root."),
+    write: bool = typer.Option(False, "--write", help="Write after review (refuses to overwrite)."),
+    force_overwrite: bool = typer.Option(False, "--overwrite", help="Explicitly allow overwrite."),
+    json_out: bool = JsonOption,
+) -> None:
+    """Generate reviewable environment-config drafts from detected requirements."""
+    from devrepro.generators import (
+        generate_devcontainer,
+        generate_devrepro_toml,
+        generate_tool_versions,
+        write_generated,
+    )
+    from devrepro.project.detectors import detect_requirements
+
+    reqs = detect_requirements(path)
+    requirements = {r.name: r.spec for r in reqs if r.spec not in ("*", "")}
+    env_names = tuple(sorted({r.name for r in reqs if r.kind.value == "env-name"}))
+    builders: dict[str, Callable[[], str]] = {
+        "devrepro-toml": lambda: generate_devrepro_toml(requirements, env_names),
+        "mise": lambda: generate_tool_versions(requirements, style="mise"),
+        "asdf": lambda: generate_tool_versions(requirements, style="asdf"),
+        "devcontainer": generate_devcontainer,
+    }
+    builder = builders.get(what)
+    if builder is None:
+        typer.secho(f"unknown target {what!r}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(ExitCode.USAGE_ERROR)
+    content = builder()
+    filenames = {
+        "devrepro-toml": ".devrepro.toml",
+        "mise": ".mise.toml",
+        "asdf": ".tool-versions",
+        "devcontainer": ".devcontainer/devcontainer.json",
+    }
+    target = path / filenames[what]
+    if not write:
+        _emit({"target": str(target), "content": content, "written": False}, json_out)
+        if not json_out:
+            typer.echo(content)
+            typer.echo(
+                "[grey50]Preview only. Re-run with --write to create "
+                "(existing files are never overwritten without --overwrite).[/grey50]"
+            )
+        raise typer.Exit(ExitCode.READY)
+    result = write_generated(target, content, allow_overwrite=force_overwrite)
+    _emit(
+        {
+            "target": result.path,
+            "written": True,
+            "requires_review": result.requires_review,
+            "diff": result.diff or None,
+        },
+        json_out,
+    )
+    if not json_out:
+        if result.diff:
+            typer.echo(result.diff)
+        typer.echo(f"wrote {result.path}")
+    raise typer.Exit(ExitCode.READY)
+
+
+@app.command()
+def drift(
+    json_out: bool = JsonOption,
+) -> None:
+    """Drift timeline + root-cause hints across stored snapshot history."""
+    from devrepro.drift.timeline import build_timeline
+    from devrepro.snapshots.history import HistoryStore
+
+    snaps = HistoryStore().latest(10)
+    if len(snaps) < 2:
+        _emit(
+            {"message": "Need at least two stored snapshots; run `devrepro snapshot` twice."},
+            json_out,
+        )
+        raise typer.Exit(ExitCode.READY)
+    payloads = []
+    for s in snaps:
+        try:
+            payloads.append(s.model_dump(mode="json"))
+        except AttributeError:
+            payloads.append(dict(s))
+    timeline = build_timeline(payloads)
+    events = [
+        {
+            "at_index": e.at_index,
+            "component": e.component,
+            "name": e.name,
+            "kind": e.kind,
+            "before": e.before,
+            "after": e.after,
+        }
+        for e in timeline.events
+    ]
+    if json_out:
+        _emit({"snapshot_ids": list(timeline.snapshot_ids), "events": events}, True)
+    else:
+        typer.echo(f"Snapshots: {len(snaps)}; drift events: {len(events)}")
+        for e in events[-20:]:
+            typer.echo(
+                f"  #{e['at_index']} [{e['kind']}] {e['component']}/{e['name']}: "
+                f"{e['before'] or '-'} -> {e['after'] or '-'}"
+            )
+    raise typer.Exit(ExitCode.READY)
+
+
+@app.command()
 def serve(
     host: str = typer.Option("127.0.0.1", help="Bind address. localhost by default."),
     port: int = typer.Option(8642, help="Port."),
