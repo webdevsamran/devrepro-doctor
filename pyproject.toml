@@ -114,6 +114,13 @@ files = ["devrepro"]
 module = ["uvicorn.*", "winreg"]
 ignore_missing_imports = true
 
+# winreg stubs are Windows-only in typeshed; inline ignores in
+# devrepro/platforms/windows_extra.py are needed on Linux/macOS and unused on
+# Windows, so suppress the unused-ignore warning for that module only.
+[[tool.mypy.overrides]]
+module = "devrepro.platforms.windows_extra"
+warn_unused_ignores = false
+
 [tool.pytest.ini_options]
 minversion = "8.0"
 addopts = "-ra --strict-markers"

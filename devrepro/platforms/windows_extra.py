@@ -90,11 +90,14 @@ def check_long_paths() -> LongPathReport:
     try:
         import winreg  # only present on Windows; guarded by os.name check above
 
-        with winreg.OpenKey(
-            winreg.HKEY_LOCAL_MACHINE,
+        # Inline ignores: winreg stubs are Windows-only in typeshed, so on
+        # Linux/macOS these attributes are unknown; on Windows the ignores are
+        # unused (warn_unused_ignores is disabled for this module in pyproject).
+        with winreg.OpenKey(  # type: ignore[attr-defined]
+            winreg.HKEY_LOCAL_MACHINE,  # type: ignore[attr-defined]
             r"SYSTEM\CurrentControlSet\Control\FileSystem",
         ) as key:
-            value, _ = winreg.QueryValueEx(key, "LongPathsEnabled")
+            value, _ = winreg.QueryValueEx(key, "LongPathsEnabled")  # type: ignore[attr-defined]
         enabled = bool(value)
         detail = (
             "long paths ENABLED"
