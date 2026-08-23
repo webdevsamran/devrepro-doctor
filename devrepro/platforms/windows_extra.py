@@ -88,7 +88,7 @@ def check_long_paths() -> LongPathReport:
     if os.name != "nt":
         return LongPathReport(None, "not applicable on this platform")
     try:
-        import winreg
+        import winreg  # only present on Windows; guarded by os.name check above
 
         with winreg.OpenKey(
             winreg.HKEY_LOCAL_MACHINE,
