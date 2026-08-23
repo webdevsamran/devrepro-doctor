@@ -365,6 +365,16 @@ def analyze_monorepo(root: Path | str) -> MonorepoReport:
     cargo_ws = "workspace" in _read_toml(root / "Cargo.toml")
     is_monorepo = bool(markers or has_npm_ws or cargo_ws)
     projects, manifests = _discover_projects(root)
+    # dedupe: a directory may hold several manifests (pyproject.toml +
+    # requirements.txt); one project node per (path, ecosystem)
+    seen_nodes: set[tuple[str, str]] = set()
+    unique_projects: list[ProjectNode] = []
+    for node in projects:
+        key = (node.path, node.ecosystem)
+        if key not in seen_nodes:
+            seen_nodes.add(key)
+            unique_projects.append(node)
+    projects = unique_projects
     conflicts = _detect_conflicts(root, manifests)
     manifest_langs = {eco for _, eco in manifests}
     inventory = _language_inventory(root, manifest_langs)
