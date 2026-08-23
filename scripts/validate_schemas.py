@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import json
 import pathlib
-
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from devrepro.core.models import ScanReport  # noqa: E402
+from devrepro.core.models import PlatformInfo, Snapshot
 
 
 def main() -> int:
@@ -23,11 +22,14 @@ def main() -> int:
             print(f"FAIL {f}: {exc}")
             ok = False
     # model -> schema round-trip smoke
-    from devrepro.core.models import PlatformInfo, Snapshot
-
-    snap = Snapshot(devrepro_version="0.1.0", platform=PlatformInfo(os_name="Linux", os_version="6", arch="x86_64"))
+    snap = Snapshot(
+        devrepro_version="0.1.0",
+        platform=PlatformInfo(os_name="Linux", os_version="6", arch="x86_64"),
+    )
     payload = snap.model_dump(mode="json")
-    assert isinstance(json.dumps(payload), str)
+    if not isinstance(json.dumps(payload), str):
+        print("FAIL snapshot model round-trip")
+        return 1
     print("ok   snapshot model round-trip")
     return 0 if ok else 1
 

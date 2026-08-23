@@ -30,7 +30,7 @@ classifiers = [
 ]
 dependencies = [
   "typer>=0.12,<1.0",
-  "rich>=13.7,<14.0",
+  "rich>=13.7,<16.0",
   "pydantic>=2.6,<3.0",
   "tomli>=2.0; python_version < '3.11'",
 ]
@@ -40,14 +40,14 @@ dependencies = [
 dev = ["devrepro-doctor[test,lint]"]
 serve = ["uvicorn>=0.29,<1.0"]
 test = [
-  "pytest>=8.0,<9.0",
-  "pytest-cov>=5.0,<7.0",
+  "pytest>=8.0,<10.0",
+  "pytest-cov>=5.0,<8.0",
   "hypothesis>=6.100,<7.0",
   "httpx>=0.27,<1.0",
 ]
 lint = [
   "ruff>=0.4,<1.0",
-  "mypy>=1.10,<2.0",
+  "mypy>=1.10,<3.0",
   "types-toml; python_version < '3.11'",
 ]
 

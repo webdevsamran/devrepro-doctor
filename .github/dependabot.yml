@@ -1,14 +1,38 @@
 version: 2
 updates:
+  # Grouped updates keep the branch count low: one PR per ecosystem/group
+  # instead of one PR per dependency, so temporary branches do not accumulate.
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      python-deps:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 2
+
   - package-ecosystem: "npm"
     directory: "/web"
     schedule:
       interval: "weekly"
+    groups:
+      web-dev-deps:
+        dependency-type: "development"
+        patterns:
+          - "*"
+      web-prod-deps:
+        dependency-type: "production"
+        patterns:
+          - "*"
+    open-pull-requests-limit: 2
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 1
