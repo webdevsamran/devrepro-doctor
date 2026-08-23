@@ -228,9 +228,7 @@ def infer_required_services(root: Path | str) -> dict[str, tuple[str, int]]:
                 break
     # second pass: well-known default ports without any declaration evidence
     for d in decls:
-        if d.port in KNOWN_SERVICES.values() and not any(
-            p == d.port for _, p in inferred.values()
-        ):
+        if d.port in KNOWN_SERVICES.values() and not any(p == d.port for _, p in inferred.values()):
             for svc, port in KNOWN_SERVICES.items():
                 if port == d.port and svc not in inferred:
                     inferred[svc] = ("127.0.0.1", d.port)
