@@ -67,4 +67,5 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e . pip-audit
       - name: Audit installed dependencies
-        run: pip-audit --strict
+        # --skip-editable: the local devrepro-doctor package is not on PyPI yet
+        run: pip-audit --skip-editable
