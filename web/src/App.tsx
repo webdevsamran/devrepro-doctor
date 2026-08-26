@@ -11,6 +11,14 @@ import {
   BaselinePage, EnvVarsPage, FleetDashboardPage, GitHealthPage,
   NetworkTlsPage, ProfilePage, ServicesPage,
 } from './pages2'
+import {
+  ContainersWslPage, DriftTimelinePage, GeneratedEnvPage, GpuAiStackPage,
+  PluginCatalogPage, ShellStartupPage,
+} from './pages3'
+import {
+  AgentsEnrollmentPage, AuditLogPage, ExceptionsPage, RetentionPage,
+  ServerSettingsPage,
+} from './pages4'
 
 const NAV = [
   ['home', 'Home'],
@@ -24,13 +32,24 @@ const NAV = [
   ['services', 'Ports & Services'],
   ['githealth', 'Git Health'],
   ['network', 'Network & TLS'],
+  ['containers', 'Containers/WSL'],
+  ['gpustack', 'GPU/AI Stack'],
+  ['shellstartup', 'Shell Startup'],
   ['findings', 'Findings'],
   ['diff', 'Environment Diff'],
+  ['drifttimeline', 'Drift Timeline'],
   ['snapshots', 'Snapshots'],
   ['rules', 'Rules'],
   ['remediation', 'Remediation Plan'],
+  ['generatedenv', 'Generated Env'],
+  ['plugins', 'Plugins'],
   ['history', 'History'],
   ['fleet', 'Fleet Dashboard'],
+  ['agents', 'Agents & Enrollment'],
+  ['exceptions', 'Exceptions'],
+  ['auditlog', 'Audit Log'],
+  ['retention', 'Retention'],
+  ['serversettings', 'Server Settings'],
   ['docs', 'Docs'],
   ['contributors', 'Contributors'],
   ['about', 'About'],
@@ -97,13 +116,24 @@ export default function App() {
             {page === 'services' && <ServicesPage />}
             {page === 'githealth' && <GitHealthPage />}
             {page === 'network' && <NetworkTlsPage />}
+            {page === 'containers' && <ContainersWslPage />}
+            {page === 'gpustack' && <GpuAiStackPage />}
+            {page === 'shellstartup' && <ShellStartupPage />}
             {page === 'findings' && <FindingsPage report={report} />}
             {page === 'diff' && <DiffPage />}
+            {page === 'drifttimeline' && <DriftTimelinePage />}
             {page === 'snapshots' && <SnapshotsPage report={report} />}
             {page === 'rules' && <RulesPage report={report} />}
             {page === 'remediation' && <RemediationPage report={report} />}
+            {page === 'generatedenv' && <GeneratedEnvPage />}
+            {page === 'plugins' && <PluginCatalogPage />}
             {page === 'history' && <HistoryPage />}
             {page === 'fleet' && <FleetDashboardPage />}
+            {page === 'agents' && <AgentsEnrollmentPage />}
+            {page === 'exceptions' && <ExceptionsPage />}
+            {page === 'auditlog' && <AuditLogPage />}
+            {page === 'retention' && <RetentionPage />}
+            {page === 'serversettings' && <ServerSettingsPage />}
             {page === 'docs' && <DocsPage />}
             {page === 'contributors' && <ContributorsPage />}
             {page === 'about' && <AboutPage report={report} />}
