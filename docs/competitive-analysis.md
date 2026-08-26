@@ -1,7 +1,7 @@
 # Competitive Analysis
 
-> Structured data: [`data/competitive-capabilities.json`](../data/competitive-capabilities.json).
-> Gaps this project commits to closing: [`PRODUCT_GAPS.md`](../PRODUCT_GAPS.md).
+> Structured data: [`data/competitive-capabilities.json`](https://github.com/webdevsamran/devrepro-doctor/blob/main/data/competitive-capabilities.json).
+> Gaps this project commits to closing: [PRODUCT_GAPS.md](product-gaps.md).
 
 **Verification method.** Claims were compiled from each competitor's official
 repository, documentation site and release notes (canonical links in the JSON).
@@ -60,7 +60,7 @@ Project Detectors + Machine Probes -> Normalized State -> Requirements/Policy
 ## Capability matrix (condensed)
 
 Full per-competitor detail with evidence links lives in
-[`data/competitive-capabilities.json`](../data/competitive-capabilities.json).
+[`data/competitive-capabilities.json`](https://github.com/webdevsamran/devrepro-doctor/blob/main/data/competitive-capabilities.json).
 
 | Capability | Nix | devenv | Devbox | mise | asdf | direnv | DevContainers | DevPod | Coder | Doctors | **DevRepro** |
 |---|---|---|---|---|---|---|---|---|---|---|---|

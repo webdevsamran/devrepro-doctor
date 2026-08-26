@@ -1,0 +1,62 @@
+site_name: DevRepro Doctor
+site_description: >
+  Cross-platform diagnostics, reproducibility auditing and safe repair
+  planning for developer machines, project toolchains, SDKs, containers
+  and build dependencies.
+site_url: https://webdevsamran.github.io/devrepro-doctor/
+repo_url: https://github.com/webdevsamran/devrepro-doctor
+repo_name: webdevsamran/devrepro-doctor
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+  features:
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+    - search.highlight
+  icon:
+    logo: material/stethoscope
+
+nav:
+  - Home: index.md
+  - Architecture: architecture.md
+  - Roadmap: roadmap.md
+  - Interoperability: interop.md
+  - Product gaps: product-gaps.md
+  - Competitive analysis: competitive-analysis.md
+  - Guides:
+      - GitHub Actions & SARIF: ci-github-actions.md
+      - Self-hosted server: SERVER.md
+      - Plugins: PLUGINS.md
+      - Privacy: PRIVACY.md
+      - Exit codes: EXIT-CODES.md
+  - Project:
+      - Contributing: contributing.md
+      - Security policy: security.md
+      - Changelog: changelog.md
+      - Code of conduct: code-of-conduct.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.superfences
+  - pymdownx.snippets:
+      base_path: docs
+      check_paths: false
+  - tables
+  - toc:
+      permalink: true
+
+validation:
+  omitted_files: warn
+  absolute_links: warn

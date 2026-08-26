@@ -140,7 +140,7 @@ def register(app: typer.Typer) -> None:
     def scan(
         json_out: bool = JsonOption,
         output: Path | None = typer.Option(None, "-o", "--output", help="Write report to file."),
-        fmt: str = typer.Option("json", "--format", help="json|markdown|junit|html"),
+        fmt: str = typer.Option("json", "--format", help="json|markdown|junit|html|sarif"),
         policy_path: Path | None = PolicyOption,
     ) -> None:
         """Run a scan and emit a report artifact (default format: json)."""
@@ -151,6 +151,7 @@ def register(app: typer.Typer) -> None:
             render_junit,
             render_markdown,
         )
+        from devrepro.reports.sarif import render_sarif
 
         report = run_scan(policy=load_policy_or_none(policy_path))
         renderers = {
@@ -158,11 +159,12 @@ def register(app: typer.Typer) -> None:
             "markdown": lambda: render_markdown(report),
             "junit": lambda: render_junit(report),
             "html": lambda: render_html(report),
+            "sarif": lambda: render_sarif(report),
         }
         renderer = renderers.get(fmt)
         if renderer is None:
             typer.secho(
-                f"unknown format {fmt!r}; choose json|markdown|junit|html",
+                f"unknown format {fmt!r}; choose json|markdown|junit|html|sarif",
                 fg=typer.colors.RED,
                 err=True,
             )
@@ -175,6 +177,35 @@ def register(app: typer.Typer) -> None:
         else:
             typer.echo(content)
         raise typer.Exit(exit_for({f.state.value for f in report.findings}))
+
+    @app.command()
+    def guard(
+        policy_path: Path | None = PolicyOption,
+        json_out: bool = JsonOption,
+    ) -> None:
+        """Pre-commit/CI gate: exit 2 when the machine has blockers, else 0.
+
+        Designed for `devrepro guard` in a git pre-commit hook or CI job;
+        output stays short so hook logs stay readable.
+        """
+        from devrepro.cli.pipeline import run_scan
+
+        report = run_scan(policy=load_policy_or_none(policy_path))
+        blockers = [
+            f.rule_id
+            for f in report.findings
+            if f.state in (FindingState.ERROR, FindingState.BLOCKED)
+        ]
+        if json_out:
+            emit({"verdict": "BLOCKED" if blockers else "READY", "blockers": blockers}, True)
+        elif blockers:
+            typer.secho(f"GUARD: blocked by {len(blockers)} finding(s):", fg="red")
+            for rid in blockers:
+                typer.echo(f"  - {rid}")
+            typer.echo("Run `devrepro doctor` for full details and remediation plans.")
+        else:
+            typer.echo("GUARD: ok")
+        raise typer.Exit(ExitCode.BLOCKED if blockers else ExitCode.READY)
 
     @app.command()
     def preflight(

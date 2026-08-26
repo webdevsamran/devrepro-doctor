@@ -139,7 +139,7 @@ localhost API served by `devrepro serve`.
 ## Commands
 
 ```text
-Diagnostics   doctor  check  info  scan  preflight  path  which  platform-depth
+Diagnostics   doctor  check  info  scan  preflight  guard  path  which  platform-depth
 Project       project  monorepo  ci-diff  profile  baseline  generate
 Environment   env  ports  git-health  network  envmanagers
 Snapshots     snapshot  diff  history  drift  sign-snapshot  verify-snapshot  bundle
@@ -151,6 +151,24 @@ Services      serve  self-test  server-backup  server-restore
 All major commands support `--json` and stable exit codes (`0` ready,
 `1` warnings, `2` blocked, `3` internal error) for use in onboarding
 scripts and CI.
+
+### CI integration
+
+Gate your workflow on machine readiness and surface findings directly on
+GitHub pull requests via SARIF:
+
+```yaml
+- uses: webdevsamran/devrepro-doctor/action@main
+  with:
+    command: preflight
+    sarif-output: devrepro.sarif
+- uses: github/codeql-action/upload-sarif@v3
+  if: always()
+  with:
+    sarif_file: devrepro.sarif
+```
+
+See [docs/ci-github-actions.md](docs/ci-github-actions.md) for the full guide.
 
 ## Documentation
 

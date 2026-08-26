@@ -25,6 +25,9 @@ web/coverage/
 .devrepro-history/
 *.devrepro-snapshot.json
 
+# Docs site build output
+site/
+
 # Editors / OS
 .vscode/
 .idea/

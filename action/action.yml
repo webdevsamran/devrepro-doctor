@@ -1,0 +1,77 @@
+name: 'DevRepro Doctor'
+description: >
+  Run project-aware developer-environment diagnostics in your workflow.
+  Gates the job on machine readiness (exit code contract: 0 READY,
+  1 READY_WITH_WARNINGS, 2 BLOCKED) and can upload a SARIF report to
+  GitHub code scanning.
+branding:
+  icon: 'activity'
+  color: 'green'
+
+inputs:
+  command:
+    description: 'Diagnostic command to run: preflight (default), doctor, or guard.'
+    required: false
+    default: 'preflight'
+  policy:
+    description: 'Path to a .devrepro.toml policy (optional).'
+    required: false
+    default: ''
+  python-version:
+    description: 'Python version used to install the CLI.'
+    required: false
+    default: '3.12'
+  package:
+    description: >
+      What to pip-install. Defaults to the published PyPI package. Until the
+      package is published, pass the repo you want to install from, e.g.
+      'git+https://github.com/webdevsamran/devrepro-doctor@main'.
+    required: false
+    default: 'devrepro-doctor'
+  sarif-output:
+    description: >
+      Set to a file path to also write a SARIF report there (e.g.
+      'devrepro.sarif') for github/codeql-action/upload-sarif.
+    required: false
+    default: ''
+  fail-on-warnings:
+    description: "Treat exit code 1 (READY_WITH_WARNINGS) as failure."
+    required: false
+    default: 'false'
+
+outputs:
+  verdict:
+    description: 'READY, READY_WITH_WARNINGS or BLOCKED.'
+    value: ${{ steps.scan.outputs.verdict }}
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0 (pinned)
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Install DevRepro Doctor
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install "${{ inputs.package }}"
+    - name: Run diagnostics
+      id: scan
+      shell: bash
+      run: |
+        set +e
+        ARGS=("${{ inputs.command }}" --json)
+        if [ -n "${{ inputs.policy }}" ]; then ARGS+=(--policy "${{ inputs.policy }}"); fi
+        if [ -n "${{ inputs.sarif-output }}" ]; then
+          devrepro scan --format sarif -o "${{ inputs.sarif-output }}"
+          ARGS=("${{ inputs.command }}")
+        fi
+        devrepro "${ARGS[@]}" | tee devrepro-output.json
+        CODE=$?
+        VERDICT=$(python -c "import json;print(json.load(open('devrepro-output.json')).get('verdict','UNKNOWN'))" || echo UNKNOWN)
+        echo "verdict=$VERDICT" >> "$GITHUB_OUTPUT"
+        echo "DevRepro Doctor exit code: $CODE (verdict: $VERDICT)"
+        if [ "$CODE" -eq 1 ] && [ "${{ inputs.fail-on-warnings }}" != 'true' ]; then
+          exit 0
+        fi
+        exit "$CODE"
