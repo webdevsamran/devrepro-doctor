@@ -4,6 +4,25 @@ All notable changes to DevRepro Doctor are documented here.
 Format based on Keep a Changelog; versioning follows SemVer.
 
 ## [Unreleased]
+### Added - fourth pass: CI/CD surface & docs site
+- SARIF 2.1.0 renderer (`devrepro/reports/sarif.py`) wired into
+  `devrepro scan --format sarif` and `devrepro report --format sarif`, so
+  environment blockers appear in GitHub code scanning and on pull requests.
+  States map BLOCKED/ERROR→error, WARN/UNKNOWN→warning, INFO/PASS→note;
+  results carry stable rule IDs, detected/required versions, remediation
+  hints and reproducible fingerprints. Output passes the privacy gate.
+- `devrepro guard`: short-output pre-commit/CI gate (exit 2 on blockers).
+- Official composite GitHub Action (`action/action.yml`) running preflight/
+  doctor/guard with optional policy, SARIF output and verdict output;
+  every nested action pinned by commit SHA. Guide: docs/ci-github-actions.md.
+- Documentation site (mkdocs-material): mkdocs.yml + requirements-docs.txt,
+  root-level canonical docs included via snippet wrappers so the site never
+  drifts from the repo. Verified with `mkdocs build --strict`; docs job
+  added to CI.
+- Frontend unit tests (vitest + Testing Library + jsdom): UI primitives,
+  Home page hero/CTA and the report loader's source-priority contract.
+  `npm test` added to package.json and run in CI. 11 tests, all passing.
+
 ### Changed - CLI restructuring pass
 - `devrepro/cli/app.py` reduced from a 1,425-line monolith to a thin Typer
   assembler; all 36 commands now live in domain modules under

@@ -18,7 +18,7 @@ def register(app: typer.Typer) -> None:
         input_file: Path = typer.Argument(
             ..., exists=True, readable=True, help="A saved JSON scan report."
         ),
-        fmt: str = typer.Option("markdown", "--format", help="markdown|junit|html|json"),
+        fmt: str = typer.Option("markdown", "--format", help="markdown|junit|html|json|sarif"),
         output: Path | None = typer.Option(None, "-o", "--output"),
     ) -> None:
         """Re-render a saved JSON report into another format."""
@@ -29,6 +29,7 @@ def register(app: typer.Typer) -> None:
             render_junit,
             render_markdown,
         )
+        from devrepro.reports.sarif import render_sarif
 
         data = ScanReport.model_validate(json.loads(input_file.read_text(encoding="utf-8")))
         renderers = {
@@ -36,6 +37,7 @@ def register(app: typer.Typer) -> None:
             "junit": render_junit,
             "html": render_html,
             "json": render_json,
+            "sarif": render_sarif,
         }
         renderer = renderers.get(fmt)
         if renderer is None:

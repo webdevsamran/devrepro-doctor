@@ -1,0 +1,2 @@
+# Pinned below 9.7: later lines changed licensing terms; 9.6.x remains ISC.
+mkdocs-material>=9.5,<9.7
