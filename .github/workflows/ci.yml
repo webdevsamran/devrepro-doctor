@@ -5,18 +5,22 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
   python:
-    name: Python (${{ matrix.os }})
+    name: Python (${{ matrix.os }}, ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -33,7 +37,14 @@ jobs:
       - name: Type check (mypy)
         run: mypy devrepro
       - name: Tests + coverage
-        run: pytest -q --cov=devrepro --cov-report=term-missing --cov-fail-under=60
+        run: pytest -q --cov=devrepro --cov-report=term-missing --cov-report=xml --cov-fail-under=60
+      - name: Upload coverage artifact
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-report
+          path: coverage.xml
+          if-no-files-found: error
       - name: Schema validation
         run: python scripts/validate_schemas.py
 
