@@ -4,6 +4,22 @@ All notable changes to DevRepro Doctor are documented here.
 Format based on Keep a Changelog; versioning follows SemVer.
 
 ## [Unreleased]
+### Changed - CLI restructuring pass
+- `devrepro/cli/app.py` reduced from a 1,425-line monolith to a thin Typer
+  assembler; all 36 commands now live in domain modules under
+  `devrepro/cli/commands/` (diagnostics, project, environment, snapshots,
+  remediation, reports, platform, service) with shared helpers in
+  `devrepro/cli/common.py`. The CLI surface is unchanged — commands remain
+  top-level (`devrepro doctor`), all exit codes and flags identical.
+- Shell completions enabled (`--install-completion` / `--show-completion`).
+- Root `fixtures/` consolidated into `tests/fixtures/recordings/` (it was
+  unreferenced by the suite; CONTRIBUTING already points at `tests/fixtures/`).
+- Wave-named test files renamed to domain names: test_project_intel,
+  test_environment_probes, test_profiles_baselines, test_plugins_selftest,
+  test_signing_vault_bundle, test_server_enterprise.
+- CI matrix extended to Python 3.13/3.14; coverage artifact upload; job
+  concurrency cancellation.
+
 ### Added - third transformation pass
 - Linux platform depth: distro/package-manager family normalization
   (Debian/Fedora/Arch/SUSE/Alpine), kernel/libc/compiler metadata,

@@ -138,10 +138,14 @@ localhost API served by `devrepro serve`.
 
 ## Commands
 
-```
-doctor   info   scan   project   path   which   snapshot   diff
-preflight   plan   fix   rules   plugins   report   export
-history   serve   self-test
+```text
+Diagnostics   doctor  check  info  scan  preflight  path  which  platform-depth
+Project       project  monorepo  ci-diff  profile  baseline  generate
+Environment   env  ports  git-health  network  envmanagers
+Snapshots     snapshot  diff  history  drift  sign-snapshot  verify-snapshot  bundle
+Remediation   plan  fix  rules  plugins
+Reports       report  export
+Services      serve  self-test  server-backup  server-restore
 ```
 
 All major commands support `--json` and stable exit codes (`0` ready,

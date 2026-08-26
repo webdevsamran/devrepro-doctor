@@ -48,7 +48,7 @@ React dashboard. Everything is built around a small set of typed contracts.
 | `devrepro/privacy` | Redaction engine + secret scanner. Runs as a mandatory gate before any serialization. |
 | `devrepro/reports` | Terminal (rich), JSON, Markdown, JUnit XML, standalone HTML renderers. |
 | `devrepro/exporters` | Pluggable export layer behind report generation. |
-| `devrepro/cli` | Typer app exposing all commands with `--json` and stable exit codes. |
+| `devrepro/cli` | Typer app exposing all commands with `--json` and stable exit codes. The root app (`cli/app.py`) is a thin assembler; command implementations live in one domain module each under `cli/commands/` (diagnostics, project, environment, snapshots, remediation, reports, platform, service), registered onto a flat CLI surface. |
 | `web/` | React 18 + TypeScript + Vite dashboard reading sanitized JSON exports or the localhost API. |
 
 ## Key design decisions
