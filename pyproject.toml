@@ -39,6 +39,7 @@ dependencies = [
 # Convenience meta-extra used by CI: pip install -e ".[dev]"
 dev = ["devrepro-doctor[test,lint]"]
 serve = ["flask>=3.0,<4.0", "uvicorn>=0.29,<1.0"]
+secure = ["cryptography>=42.0,<47.0"]
 test = [
   "pytest>=8.0,<10.0",
   "pytest-cov>=5.0,<8.0",
@@ -111,7 +112,7 @@ show_error_codes = true
 files = ["devrepro"]
 
 [[tool.mypy.overrides]]
-module = ["uvicorn.*", "winreg"]
+module = ["uvicorn.*", "winreg", "cryptography.*"]
 ignore_missing_imports = true
 
 # winreg stubs are Windows-only in typeshed; inline ignores in

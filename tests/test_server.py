@@ -37,6 +37,20 @@ def _auth(tok: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {tok}"}
 
 
+# ---------- metrics ----------
+
+
+def test_metrics_prometheus_format(db, client) -> None:  # type: ignore[no-untyped-def]
+    org = db.create_organization("metrics-org")
+    db.create_service_account(org, "sa", "admin")
+    resp = client.get("/metrics")
+    assert resp.status_code == 200
+    body = resp.get_data(as_text=True)
+    assert "devrepro_machines_enrolled" in body
+    assert "devrepro_snapshots_published" in body
+    assert "# TYPE devrepro_organizations_total gauge" in body
+
+
 # ---------- health & auth ----------
 
 
