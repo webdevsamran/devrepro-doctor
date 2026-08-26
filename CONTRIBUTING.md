@@ -72,6 +72,27 @@ Plugin APIs are versioned: see `docs/plugins.md`.
 Conventional commits: `feat(probes): add rustup probe`, `fix(diff): ...`,
 `docs: ...`, `ci: ...`. Logical commits pushed to `main` after validation.
 
+## Branch protection
+
+`main` is protected at the repository level (GitHub API, Settings → Branches):
+
+- Force pushes and deletion are blocked; rules are admin-enforced for
+  collaborators, with an intentional bypass for the repository owner so
+  direct-to-main maintenance pushes keep working.
+- Pull requests can only merge when all 18 required checks are green:
+  every CI matrix job (`Python (ubuntu/macos/windows-latest, 3.11–3.14)`),
+  `Frontend`, `Docs site`, `Dependency security scan`,
+  `analyze (python)`, `analyze (javascript-typescript)` and
+  `Code scanning results / CodeQL`.
+- Direct pushes by maintainers remain permitted (no review gate for this
+  single-maintainer project); PR merges require passing checks either way.
+
+If you add, remove or rename a CI job, update the required-check list in
+**Settings → Branches → main** afterwards — otherwise pull requests hang on
+a check that no longer exists. Branch protection lives in repository
+settings, not in git history, so it is not reproducible from this repo's
+files alone.
+
 ## Release
 
 Maintainers cut releases per docs/release.md (checksums + provenance).
