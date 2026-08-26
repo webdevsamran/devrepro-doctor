@@ -4,6 +4,32 @@ All notable changes to DevRepro Doctor are documented here.
 Format based on Keep a Changelog; versioning follows SemVer.
 
 ## [Unreleased]
+### Added - third transformation pass
+- Linux platform depth: distro/package-manager family normalization
+  (Debian/Fedora/Arch/SUSE/Alpine), kernel/libc/compiler metadata,
+  file-descriptor limits, inotify watch guidance and CPU governor reporting.
+- macOS platform depth: Xcode/CLT inventory, SDK path/version, Rosetta
+  translation status and Homebrew prefix-vs-architecture conflict detection.
+- Environment-manager diagnostics (`devrepro envmanagers`): Nix flake lock
+  coverage, devenv, Devbox locks, mise/asdf pinned-vs-active toolchain checks,
+  direnv `.envrc` advisory handling. DevRepro diagnoses; the managers remain
+  the source of truth (INTEROP.md).
+- Snapshot signing/verification (`devrepro sign-snapshot`/`verify-snapshot`),
+  encryption-at-rest vault (`[secure]` extra) and onboarding bundle export
+  (`devrepro bundle`).
+- Enterprise auth abstraction: OIDC claim-to-RBAC role mapping with validated
+  config, SAML IdP metadata parsing (verification stays delegated); local dev
+  auth remains default. External IdP validation: BLOCKED in CI.
+- Server OpenAPI 3.1 spec at `/api/v1/openapi.json`, cross-checked against
+  the live route table in tests; Prometheus-compatible `/metrics`.
+- Checksummed server backup/restore with CLI commands and overwrite guards.
+- Frontend: shell startup profiling, containers/WSL, GPU/AI stack, drift
+  timeline, generated-environment preview with review gates, plugin catalog
+  with capability warnings, enterprise console pages (audit log, exceptions,
+  agents/enrollment, retention, server settings). Demo fallbacks are always
+  DEMO-labelled.
+
+
 
 ### Added — second transformation pass
 - Monorepo analysis: workspace discovery, nested-project version conflicts,

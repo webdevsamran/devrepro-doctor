@@ -84,3 +84,25 @@ per-machine baseline compliance. These power the frontend Fleet Dashboard page.
 
 SQLite ships by default. For multi-user scale, swap the storage layer for
 PostgreSQL behind the same call sites (tracked in PRODUCT_GAPS.md).
+## Authentication abstraction
+
+Local service accounts always work. For enterprise identity providers:
+
+- **OIDC** - configure `devrepro.server.auth.OidcConfig` (HTTPS issuer,
+  client id, role claim path, group-to-role mapping). Claim-to-RBAC mapping is
+  implemented and unit-tested; token introspection must be delegated to your
+  IdP. External IdP conformance is NOT asserted from CI.
+- **SAML** - `parse_saml_metadata` extracts entity ID and HTTPS SSO bindings
+  from IdP metadata. Assertion signature verification must be delegated to a
+  dedicated SAML stack; unverified assertions are never treated as
+  authenticated.
+
+## API discovery, metrics and backup
+
+- OpenAPI 3.1 document: `GET /api/v1/openapi.json` (CI cross-checks it
+  against the live Flask route table).
+- Prometheus-compatible counters: `GET /metrics`.
+- Backup/restore: `devrepro server-backup fleet.db` writes a checksummed
+  archive; `devrepro server-restore <archive> fleet.db` verifies every
+  manifest checksum before touching the target and refuses to overwrite an
+  existing database without `--overwrite`.
