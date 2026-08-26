@@ -308,6 +308,14 @@ def create_app(db: ServerDB) -> Flask:
                 counters["http_errors"] = counters.get("http_errors", 0) + 1
         return resp
 
+    # ---- OpenAPI description of the versioned fleet API ----
+
+    @app.get("/api/v1/openapi.json")
+    def openapi_spec() -> Response:
+        from devrepro.server.openapi import build_openapi_spec
+
+        return jsonify(build_openapi_spec())
+
     return app
 
 
