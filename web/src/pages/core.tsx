@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import type { EnvironmentDiff, ScanReport } from './types'
-import { Badge, Card, CopyButton, EmptyState, EvidenceDrawer, SeverityFilter } from './components'
+import type { EnvironmentDiff, ScanReport } from '../types'
+import { Badge, Card, CopyButton, EmptyState, EvidenceDrawer, SeverityFilter } from '../components/ui'
 
 type PageProps = { report: ScanReport }
 
