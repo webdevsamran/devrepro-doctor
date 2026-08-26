@@ -4,6 +4,13 @@ All notable changes to DevRepro Doctor are documented here.
 Format based on Keep a Changelog; versioning follows SemVer.
 
 ## [Unreleased]
+### Added - fifth pass: deployments wired
+- GitHub Pages publishing: `.github/workflows/docs.yml` builds the site with
+  `mkdocs build --strict` and deploys via actions/deploy-pages on every push
+  to main that touches docs; Pages enabled with build_type=workflow.
+- Repository `pypi` environment created for the Trusted Publishing job in
+  release.yml (one-time PyPI publisher registration remains a manual step).
+
 ### Added - fourth pass: CI/CD surface & docs site
 - SARIF 2.1.0 renderer (`devrepro/reports/sarif.py`) wired into
   `devrepro scan --format sarif` and `devrepro report --format sarif`, so
