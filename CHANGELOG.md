@@ -5,6 +5,10 @@ Format based on Keep a Changelog; versioning follows SemVer.
 
 ## [Unreleased]
 ### Added - fifth pass: deployments wired
+- Branch protection for `main`: force-push/deletion blocked, 18 required
+  status checks (all CI matrix jobs + Frontend + Docs site +
+  Dependency security scan + CodeQL analyses). Policy documented in
+  CONTRIBUTING.md under "Branch protection".
 - GitHub Pages publishing: `.github/workflows/docs.yml` builds the site with
   `mkdocs build --strict` and deploys via actions/deploy-pages on every push
   to main that touches docs; Pages enabled with build_type=workflow.
