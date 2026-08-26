@@ -1371,6 +1371,46 @@ def envmanagers_cmd(
     raise typer.Exit(ExitCode.READY_WITH_WARNINGS if has_warn else ExitCode.READY)
 
 
+@app.command("server-backup")
+def server_backup_cmd(
+    db_path: Path = typer.Argument(..., exists=True, readable=True, help="Path to fleet.db."),
+    output: Path | None = typer.Option(None, "-o", "--output", help="Archive path."),
+    json_out: bool = JsonOption,
+) -> None:
+    """Back up the self-hosted server database (checksummed archive)."""
+    from devrepro.server.backup import backup_database
+
+    result = backup_database(db_path, output)
+    _emit(
+        {
+            "archive": str(result.path),
+            "members": result.members,
+            "sha256": result.sha256,
+        },
+        json_out,
+    )
+    raise typer.Exit(ExitCode.READY)
+
+
+@app.command("server-restore")
+def server_restore_cmd(
+    archive: Path = typer.Argument(..., exists=True, readable=True),
+    target: Path = typer.Argument(..., help="Target path for the restored database."),
+    overwrite: bool = typer.Option(False, "--overwrite", help="Replace an existing DB."),
+    json_out: bool = JsonOption,
+) -> None:
+    """Restore a server backup after verifying every manifest checksum."""
+    from devrepro.server.backup import RestoreError, restore_database
+
+    try:
+        restored = restore_database(archive, target, overwrite=overwrite)
+    except RestoreError as exc:
+        typer.echo(f"restore refused: {exc}", err=True)
+        raise typer.Exit(ExitCode.USAGE_ERROR) from exc
+    _emit({"restored": str(restored)}, json_out)
+    raise typer.Exit(ExitCode.READY)
+
+
 def main() -> None:
     try:
         app()
