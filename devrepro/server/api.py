@@ -271,6 +271,43 @@ def create_app(db: ServerDB) -> Flask:
     def too_large(_e: object) -> tuple[Response, int]:
         return _err(413, "request body too large")
 
+    # ---- Prometheus-compatible metrics (no machine secrets, counts only) ----
+
+    @app.get("/metrics")
+    def metrics() -> Response:
+        counters = getattr(app, "devrepro_metrics", None)
+        if counters is None:
+            counters = {}
+            app.devrepro_metrics = counters  # type: ignore[attr-defined]
+        machines = db._conn.execute("SELECT COUNT(*) FROM machines").fetchone()[0]
+        snapshots = db._conn.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0]
+        orgs = db._conn.execute("SELECT COUNT(*) FROM organizations").fetchone()[0]
+        lines = [
+            "# HELP devrepro_machines_enrolled Total enrolled machines.",
+            "# TYPE devrepro_machines_enrolled counter",
+            f"devrepro_machines_enrolled {machines}",
+            "# HELP devrepro_snapshots_published Total stored snapshots.",
+            "# TYPE devrepro_snapshots_published counter",
+            f"devrepro_snapshots_published {snapshots}",
+            "# HELP devrepro_organizations_total Registered organizations.",
+            "# TYPE devrepro_organizations_total gauge",
+            f"devrepro_organizations_total {orgs}",
+        ]
+        for name, value in sorted(counters.items()):
+            safe = name.replace('"', "")
+            lines.append(f"# TYPE devrepro_{safe} counter")
+            lines.append(f'devrepro_{safe}{{cause="{safe}"}} {value}')
+        nl = chr(10)
+        return Response(nl.join(lines) + nl, mimetype="text/plain")
+
+    @app.after_request
+    def _count_errors(resp: Response) -> Response:
+        if resp.status_code >= 500:
+            counters = getattr(app, "devrepro_metrics", None)
+            if counters is not None:
+                counters["http_errors"] = counters.get("http_errors", 0) + 1
+        return resp
+
     return app
 
 

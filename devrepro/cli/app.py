@@ -1147,6 +1147,72 @@ def baseline_cmd(
     raise typer.Exit(ExitCode.USAGE_ERROR)
 
 
+@app.command("bundle")
+def bundle_cmd(
+    output: Path = typer.Option(Path("devrepro-onboarding-bundle.tar.gz"), "-o", "--output"),
+    json_out: bool = JsonOption,
+    policy_path: Path | None = PolicyOption,
+) -> None:
+    """Export an onboarding bundle (sanitized report + requirements + setup steps)."""
+    from devrepro.cli.pipeline import run_scan
+    from devrepro.exporters.bundle import build_onboarding_bundle
+
+    report = run_scan(policy=_load_policy(policy_path))
+    data = json.loads(json.dumps(report.model_dump(mode="json"), default=str))
+    requirements: dict[str, object] = {}
+    try:
+        from devrepro.project.detectors import detect_requirements
+
+        requirements = {
+            "requirements": [
+                {"name": r.name, "kind": r.kind.value, "spec": r.spec, "ecosystem": r.ecosystem}
+                for r in detect_requirements(Path())
+            ]
+        }
+    except Exception:
+        requirements = {}
+    out = build_onboarding_bundle(
+        data, output, requirements=requirements, project_name=str(Path().resolve().name)
+    )
+    _emit({"bundle": str(out), "members": 4}, json_out)
+    raise typer.Exit(ExitCode.READY)
+
+
+@app.command("sign-snapshot")
+def sign_snapshot_cmd(
+    snapshot_path: Path = typer.Argument(..., exists=True, readable=True),
+    key_id: str = typer.Option("", "--key-id"),
+) -> None:
+    """Write a detached HMAC signature next to a snapshot file.
+
+    The signing key is read from $DEVREPRO_SIGNING_KEY and never printed.
+    """
+    from devrepro.snapshots.signing import key_from_env, sign_file
+
+    sig = sign_file(snapshot_path, key_from_env(), key_id=key_id)
+    typer.echo(f"signature written: {sig}")
+    raise typer.Exit(ExitCode.READY)
+
+
+@app.command("verify-snapshot")
+def verify_snapshot_cmd(
+    snapshot_path: Path = typer.Argument(..., exists=True, readable=True),
+) -> None:
+    """Verify a snapshot against its sidecar .sig file ($DEVREPRO_SIGNING_KEY)."""
+    from devrepro.snapshots.signing import SigningError, key_from_env, verify_file
+
+    try:
+        ok = verify_file(snapshot_path, key_from_env())
+    except SigningError as exc:
+        typer.echo(f"verification failed: {exc}", err=True)
+        raise typer.Exit(ExitCode.USAGE_ERROR) from exc
+    if ok:
+        typer.echo("VERIFIED")
+        raise typer.Exit(ExitCode.READY)
+    typer.echo("SIGNATURE MISMATCH", err=True)
+    raise typer.Exit(ExitCode.BLOCKED)
+
+
 def main() -> None:
     try:
         app()
