@@ -76,3 +76,10 @@ pre { background: var(--bg); border: 1px solid var(--border); border-radius: .45
 .skeleton { min-height: 8rem; border-radius: 8px; background: linear-gradient(90deg, var(--card) 25%, var(--border) 50%, var(--card) 75%); background-size: 200% 100%; animation: skeleton 1.2s infinite; }
 @keyframes skeleton { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .skeleton, .spinner { animation: none; } }
+
+/* wave-11: meters, timelines */
+.meter { height: 8px; background: var(--surface-2, #333); border-radius: 4px; overflow: hidden; margin: 2px 0; }
+.meter-fill { height: 100%; background: var(--accent, #4f8ef7); transition: width .3s ease; }
+.timeline { list-style: none; padding-left: 0; }
+.timeline > li { border-left: 2px solid var(--surface-2, #444); padding: 0.25rem 0 0.75rem 1rem; margin-left: 0.5rem; position: relative; }
+.timeline > li::before { content: ''; position: absolute; left: -6px; top: 0.5rem; width: 10px; height: 10px; border-radius: 50%; background: var(--accent, #4f8ef7); }
