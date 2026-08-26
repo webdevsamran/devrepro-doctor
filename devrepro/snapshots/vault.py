@@ -11,7 +11,7 @@ distinguish them from plaintext JSON without attempting decryption.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -41,7 +41,8 @@ def _fernet() -> type[Any]:  # pragma: no cover - thin import shim
             "encryption-at-rest requires the 'cryptography' package; "
             'install with pip install "devrepro-doctor[secure]"'
         ) from exc
-    return Fernet
+    # cryptography ships no inline stubs; without them the import is Any.
+    return cast("type[Any]", Fernet)
 
 
 def key_from_env(env_var: str = "DEVREPRO_VAULT_KEY") -> bytes:
