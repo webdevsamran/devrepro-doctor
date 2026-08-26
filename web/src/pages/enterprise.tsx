@@ -4,9 +4,9 @@
  * settings. Data comes from the versioned fleet API when served; otherwise
  * clearly-labelled DEMO fixtures are shown.
  */
-import { loadAgents, loadAuditLog, loadExceptions, loadRetention } from './api3'
-import { AsyncDemo } from './pages3'
-import { Card, EmptyState } from './components'
+import { loadAgents, loadAuditLog, loadExceptions, loadRetention } from '../api/console'
+import { AsyncDemo } from './platform'
+import { Card, EmptyState } from '../components/ui'
 
 function Page({ title, children }: { title: string; children: React.ReactNode }) {
   return (

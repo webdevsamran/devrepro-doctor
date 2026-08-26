@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { Finding, FindingState } from './types'
+import type { Finding, FindingState } from '../types'
 
 export function Badge({ state }: { state: FindingState | string }) {
   return <span className={`badge badge-${state.toLowerCase()}`}>{state}</span>

@@ -8,8 +8,8 @@ import {
   loadProfile, useAsync,
   type BaselineDiffEntry, type EnvReport, type FleetDashboard,
   type GitHealth, type NetworkReport, type PortsReport, type ProfilePayload,
-} from './api2'
-import { Card, EmptyState } from './components'
+} from '../api/capabilities'
+import { Card, EmptyState } from '../components/ui'
 
 function Page({ title, children }: { title: string; children: React.ReactNode }) {
   return (

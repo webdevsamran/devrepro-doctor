@@ -1,4 +1,4 @@
-import type { ScanReport } from './types'
+import type { ScanReport } from '../types'
 
 /**
  * Data sources, in priority order:

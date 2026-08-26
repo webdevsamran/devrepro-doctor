@@ -7,8 +7,8 @@ import { useState } from 'react'
 import {
   loadContainersWsl, loadDriftTimeline, loadGeneratedEnv, loadGpuAi,
   loadPlugins, loadShellStartup, useAsync2, type WithDemo,
-} from './api3'
-import { Card, EmptyState } from './components'
+} from '../api/console'
+import { Card, EmptyState } from '../components/ui'
 
 function Page({ title, children }: { title: string; children: React.ReactNode }) {
   return (

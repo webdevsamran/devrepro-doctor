@@ -37,7 +37,7 @@ jobs:
       - name: Type check (mypy)
         run: mypy devrepro
       - name: Tests + coverage
-        run: pytest -q --cov=devrepro --cov-report=term-missing --cov-report=xml --cov-fail-under=60
+        run: pytest -q --cov=devrepro --cov-report=term-missing --cov-report=xml --cov-fail-under=70
       - name: Upload coverage artifact
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

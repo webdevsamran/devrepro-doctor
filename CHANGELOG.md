@@ -17,6 +17,11 @@ Format based on Keep a Changelog; versioning follows SemVer.
 - Wave-named test files renamed to domain names: test_project_intel,
   test_environment_probes, test_profiles_baselines, test_plugins_selftest,
   test_signing_vault_bundle, test_server_enterprise.
+- Frontend source restructured out of numbered files (`api2.ts`, `pages3.tsx`, …)
+  into domain modules: `api/{report,capabilities,console}.ts`,
+  `components/ui.tsx` and `pages/{core,environment,platform,enterprise}.tsx`.
+  No behavior change; lint/typecheck/build all pass.
+- Coverage gate raised 60% → 70% (actual: 71%).
 - CI matrix extended to Python 3.13/3.14; coverage artifact upload; job
   concurrency cancellation.
 

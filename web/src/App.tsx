@@ -1,24 +1,24 @@
 import { useEffect, useState } from 'react'
-import { loadReport } from './api'
+import { loadReport } from './api/report'
 import type { ScanReport } from './types'
-import { ErrorState, Loading } from './components'
+import { ErrorState, Loading } from './components/ui'
 import {
   AboutPage, ContributorsPage, DiffPage, DocsPage, FindingsPage, HistoryPage,
   HomePage, OverviewPage, PathPage, ReadinessPage, RemediationPage, RulesPage,
   SnapshotsPage, ToolchainsPage,
-} from './pages'
+} from './pages/core'
 import {
   BaselinePage, EnvVarsPage, FleetDashboardPage, GitHealthPage,
   NetworkTlsPage, ProfilePage, ServicesPage,
-} from './pages2'
+} from './pages/environment'
 import {
   ContainersWslPage, DriftTimelinePage, GeneratedEnvPage, GpuAiStackPage,
   PluginCatalogPage, ShellStartupPage,
-} from './pages3'
+} from './pages/platform'
 import {
   AgentsEnrollmentPage, AuditLogPage, ExceptionsPage, RetentionPage,
   ServerSettingsPage,
-} from './pages4'
+} from './pages/enterprise'
 
 const NAV = [
   ['home', 'Home'],
