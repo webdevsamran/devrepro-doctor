@@ -1213,6 +1213,164 @@ def verify_snapshot_cmd(
     raise typer.Exit(ExitCode.BLOCKED)
 
 
+@app.command("platform-depth")
+def platform_depth_cmd(as_json: bool = JsonOption) -> None:
+    """Linux/macOS platform depth: distro family, limits, inotify, governor,
+    Xcode/CLT, Rosetta, Homebrew prefix conflicts (read-only).
+    """
+    import platform as _plat
+
+    from devrepro.core.runner import SubprocessRunner
+    from devrepro.platforms.linux_probe import (
+        cpu_governor,
+        distro_info,
+        fd_limits,
+        inotify_limits,
+        toolchain_metadata,
+    )
+    from devrepro.platforms.macos_probe import (
+        brew_prefix_conflict,
+        clt_inventory,
+        rosetta_status,
+        sdk_inventory,
+    )
+
+    system = _plat.system().lower()
+    runner = SubprocessRunner()
+
+    def _read(path: str) -> str | None:
+        try:
+            import pathlib
+
+            f = pathlib.Path(path)
+            return f.read_text(encoding="utf-8", errors="replace") if f.is_file() else None
+        except OSError:
+            return None
+
+    payload: dict[str, object] = {"host_system": system}
+    if system == "linux":
+        distro = distro_info(_read)
+        meta = toolchain_metadata(_read, runner)
+        fds = fd_limits(_read)
+        ino = inotify_limits(_read)
+        gov = cpu_governor(_read)
+        payload.update(
+            {
+                "distro": {
+                    "name": distro.name,
+                    "version": distro.version,
+                    "family": distro.family,
+                    "package_managers": list(distro.package_managers),
+                },
+                "toolchain": {
+                    "kernel": meta.kernel,
+                    "libc": meta.libc,
+                    "gcc": meta.gcc_version,
+                    "clang": meta.clang_version,
+                    "notes": list(meta.notes),
+                },
+                "fd_limits": {"soft": fds.soft, "hard": fds.hard},
+                "inotify": {
+                    "max_user_watches": ino.max_user_watches,
+                    "max_user_instances": ino.max_user_instances,
+                    "guidance": ino.guidance,
+                },
+                "cpu_governor": {
+                    "governor": gov.governor,
+                    "available": gov.available,
+                    "note": gov.note,
+                },
+            }
+        )
+    elif system == "darwin":
+        machine = _plat.machine()
+        clt = clt_inventory(runner)
+        sdk = sdk_inventory(runner)
+        ros = rosetta_status(runner)
+        brew = brew_prefix_conflict(runner, machine)
+        payload.update(
+            {
+                "machine_arch": machine,
+                "developer_dir": clt.developer_dir,
+                "clt_version": clt.clt_version,
+                "xcode_version": clt.xcode_version,
+                "sdk_path": sdk.sdk_path,
+                "sdk_version": sdk.sdk_version,
+                "rosetta": {
+                    "translated": ros.translated,
+                    "note": ros.note,
+                },
+                "homebrew": {
+                    "prefix": brew.prefix,
+                    "expected_prefix": brew.arch_expected_prefix,
+                    "conflict": brew.conflict,
+                    "note": brew.note,
+                },
+            }
+        )
+    else:
+        payload["note"] = (
+            "Linux/macOS depth probes do not apply on this host; Windows depth "
+            "lives in the WSL/virtualization and registry probes."
+        )
+
+    _emit(payload, as_json)
+    raise typer.Exit(ExitCode.READY)
+
+
+@app.command("envmanagers")
+def envmanagers_cmd(
+    path: Path = typer.Argument(Path(), help="Project root."),
+    as_json: bool = JsonOption,
+) -> None:
+    """Diagnose Nix/devenv/Devbox/mise/asdf/direnv declarations vs active tools.
+
+    DevRepro does not replace these managers; it checks that their pins are
+    complete (lockfiles committed) and that the active toolchain matches.
+    """
+    from shutil import which
+
+    from devrepro.core.runner import SubprocessRunner
+    from devrepro.envmanagers.diagnostics import inventory_project, pinned_vs_active
+
+    inv = inventory_project(path)
+
+    # Resolve active versions only for tools the project actually pins.
+    runner = SubprocessRunner()
+    active: dict[str, str] = {}
+    binary_names = {"nodejs": "node", "golang": "go"}
+    for pin in inv.pins:
+        if pin.name in active:
+            continue
+        binary = binary_names.get(pin.name, pin.name)
+        if which(binary) is None:
+            continue
+        try:
+            res = runner.run((binary, "--version"), timeout=10.0)
+        except Exception:
+            continue
+        if res.returncode == 0 and res.stdout.strip():
+            first = res.stdout.strip().splitlines()[0]
+            version = first.split()[-1].lstrip("v")
+            active[pin.name] = version
+
+    comparisons = pinned_vs_active(inv.pins, active)
+    payload = {
+        "managers": [
+            {"manager": m.manager, "files": list(m.files), "locked": m.locked} for m in inv.managers
+        ],
+        "pins": [{"name": p.name, "version": p.version, "source": p.source_file} for p in inv.pins],
+        "active_versions": active,
+        "findings": [
+            {"manager": f.manager, "severity": f.severity, "message": f.message}
+            for f in [*inv.findings, *comparisons]
+        ],
+    }
+    _emit(payload, as_json)
+    has_warn = any(f.severity == "warn" for f in [*inv.findings, *comparisons])
+    raise typer.Exit(ExitCode.READY_WITH_WARNINGS if has_warn else ExitCode.READY)
+
+
 def main() -> None:
     try:
         app()
