@@ -113,6 +113,17 @@ class TlsCheck:
 def check_tls(host: str, port: int = 443, timeout: float = 5.0) -> TlsCheck:
     """Classify TLS trust for a host WITHOUT disabling verification."""
     ctx = ssl.create_default_context()
+    # `create_default_context()` leaves `minimum_version` to whatever the
+    # OpenSSL build decides, which CodeQL reports as permitting TLS 1.0/1.1
+    # (py/insecure-protocol). On a current build the effective floor is already
+    # 1.2 -- but this tool runs on whatever machine it is asked to diagnose,
+    # and that is exactly the machine whose OpenSSL might be old. Stating the
+    # floor costs a line and removes the dependency on the environment.
+    #
+    # These contexts are DevRepro acting as a client. Nothing here probes what
+    # versions a remote endpoint is willing to negotiate, so raising the floor
+    # cannot mask a finding.
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
     try:
         with (
             socket.create_connection((host, port), timeout=timeout) as sock,

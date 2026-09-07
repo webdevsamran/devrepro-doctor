@@ -129,6 +129,9 @@ class NetworkTlsProbe(Probe):
             return False, f"connect failed: {exc}"
         try:
             ctx = ssl.create_default_context()  # full verification, always
+            # See devrepro/network/diagnostics.py for why the floor is stated
+            # rather than inherited from the OpenSSL build.
+            ctx.minimum_version = ssl.TLSVersion.TLSv1_2
             with ctx.wrap_socket(sock, server_hostname=host) as tls:
                 cert = tls.getpeercert()
                 not_after = cert.get("notAfter") if isinstance(cert, dict) else None
@@ -147,6 +150,7 @@ class NetworkTlsProbe(Probe):
         try:
             sock = socket.create_connection(("github.com", 443), timeout=5)
             ctx = ssl.create_default_context()
+            ctx.minimum_version = ssl.TLSVersion.TLSv1_2  # see _check_endpoint
             crlf = chr(13) + chr(10)
             request = (
                 "HEAD / HTTP/1.1"
