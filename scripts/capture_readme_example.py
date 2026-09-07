@@ -69,7 +69,14 @@ EXAMPLE_FINDINGS = (
     ),
 )
 
-_LITERAL_ID = re.compile(r'"([a-z0-9]+(?:[/-][a-z0-9-]+)+)"')
+#: A rule id written out in full, e.g. "containers/docker-daemon-unreachable".
+#: The separator class is `/` alone and the segment class excludes it, so each
+#: repetition is anchored and cannot be split two ways. The first version used
+#: `[/-]` as the separator while the segment class also contained `-`, which
+#: made `-` ambiguous between the two and gave CodeQL a genuine `py/redos`:
+#: exponential backtracking on input like `"0-` followed by many `--`. Real
+#: rule ids always contain a `/`, so requiring one is also more accurate.
+_LITERAL_ID = re.compile(r'"([a-z0-9][a-z0-9-]*(?:/[a-z0-9][a-z0-9-]*)+)"')
 _PACK_NAME = re.compile(r'pack="([a-z0-9-]+)"')
 _COMPOSED_SUFFIX = re.compile(r'rule_id=f"\{rule_prefix\}/([a-z0-9-]+)"')
 
@@ -160,7 +167,21 @@ def render() -> str:
     # Render into a StringIO rather than stdout: recording is what this needs,
     # and --check would otherwise dump the table on every CI run. (quiet=True
     # is not the answer -- it makes export_text() come back empty.)
-    console = Console(file=io.StringIO(), width=100, no_color=True, record=True)
+    #
+    # legacy_windows=False is load-bearing. Rich substitutes a lighter box
+    # style when it thinks it is writing to a legacy Windows console, so the
+    # same fixture came out as a square box here and a heavy box on the Linux
+    # and macOS CI legs -- and --check failed on a README nobody had touched.
+    # A capture whose output depends on where it ran is the same defect this
+    # script exists to fix, one level up. Pinned to the box a UTF-8 terminal
+    # produces, which is what a reader on GitHub sees.
+    console = Console(
+        file=io.StringIO(),
+        width=100,
+        no_color=True,
+        record=True,
+        legacy_windows=False,
+    )
     console.print(render_terminal_table(_report()))
     # The command prints this after the table. The reproducibility-score line
     # that sits between them is omitted: a fixture that ran no probes has no

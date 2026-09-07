@@ -36,7 +36,11 @@ def test_every_workflow_badge_names_a_workflow_that_exists() -> None:
 def test_badges_point_at_this_repository() -> None:
     for owner, slug in re.findall(r"github\.com/([\w-]+)/([\w.-]+)", _badges()):
         assert (owner, slug) == (_OWNER, _SLUG), f"badge points at {owner}/{slug}"
-    for owner, slug in re.findall(r"img\.shields\.io/github/[\w/]+/([\w-]+)/([\w.-]+)", _badges()):
+    # `[\w/]+/` would let `/` be consumed by either side of the boundary,
+    # which is the ambiguity CodeQL flags as py/redos. Bounding the path
+    # prefix to whole `/`-free segments removes it.
+    shields = re.findall(r"img\.shields\.io/github/(?:\w+/){1,3}([\w-]+)/([\w.-]+)", _badges())
+    for owner, slug in shields:
         assert (owner, slug.split("?")[0]) == (_OWNER, _SLUG), f"badge points at {owner}/{slug}"
 
 

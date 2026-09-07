@@ -55,9 +55,9 @@ layout and the rule ids are the program's, not prose:
 ```console
 $ devrepro doctor
                                   DevRepro Doctor v0.2.0 — Windows                                  
-┌─────────┬──────────────────────────────────────┬─────────────────────────────────────────────────┐
-│ State   │ Rule                                 │ Summary                                         │
-├─────────┼──────────────────────────────────────┼─────────────────────────────────────────────────┤
+┏━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ State   ┃ Rule                                 ┃ Summary                                         ┃
+┡━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
 │ BLOCKED │ containers/docker-daemon-unreachable │ Docker CLI 29.7.2 present but daemon            │
 │         │                                      │ unreachable. Connection refused.                │
 │ ERROR   │ node/version-mismatch                │ node 18.19.0 does not satisfy required range    │

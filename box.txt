@@ -1,0 +1,4 @@
+{} -> '┌───┐'
+{'legacy_windows': False} -> '┏━━━┓'
+{'safe_box': False} -> '┏━━━┓'
+{'legacy_windows': False, 'safe_box': False} -> '┏━━━┓'
