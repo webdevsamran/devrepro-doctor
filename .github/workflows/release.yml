@@ -32,8 +32,57 @@ jobs:
           format: spdx-json
           artifact-name: devrepro-doctor-sbom.spdx.json
 
+  checksums:
+    name: Checksums
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+      - name: Generate SHA256SUMS
+        run: |
+          cd dist
+          # `sha256sum *` fails on a directory, and the SBOM artifact lands
+          # here too. Name only the regular files this build produced, sorted
+          # so the file is reproducible.
+          sha256sum $(find . -maxdepth 1 -type f ! -name SHA256SUMS | sort) > SHA256SUMS
+          cat SHA256SUMS
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: checksums
+          path: dist/SHA256SUMS
+
+  github-release:
+    name: GitHub Release
+    needs: [build, sbom, checksums]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # `gh release create` shells out to git for the repository context.
+      # Without a checkout it fails with "fatal: not a git repository", which
+      # is what happened on the first tag local-ai-hardware-bench ever pushed.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: checksums
+          path: dist/
+      - name: Create release with artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" dist/*             --title "DevRepro Doctor $TAG"             --generate-notes
+
   publish:
-    needs: [build, sbom]
+    name: Publish to PyPI (only if Trusted Publishing is configured)
+    needs: [build, sbom, github-release]
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
@@ -43,5 +92,22 @@ jobs:
         with:
           name: dist
           path: dist/
+      # Guarded rather than unconditional. Publishing needs a Trusted Publisher
+      # registered for this project on pypi.org, which is a form on the account
+      # that owns the name and cannot be created from a repository. Without the
+      # guard a tagged release fails here even though everything else
+      # succeeded, and a red release is indistinguishable from a broken one.
+      - name: Is Trusted Publishing configured?
+        id: guard
+        env:
+          PUBLISH_ENABLED: ${{ vars.PUBLISH_ENABLED }}
+        run: |
+          if [ "${PUBLISH_ENABLED}" = "true" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping PyPI upload: set the repository variable PUBLISH_ENABLED=true after registering a Trusted Publisher (owner webdevsamran, repo devrepro-doctor, workflow release.yml, environment pypi)."
+          fi
       - name: Publish to PyPI (trusted publisher)
+        if: steps.guard.outputs.enabled == 'true'
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
