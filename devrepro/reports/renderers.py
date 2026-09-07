@@ -12,6 +12,8 @@ import json
 import xml.etree.ElementTree as ET
 from datetime import UTC, datetime
 
+from rich.table import Table
+
 from devrepro.core.models import EnvironmentDiff, FindingState, ScanReport, Snapshot
 from devrepro.privacy.gate import PrivacyGate, assert_no_secrets
 
@@ -23,6 +25,7 @@ __all__ = [
     "render_json",
     "render_junit",
     "render_markdown",
+    "render_terminal_table",
 ]
 
 _STATE_ORDER = (
@@ -33,6 +36,45 @@ _STATE_ORDER = (
     FindingState.INFO,
     FindingState.PASS,
 )
+
+
+_STATE_COLOR = {
+    FindingState.BLOCKED: "red",
+    FindingState.ERROR: "red",
+    FindingState.WARN: "yellow",
+    FindingState.UNKNOWN: "grey50",
+    FindingState.INFO: "blue",
+    FindingState.PASS: "green",
+}
+
+#: The terminal table truncates summaries. Named because the README capture
+#: has to reproduce the same cut, and a magic 100 in two files drifts.
+SUMMARY_WIDTH = 100
+
+
+def render_terminal_table(report: ScanReport) -> Table:
+    """The table `devrepro doctor` prints.
+
+    This lived inline in `cli/commands/diagnostics.py`, which meant the only
+    way to see the real output was to run a scan -- and a scan reads whichever
+    machine it runs on, so the README's example could never be captured from
+    it. Returning the `Table` instead of printing it lets the capture script
+    render a fixture through this exact code, so the documented layout is the
+    program's, not prose. It also drops a second copy of the state ordering
+    that had been kept in sync by hand.
+    """
+    table = Table(title=f"DevRepro Doctor v{report.devrepro_version} — {report.platform.os_name}")
+    table.add_column("State")
+    table.add_column("Rule")
+    table.add_column("Summary")
+    for finding in sorted(report.findings, key=lambda f: _STATE_ORDER.index(f.state)):
+        color = _STATE_COLOR[finding.state]
+        table.add_row(
+            f"[{color}]{finding.state.value}[/{color}]",
+            finding.rule_id,
+            finding.summary[:SUMMARY_WIDTH],
+        )
+    return table
 
 
 def render_json(report: ScanReport) -> str:

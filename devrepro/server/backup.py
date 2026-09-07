@@ -113,6 +113,14 @@ def restore_database(archive: Path, target_db: Path, *, overwrite: bool = False)
                 # JSONDecodeError and UnicodeDecodeError are both ValueError:
                 # corrupted manifest bytes can fail either at decode or parse.
                 raise RestoreError(f"archive manifest is not valid JSON: {exc}") from exc
+            if not isinstance(manifest, dict):
+                # Valid JSON is not the same as a manifest. A corruption that
+                # leaves the manifest parsing as a bare `5` or `null` used to
+                # reach `manifest.get(...)` and escape as
+                # AttributeError: 'int' object has no attribute 'get' --
+                # a raw traceback, since RestoreError is the only exception the
+                # CLI and API catch.
+                raise RestoreError(f"archive manifest is {type(manifest).__name__}, not an object")
     except RestoreError:
         raise
     except (tarfile.TarError, OSError, EOFError, zlib.error) as exc:

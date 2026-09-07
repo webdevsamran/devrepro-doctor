@@ -36,8 +36,8 @@ mkdocs build --strict
 cd web && npm ci && npm run lint && npm run typecheck && npm test && npm run build
 ```
 
-The coverage floor is 70 and lives only in the CI invocation, so a bare local
-`pytest` does not enforce it.
+`fail_under = 70` is in `pyproject.toml` as well as on the CI command line, so
+a local `pytest --cov` enforces the same floor CI does.
 
 ## Rules that are not style preferences
 
@@ -53,6 +53,15 @@ rather than guessing.
 **Exit codes are a public contract.** `devrepro/core/exit_codes.py` says so
 explicitly: never change the meaning of an existing code, only append. CI
 gates and onboarding scripts depend on them.
+
+**Documented output is captured, never written.** The README's scan example
+comes from `scripts/capture_readme_example.py`, which renders a fixture
+through `render_terminal_table` -- the same function `devrepro doctor` calls
+-- and `--check` fails CI on drift. It previously showed a rule id
+(`python/multiple-installations`) that no code emits, in an `Evidence:` /
+`Safe remediation:` layout the renderer cannot produce, under the caption
+"examples from actual scans". The capture refuses to run if the example names
+a rule id nothing emits.
 
 **Schemas are generated, not hand-written.** `schemas/*.json` come from the
 Pydantic models via `python scripts/generate_schemas.py`. Run it after

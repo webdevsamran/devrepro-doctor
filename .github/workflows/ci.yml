@@ -53,6 +53,12 @@ jobs:
         run: |
           python scripts/generate_schemas.py --check
           python scripts/validate_schemas.py
+      - name: README example matches the real renderer
+        # The README used to show a hand-written scan with a rule id no code
+        # emits, under the caption "examples from actual scans". This renders a
+        # fixture through the same function `devrepro doctor` calls and fails
+        # if the committed block differs.
+        run: python scripts/capture_readme_example.py --check
 
   frontend:
     name: Frontend
