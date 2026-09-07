@@ -50,9 +50,13 @@ an individual is officially representing the community in public spaces.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the lead maintainer, @webdevsamran, via GitHub private message or
-through GitHub's report-user functionality. All complaints will be reviewed and
+reported to the lead maintainer at **webdevsamran@users.noreply.github.com**, or
+through GitHub's report-abuse form at
+<https://github.com/contact/report-abuse>. All complaints will be reviewed and
 investigated promptly and fairly.
+
+All community leaders are obligated to respect the privacy and security of the
+reporter of any incident.
 
 All community leaders are obligated to respect the privacy and security of the
 reporter of any incident.

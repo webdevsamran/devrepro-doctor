@@ -14,8 +14,9 @@ Email: use GitHub's private vulnerability reporting on
 https://github.com/webdevsamran/devrepro-doctor/security/advisories/new
 or contact the lead maintainer (@webdevsamran) directly.
 
-You will receive an acknowledgment within 72 hours and a status update
-within 7 days.
+You will receive an acknowledgment within 7 days and a status update within 30
+days. This project has a single maintainer; those are the windows that can
+actually be met, rather than a shorter number that sounds better.
 
 ## Scope
 
