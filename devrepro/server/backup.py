@@ -15,6 +15,7 @@ import hashlib
 import io
 import json
 import tarfile
+import zlib
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -106,8 +107,21 @@ def restore_database(archive: Path, target_db: Path, *, overwrite: bool = False)
 
             mfile = tf.extractfile("manifest.json")
             assert mfile is not None  # noqa: S101 - guarded by membership check above
-            manifest = _json.loads(mfile.read())
-    except tarfile.TarError as exc:
+            try:
+                manifest = _json.loads(mfile.read())
+            except ValueError as exc:
+                # JSONDecodeError and UnicodeDecodeError are both ValueError:
+                # corrupted manifest bytes can fail either at decode or parse.
+                raise RestoreError(f"archive manifest is not valid JSON: {exc}") from exc
+    except RestoreError:
+        raise
+    except (tarfile.TarError, OSError, EOFError, zlib.error) as exc:
+        # A corrupt archive must surface as RestoreError, which is the only
+        # exception the CLI and API catch. gzip.BadGzipFile (raised when the
+        # CRC fails mid-stream) is an OSError, not a TarError, so it used to
+        # escape as a raw traceback -- and which exception a given corruption
+        # produces depends on where the damaged byte lands, so this failed
+        # nondeterministically across platforms rather than never.
         raise RestoreError(f"unreadable archive: {exc}") from exc
 
     declared = manifest.get("members")
