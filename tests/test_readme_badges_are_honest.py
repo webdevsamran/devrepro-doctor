@@ -9,12 +9,15 @@ from the repository itself, so the row cannot say something the repo does not.
 from __future__ import annotations
 
 import re
-import tomllib
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parent.parent
 _README = (_ROOT / "README.md").read_text(encoding="utf-8")
-_PYPROJECT = tomllib.loads((_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+# Read with regex rather than tomllib: tomllib is 3.11+, and this test has to
+# run on every version the package claims to support -- local-ai-hardware-bench
+# classifies 3.10, where importing tomllib is a collection error, not a
+# failing assertion. The two values needed are unambiguous either way.
+_PYPROJECT = (_ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
 _SLUG = "devrepro-doctor"
 _OWNER = "webdevsamran"
@@ -46,11 +49,7 @@ def test_badges_point_at_this_repository() -> None:
 
 def test_the_python_badge_matches_the_classifiers() -> None:
     """Claiming a version the package does not classify is a promise it breaks."""
-    declared = [
-        c.split("::")[-1].strip()
-        for c in _PYPROJECT["project"].get("classifiers", [])
-        if "Programming Language :: Python ::" in c and "." in c.split("::")[-1]
-    ]
+    declared = re.findall(r"Programming Language :: Python :: (\d+\.\d+)", _PYPROJECT)
     match = re.search(r"badge/python-([^)\]]+)-blue", _badges())
     assert match, "no python badge found"
     shown = [v.strip() for v in match.group(1).replace("%20%7C%20", "|").split("|")]
@@ -77,7 +76,9 @@ def test_the_python_badge_matches_what_ci_tests() -> None:
 
 
 def test_the_coverage_floor_badge_matches_the_configured_floor() -> None:
-    configured = _PYPROJECT["tool"]["coverage"]["report"]["fail_under"]
+    found = re.search(r"^fail_under\s*=\s*(\d+)", _PYPROJECT, re.M)
+    assert found, "pyproject declares no coverage fail_under"
+    configured = int(found.group(1))
     match = re.search(r"coverage%20floor-(\d+)%25", _badges())
     assert match, "no coverage-floor badge found"
     assert int(match.group(1)) == configured, (

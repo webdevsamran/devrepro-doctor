@@ -220,6 +220,31 @@ class TestBackupRestore:
             escaped[:5]
         )
 
+    def test_manifest_that_is_valid_json_but_not_an_object_is_rejected(
+        self, seeded_db: Path, tmp_path: Path
+    ) -> None:
+        """Parsing is not validating.
+
+        The byte-flip sweep above hit this on Windows/3.12: a corruption left
+        `manifest.json` holding a bare JSON scalar, which parsed fine and then
+        reached `manifest.get("members")` -- escaping as
+        `AttributeError: 'int' object has no attribute 'get'`. RestoreError is
+        the only exception the CLI and API catch, so that reached the user as a
+        traceback. Reproduced deterministically here rather than left to which
+        byte a fuzz sweep happens to flip.
+        """
+        import io
+        import tarfile
+
+        for payload in (b"5", b"null", b'"manifest"', b"[]"):
+            archive = tmp_path / f"scalar-{len(payload)}-{payload[:1].hex()}.tar.gz"
+            with tarfile.open(archive, "w:gz") as tf:
+                info = tarfile.TarInfo("manifest.json")
+                info.size = len(payload)
+                tf.addfile(info, io.BytesIO(payload))
+            with pytest.raises(RestoreError, match="not an object"):
+                restore_database(archive, tmp_path / f"out-{len(payload)}" / "fleet.db")
+
     def test_overwrite_guard(self, seeded_db: Path, tmp_path: Path) -> None:
         archive = tmp_path / "b.tar.gz"
         backup_database(seeded_db, archive)
