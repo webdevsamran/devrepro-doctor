@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "devrepro-doctor"
-version = "0.1.0"
+version = "0.2.0"
 description = "Cross-platform diagnostics, reproducibility auditing and safe repair planning for developer machines, project toolchains, SDKs, containers and build dependencies."
 readme = "README.md"
 license = { text = "Apache-2.0" }
