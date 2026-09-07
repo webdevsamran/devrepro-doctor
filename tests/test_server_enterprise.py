@@ -186,6 +186,40 @@ class TestBackupRestore:
         with pytest.raises(RestoreError):
             restore_database(corrupt, tmp_path / "out" / "fleet.db")
 
+    def test_corruption_anywhere_raises_restore_error(
+        self, seeded_db: Path, tmp_path: Path
+    ) -> None:
+        """No corrupted archive may escape as a non-RestoreError exception.
+
+        The single-byte-flip test above passed or failed depending on where the
+        damaged byte landed: gzip.BadGzipFile (an OSError, not a TarError),
+        json.JSONDecodeError and UnicodeDecodeError all escaped the handler,
+        so this failed nondeterministically per platform instead of never.
+        RestoreError is the only exception the CLI and API catch, so anything
+        else reaches the user as a traceback.
+        """
+        archive = tmp_path / "backup.tar.gz"
+        backup_database(seeded_db, archive)
+        blob = archive.read_bytes()
+        corrupt = tmp_path / "corrupt.tar.gz"
+
+        escaped: list[str] = []
+        for position in range(4, len(blob), 7):
+            for mask in (0xFF, 0x01):
+                mutated = bytearray(blob)
+                mutated[position] ^= mask
+                corrupt.write_bytes(bytes(mutated))
+                try:
+                    restore_database(corrupt, tmp_path / f"out{position}_{mask}" / "fleet.db")
+                except RestoreError:
+                    pass
+                except Exception as exc:
+                    escaped.append(f"byte {position} ^{mask:#04x}: {type(exc).__name__}: {exc}")
+
+        assert not escaped, "corrupt archives escaped as non-RestoreError: " + "; ".join(
+            escaped[:5]
+        )
+
     def test_overwrite_guard(self, seeded_db: Path, tmp_path: Path) -> None:
         archive = tmp_path / "b.tar.gz"
         backup_database(seeded_db, archive)
