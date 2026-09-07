@@ -1,5 +1,14 @@
 # DevRepro Doctor 🩺
 
+<!-- badges -->
+[![CI](https://github.com/webdevsamran/devrepro-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/webdevsamran/devrepro-doctor/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/webdevsamran/devrepro-doctor/actions/workflows/codeql.yml/badge.svg)](https://github.com/webdevsamran/devrepro-doctor/actions/workflows/codeql.yml)
+[![Release](https://img.shields.io/github/v/release/webdevsamran/devrepro-doctor?sort=semver)](https://github.com/webdevsamran/devrepro-doctor/releases)
+[![License](https://img.shields.io/github/license/webdevsamran/devrepro-doctor)](https://github.com/webdevsamran/devrepro-doctor/blob/main/LICENSE)
+[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](pyproject.toml)
+[![Coverage floor](https://img.shields.io/badge/coverage%20floor-70%25-informational)](pyproject.toml)
+<!-- /badges -->
+
 **Cross-platform diagnostics, reproducibility auditing and safe repair planning for developer machines, project toolchains, SDKs, containers and build dependencies.**
 
 Created, founded and led by **[@webdevsamran](https://github.com/webdevsamran)**.
@@ -73,6 +82,41 @@ devrepro diff mine.json theirs.json      # why does it work there?
 Diff classification: `same`, `version-drift`, `missing`, `extra`,
 `path-precedence`, `platform-expected`, `project-critical`.
 Output to terminal, JSON or standalone HTML.
+
+## How a scan is put together
+
+Probes only observe; rules only judge; nothing writes to your machine unless
+you confirm a remediation. The privacy gate sits between the in-memory report
+and every output, so redaction cannot be bypassed by reaching for a different
+format. Boxes are real packages under [`devrepro/`](devrepro):
+
+<!-- mermaid:architecture -->
+```mermaid
+flowchart LR
+    subgraph observe [Read-only observation]
+        PROBES[probes/<br/>tools · PATH · network · GPU]
+        PLATFORMS[platforms/<br/>OS-specific detection]
+        PROJECT[project/<br/>declared requirements]
+    end
+
+    PROBES --> CTX[core/<br/>ScanReport model]
+    PLATFORMS --> CTX
+    PROJECT --> CTX
+
+    POLICY[.devrepro.toml<br/>policy] --> RULES
+    CTX --> RULES[rules/<br/>packs: python · node · go · containers ...]
+    RULES --> FIND[Findings<br/>PASS · INFO · WARN · ERROR · BLOCKED]
+
+    FIND --> REMED[remediation/<br/>planner: SAFE · LOW · MEDIUM · HIGH]
+    REMED -.never automatic above LOW.-> USER([you confirm])
+
+    FIND --> GATE[privacy/gate<br/>redact + secret-scan]
+    GATE --> REPORTS[reports/<br/>terminal · JSON · Markdown · JUnit · HTML]
+    GATE --> SNAP[snapshots/<br/>signed manifest]
+    SNAP --> DIFF[diff/<br/>machine-to-machine comparison]
+    REPORTS --> SERVER[server/ + web/<br/>local UI]
+```
+<!-- /mermaid:architecture -->
 
 ## Privacy promise
 
