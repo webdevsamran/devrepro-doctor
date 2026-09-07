@@ -107,3 +107,32 @@ def test_the_readme_has_an_architecture_diagram_of_real_packages() -> None:
         path for path in referenced if not (package / path).is_dir() and not (_ROOT / path).is_dir()
     )
     assert not unknown, f"the diagram names directories that do not exist: {unknown}"
+
+
+_SIBLINGS = {
+    "api-verity-lab",
+    "devrepro-doctor",
+    "tooltrace-bench",
+    "local-ai-hardware-bench",
+}
+
+
+def test_the_related_projects_section_names_every_sibling_and_not_itself() -> None:
+    """Four tools by one author, none of them aware of the others.
+
+    A grep for every sibling's identifiers across all four repositories
+    returned zero prose matches before this section existed. A reader who
+    finds one of them had no path to the rest.
+    """
+    assert "<!-- related-projects -->" in _README, "README lost its Related projects section"
+    block = _README.split("<!-- related-projects -->", 1)[1].split("<!-- /related-projects -->", 1)[
+        0
+    ]
+    linked = {
+        slug
+        for owner, slug in re.findall(r"github\.com/([\w-]+)/([\w.-]+)\)", block)
+        if owner == _OWNER
+    }
+    assert _SLUG not in linked, "the Related projects section links back to this repository"
+    missing = sorted(_SIBLINGS - {_SLUG} - linked)
+    assert not missing, f"Related projects omits: {missing}"
