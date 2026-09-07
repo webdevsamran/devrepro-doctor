@@ -1,0 +1,115 @@
+{
+  "$defs": {
+    "DiffClassification": {
+      "description": "How a component differs between two snapshots.",
+      "enum": [
+        "same",
+        "version-drift",
+        "missing",
+        "extra",
+        "path-precedence",
+        "platform-expected",
+        "project-critical"
+      ],
+      "title": "DiffClassification",
+      "type": "string"
+    },
+    "DiffEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "a_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "A Value"
+        },
+        "b_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "B Value"
+        },
+        "classification": {
+          "$ref": "#/$defs/DiffClassification"
+        },
+        "component": {
+          "description": "tool | path | compiler | container | wsl | gpu | requirement",
+          "title": "Component",
+          "type": "string"
+        },
+        "detail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detail"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "project_critical": {
+          "default": false,
+          "title": "Project Critical",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "component",
+        "name",
+        "classification"
+      ],
+      "title": "DiffEntry",
+      "type": "object"
+    }
+  },
+  "$id": "https://github.com/webdevsamran/devrepro-doctor/schemas/environment-diff.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "a_snapshot_id": {
+      "title": "A Snapshot Id",
+      "type": "string"
+    },
+    "b_snapshot_id": {
+      "title": "B Snapshot Id",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "entries": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/DiffEntry"
+      },
+      "title": "Entries",
+      "type": "array"
+    }
+  },
+  "required": [
+    "a_snapshot_id",
+    "b_snapshot_id"
+  ],
+  "title": "EnvironmentDiff",
+  "type": "object"
+}

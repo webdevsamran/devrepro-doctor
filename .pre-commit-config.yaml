@@ -11,7 +11,11 @@ repos:
       - id: detect-private-key
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.10
+    # Keep in step with the ruff CI installs (pyproject allows >=0.4,<1.0, so
+    # CI gets the latest). At v0.4.10 the hook formatted code that CI's newer
+    # `ruff format --check` then rejected -- the hook has to be no older than
+    # what the gate runs. API Verity Lab hit and fixed the same drift.
+    rev: v0.16.6
     hooks:
       - id: ruff
         args: [--fix]

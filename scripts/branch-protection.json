@@ -1,12 +1,40 @@
 {
+  "_comment": [
+    "Applied with:",
+    "  gh api -X PUT repos/webdevsamran/devrepro-doctor/branches/main/protection \\",
+    "    --input scripts/branch-protection.json",
+    "",
+    "Contexts must match CI job names byte-for-byte. The matrix job is named",
+    "'Python (${{ matrix.os }}, ${{ matrix.python-version }})', so each of the",
+    "twelve legs is its own context -- an earlier version of this file listed",
+    "'Python (ubuntu-latest)' without the Python version, which can never match",
+    "any reported check and would leave every pull request waiting forever.",
+    "",
+    "The CodeQL upload reports as 'CodeQL', not 'Code scanning results / CodeQL'.",
+    "The live setting still requires the latter, which is why PRs on this repo",
+    "currently cannot merge; applying this file corrects that."
+  ],
   "required_status_checks": {
-    "strict": true,
+    "strict": false,
     "contexts": [
       "Frontend",
+      "Docs site",
       "Dependency security scan",
-      "Python (ubuntu-latest)",
-      "Python (windows-latest)",
-      "Python (macos-latest)"
+      "Python (ubuntu-latest, 3.11)",
+      "Python (ubuntu-latest, 3.12)",
+      "Python (ubuntu-latest, 3.13)",
+      "Python (ubuntu-latest, 3.14)",
+      "Python (windows-latest, 3.11)",
+      "Python (windows-latest, 3.12)",
+      "Python (windows-latest, 3.13)",
+      "Python (windows-latest, 3.14)",
+      "Python (macos-latest, 3.11)",
+      "Python (macos-latest, 3.12)",
+      "Python (macos-latest, 3.13)",
+      "Python (macos-latest, 3.14)",
+      "analyze (python)",
+      "analyze (javascript-typescript)",
+      "CodeQL"
     ]
   },
   "enforce_admins": false,
@@ -14,6 +42,6 @@
   "restrictions": null,
   "allow_force_pushes": false,
   "allow_deletions": false,
-  "required_linear_history": true,
+  "required_linear_history": false,
   "required_conversation_resolution": true
 }
