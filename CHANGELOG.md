@@ -4,6 +4,69 @@ All notable changes to DevRepro Doctor are documented here.
 Format based on Keep a Changelog; versioning follows SemVer.
 
 ## [Unreleased]
+
+## [0.2.0] - 2026-09-07
+
+The first release. Everything below already existed in the repository; what
+changed in this pass is that several things it claimed to do, it now actually
+does.
+
+### Fixed - the shipped Action could not gate a build
+
+- `action/action.yml` advertised gating on an exit-code contract (0 READY,
+  1 READY_WITH_WARNINGS, 2 BLOCKED). It captured `$?` after a pipe, which is
+  `tee`'s status and therefore always 0, so **the gate never fired** however
+  blocked the machine was. There is no `set -o pipefail` in the file;
+  `PIPESTATUS[0]` is now used.
+- When `sarif-output` was set the argument list was rebuilt without `--json`,
+  so the next step parsed a Rich table as JSON, threw, and reported the
+  verdict as `UNKNOWN`. The usage documented in the README hit both bugs at
+  once: it always reported UNKNOWN and always passed.
+- Action inputs are passed through `env:` rather than interpolated into the
+  shell, which is the difference between an input and an injection.
+
+### Fixed - a security claim with nothing behind it
+
+- `SECURITY.md` listed "loaded snapshots are validated against schemas" as a
+  security property, and `schemas/README.md` named three schema files as the
+  serialization source of truth. **The directory contained only a README.**
+  The three schemas are now generated from the Pydantic models by
+  `scripts/generate_schemas.py`, with a `--check` mode in CI so the generated
+  files cannot drift from the models that produce them.
+- `scripts/validate_schemas.py` globbed `*.json` over a directory holding one
+  `.md` file, so its schema loop never executed. It fails closed now.
+
+### Fixed
+
+- A corrupt backup could fail to raise during restore: the handler caught a
+  narrower set of exceptions than a damaged archive can produce. Now covers
+  the tar, OS, EOF, zlib and JSON failures a truncated or tampered bundle
+  actually raises.
+- `scripts/branch-protection.json` listed three context names that could never
+  match anything -- `Python (ubuntu-latest)` against a job template that emits
+  `Python (ubuntu-latest, 3.11)`. Applying that file would have removed real
+  protection. Regenerated with all 18 live contexts.
+- Documentation references that 404 on GitHub: `docs/release.md` (absent),
+  `docs/privacy.md` and `docs/plugins.md` (the files are `PRIVACY.md` and
+  `PLUGINS.md`, and GitHub's renderer is case-sensitive), and the repository's
+  only markdown image.
+
+### Changed
+
+- React 19 and the frontend majors, with an ESLint flat-config migration.
+- The release workflow creates a GitHub Release with the wheel, sdist, SBOM
+  and checksums. It previously built a wheel and went straight to a PyPI
+  upload, so a tag produced no release at all -- and then failed at the
+  upload, which is unconditional no longer.
+
+### Note on PyPI
+
+Not published. Publishing needs a Trusted Publisher registered for this
+project on pypi.org, which is a form on the account that owns the name and
+cannot be created from a repository. The release workflow skips the upload
+with a notice naming exactly what to register, rather than failing the
+release.
+
 ### Added - fifth pass: deployments wired
 - Branch protection for `main`: force-push/deletion blocked, 18 required
   status checks (all CI matrix jobs + Frontend + Docs site +
