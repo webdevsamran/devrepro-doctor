@@ -121,7 +121,6 @@ export function useAsync<T>(fn: () => Promise<T>): { data: T | null; error: stri
     return () => {
       alive = false
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- fn is captured once on mount by design
   }, [])
   return { data, error }
 }

@@ -179,7 +179,8 @@ export function FindingsPage({ report }: PageProps) {
   const [q, setQ] = useState('')
   const toggle = (s: string) => {
     const next = new Set(selected)
-    next.has(s) ? next.delete(s) : next.add(s)
+    if (next.has(s)) next.delete(s)
+    else next.add(s)
     setSelected(next)
   }
   const findings = report.findings.filter(
