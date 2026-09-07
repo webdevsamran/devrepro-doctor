@@ -137,6 +137,10 @@ source = ["devrepro"]
 branch = true
 
 [tool.coverage.report]
+# Matches the --cov-fail-under=70 CI passes on the command line. Without it a
+# local `pytest --cov` enforced nothing, so "CI runs the same suite" was not
+# true of the gate, only of the tests.
+fail_under = 70
 exclude_lines = [
   "pragma: no cover",
   "if TYPE_CHECKING:",

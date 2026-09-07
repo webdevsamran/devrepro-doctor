@@ -7,7 +7,6 @@ from pathlib import Path
 
 import typer
 
-from devrepro import __version__
 from devrepro.cli.common import (
     JsonOption,
     PolicyOption,
@@ -86,29 +85,11 @@ def register(app: typer.Typer) -> None:
             typer.echo(render_json(report))
         else:
             from rich.console import Console
-            from rich.table import Table
+
+            from devrepro.reports.renderers import render_terminal_table
 
             console = Console()
-            table = Table(title=f"DevRepro Doctor v{__version__} — {report.platform.os_name}")
-            table.add_column("State")
-            table.add_column("Rule")
-            table.add_column("Summary")
-            for f in sorted(
-                report.findings,
-                key=lambda x: ["BLOCKED", "ERROR", "WARN", "UNKNOWN", "INFO", "PASS"].index(
-                    x.state.value
-                ),
-            ):
-                color = {
-                    "BLOCKED": "red",
-                    "ERROR": "red",
-                    "WARN": "yellow",
-                    "UNKNOWN": "grey50",
-                    "INFO": "blue",
-                    "PASS": "green",
-                }[f.state.value]
-                table.add_row(f"[{color}]{f.state.value}[/{color}]", f.rule_id, f.summary[:100])
-            console.print(table)
+            console.print(render_terminal_table(report))
             if report.score:
                 console.print(
                     f"Reproducibility completeness: {report.score.total}/{report.score.possible} "

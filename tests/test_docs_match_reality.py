@@ -94,3 +94,67 @@ def test_branch_protection_contexts_match_real_job_names() -> None:
         "branch-protection.json requires checks nothing can report "
         f"(PRs would hang forever): {unreportable}"
     )
+
+
+# ------------------------------------------------------ the README scan example
+
+
+def _capture_module():
+    """Import scripts/capture_readme_example.py by path.
+
+    `scripts/` is not a package, so a plain import will not find it.
+    """
+    import importlib.util
+
+    path = _ROOT / "scripts" / "capture_readme_example.py"
+    spec = importlib.util.spec_from_file_location("capture_readme_example", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_readme_scan_example_matches_the_renderer() -> None:
+    """The block in the README is what the code renders, not prose.
+
+    The README carried a hand-written scan under the caption "Real findings
+    you'll see (examples from actual scans)". CI runs the same check; this
+    keeps it failing in a local `pytest` run too.
+    """
+    capture = _capture_module()
+    readme = _read("README.md")
+    assert readme == capture.splice(readme), (
+        "README example drifted from the renderer; "
+        "run: python scripts/capture_readme_example.py"
+    )
+
+
+def test_readme_scan_example_names_only_real_rules() -> None:
+    """Every rule id shown must be one some code path can emit.
+
+    `python/multiple-installations` was shown for months; the real rule is
+    `python/multiple-versions`. A reader who grepped for the documented id
+    found nothing.
+    """
+    capture = _capture_module()
+    known = capture.emittable_rule_ids()
+    shown = [rule for _, rule, _ in capture.EXAMPLE_FINDINGS]
+    assert shown, "the example lost its findings"
+    assert not [r for r in shown if r not in known], (
+        f"README example names rule ids no code emits: {[r for r in shown if r not in known]}"
+    )
+    assert "python/multiple-installations" not in _read("README.md")
+
+
+def test_the_documented_layout_is_the_one_the_command_prints() -> None:
+    """`devrepro doctor` must go through the same renderer the README does.
+
+    The table used to be built inline in the command, so the README's layout
+    could not be captured from anything -- and it wasn't: it showed an
+    `Evidence:` / `Safe remediation:` block that no code produces.
+    """
+    diagnostics = _read("devrepro/cli/commands/diagnostics.py")
+    assert "render_terminal_table" in diagnostics, (
+        "devrepro doctor no longer uses the shared renderer, so the README "
+        "example is no longer evidence of anything"
+    )
+    assert "Evidence:" not in _read("README.md")
