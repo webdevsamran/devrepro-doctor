@@ -26,10 +26,10 @@ Status legend: ✅ shipped · 🚧 in progress · 📋 planned
 - ✅ Build preflight with stable exit codes
 - ✅ `.devrepro.toml` policy + env-var-name audit
 - ✅ Plugin entry points (5 groups, versioned API)
-- ✅ Full CLI (18 commands, --json everywhere)
+- ✅ Full CLI (37 commands, `--json` everywhere)
 - ✅ Local sanitized history + drift view
 - ✅ Reports: terminal/JSON/Markdown/JUnit/HTML
-- ✅ React+TS+Vite frontend (14 pages)
+- ✅ React+TS+Vite frontend (32 pages)
 - ✅ Localhost-only server
 - ✅ Privacy engine + synthetic-secret tests
 - ✅ Fixture-driven tests + property-based tests

@@ -41,11 +41,18 @@ Out of scope:
    privacy engine before being written; probable secrets block export.
 4. **No TLS bypass.** Network/TLS diagnostics never disable certificate
    validation as a "fix".
-5. **Snapshot loading is untrusted input.** Loaded snapshots are validated
-   against schemas; no code execution from snapshot contents.
+5. **Snapshot loading is untrusted input.** Loaded snapshots are parsed into
+   frozen Pydantic models, which reject unknown and mistyped fields, and are
+   additionally checked against `schemas/snapshot.schema.json`. No code is
+   executed from snapshot contents.
 
 ## Hardening practices
 
-- CI runs CodeQL, dependency scanning, SBOM generation.
+- CI runs CodeQL (Python and JavaScript/TypeScript) and dependency scanning
+  (`pip-audit`) on every pull request, plus a schema gate that verifies the
+  bundled JSON Schemas are present, current and actually validate an instance.
+- SBOM generation runs at **release** time (`.github/workflows/release.yml`),
+  not on every CI run, and is published as `devrepro-doctor-sbom.spdx.json`.
 - GitHub Actions are pinned to immutable SHAs with least-privilege permissions.
-- Releases include checksums and build provenance.
+- Releases carry build provenance attested by `pypa/gh-action-pypi-publish`.
+  They do **not** currently include separate `.sha256` checksum files.

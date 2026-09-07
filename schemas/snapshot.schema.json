@@ -1,0 +1,753 @@
+{
+  "$defs": {
+    "ContainerState": {
+      "additionalProperties": false,
+      "properties": {
+        "compose_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Compose Version"
+        },
+        "docker_cli_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Docker Cli Version"
+        },
+        "docker_daemon_ok": {
+          "default": false,
+          "title": "Docker Daemon Ok",
+          "type": "boolean"
+        },
+        "errors": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Errors",
+          "type": "array"
+        },
+        "kubectl_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kubectl Version"
+        },
+        "podman_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Podman Version"
+        }
+      },
+      "title": "ContainerState",
+      "type": "object"
+    },
+    "GpuStack": {
+      "additionalProperties": false,
+      "properties": {
+        "cuda_toolkit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cuda Toolkit"
+        },
+        "directml": {
+          "default": false,
+          "title": "Directml",
+          "type": "boolean"
+        },
+        "metal": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metal"
+        },
+        "notes": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "nvidia_driver": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nvidia Driver"
+        },
+        "oneapi": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Oneapi"
+        },
+        "rocm": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rocm"
+        },
+        "vulkan": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vulkan"
+        },
+        "wsl_gpu_passthrough": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Wsl Gpu Passthrough"
+        }
+      },
+      "title": "GpuStack",
+      "type": "object"
+    },
+    "PathAnalysis": {
+      "additionalProperties": false,
+      "description": "Result of analyzing the PATH environment variable.",
+      "properties": {
+        "dead_entries": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Dead Entries",
+          "type": "array"
+        },
+        "duplicates": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Duplicates",
+          "type": "array"
+        },
+        "entries": {
+          "items": {
+            "$ref": "#/$defs/PathEntry"
+          },
+          "title": "Entries",
+          "type": "array"
+        },
+        "profile_inconsistencies": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Profile Inconsistencies",
+          "type": "array"
+        },
+        "shadowed_executables": {
+          "default": [],
+          "description": "(name, winner_path, shadowed_path) tuples",
+          "items": {
+            "maxItems": 3,
+            "minItems": 3,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Shadowed Executables",
+          "type": "array"
+        },
+        "store_aliases": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Store Aliases",
+          "type": "array"
+        },
+        "tool_manager_interference": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Tool Manager Interference",
+          "type": "array"
+        }
+      },
+      "required": [
+        "entries"
+      ],
+      "title": "PathAnalysis",
+      "type": "object"
+    },
+    "PathEntry": {
+      "additionalProperties": false,
+      "description": "A single PATH entry with liveness and origin metadata.",
+      "properties": {
+        "exists": {
+          "title": "Exists",
+          "type": "boolean"
+        },
+        "index": {
+          "title": "Index",
+          "type": "integer"
+        },
+        "normalized": {
+          "title": "Normalized",
+          "type": "string"
+        },
+        "origin": {
+          "default": "unknown",
+          "description": "user | system | profile | inherited",
+          "title": "Origin",
+          "type": "string"
+        },
+        "raw": {
+          "title": "Raw",
+          "type": "string"
+        }
+      },
+      "required": [
+        "raw",
+        "normalized",
+        "exists",
+        "index"
+      ],
+      "title": "PathEntry",
+      "type": "object"
+    },
+    "PlatformInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "arch": {
+          "title": "Arch",
+          "type": "string"
+        },
+        "is_wsl": {
+          "default": false,
+          "title": "Is Wsl",
+          "type": "boolean"
+        },
+        "kernel": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kernel"
+        },
+        "os_name": {
+          "title": "Os Name",
+          "type": "string"
+        },
+        "os_version": {
+          "title": "Os Version",
+          "type": "string"
+        },
+        "shell": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Shell"
+        }
+      },
+      "required": [
+        "os_name",
+        "os_version",
+        "arch"
+      ],
+      "title": "PlatformInfo",
+      "type": "object"
+    },
+    "ProjectRequirement": {
+      "additionalProperties": false,
+      "description": "A requirement *declared* by a project manifest/lockfile/policy.",
+      "properties": {
+        "ecosystem": {
+          "description": "python | node | dotnet | go | rust | php | ruby | java | cpp | container | generic",
+          "title": "Ecosystem",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/RequirementKind"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "optional": {
+          "default": false,
+          "title": "Optional",
+          "type": "boolean"
+        },
+        "source_file": {
+          "title": "Source File",
+          "type": "string"
+        },
+        "spec": {
+          "description": "Version range as declared; never invented",
+          "title": "Spec",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ecosystem",
+        "name",
+        "spec",
+        "kind",
+        "source_file"
+      ],
+      "title": "ProjectRequirement",
+      "type": "object"
+    },
+    "ReproducibilityPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "criterion": {
+          "title": "Criterion",
+          "type": "string"
+        },
+        "earned": {
+          "title": "Earned",
+          "type": "integer"
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string"
+        },
+        "possible": {
+          "title": "Possible",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "criterion",
+        "earned",
+        "possible",
+        "explanation"
+      ],
+      "title": "ReproducibilityPoint",
+      "type": "object"
+    },
+    "ReproducibilityScore": {
+      "additionalProperties": false,
+      "properties": {
+        "points": {
+          "items": {
+            "$ref": "#/$defs/ReproducibilityPoint"
+          },
+          "title": "Points",
+          "type": "array"
+        },
+        "possible": {
+          "title": "Possible",
+          "type": "integer"
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "total",
+        "possible",
+        "points"
+      ],
+      "title": "ReproducibilityScore",
+      "type": "object"
+    },
+    "RequirementKind": {
+      "enum": [
+        "runtime",
+        "tool",
+        "env-name",
+        "container",
+        "compiler"
+      ],
+      "title": "RequirementKind",
+      "type": "string"
+    },
+    "ToolInstallation": {
+      "additionalProperties": false,
+      "description": "One installation of a developer tool found on the machine.",
+      "properties": {
+        "exe_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exe Path"
+        },
+        "install_source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Best-effort origin: brew, apt, choco, winget, scoop, nvm, pyenv, official-installer, store-alias, unknown",
+          "title": "Install Source"
+        },
+        "is_active": {
+          "default": false,
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "precedence": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "PATH precedence rank; lower wins",
+          "title": "Precedence"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "ToolInstallation",
+      "type": "object"
+    },
+    "VirtualenvInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "active": {
+          "default": false,
+          "title": "Active",
+          "type": "boolean"
+        },
+        "kind": {
+          "description": "venv | conda | pyenv | nvm | fnm | volta | mise | asdf",
+          "title": "Kind",
+          "type": "string"
+        },
+        "root_hint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Redacted marker; never an absolute home path",
+          "title": "Root Hint"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "VirtualenvInfo",
+      "type": "object"
+    },
+    "WslState": {
+      "additionalProperties": false,
+      "properties": {
+        "available": {
+          "default": false,
+          "title": "Available",
+          "type": "boolean"
+        },
+        "default_distro": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default Distro"
+        },
+        "distros": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Distros",
+          "type": "array"
+        },
+        "errors": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Errors",
+          "type": "array"
+        },
+        "interop_enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Interop Enabled"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "title": "WslState",
+      "type": "object"
+    }
+  },
+  "$id": "https://github.com/webdevsamran/devrepro-doctor/schemas/snapshot.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Privacy-sanitized environment manifest.",
+  "properties": {
+    "compilers": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ToolInstallation"
+      },
+      "title": "Compilers",
+      "type": "array"
+    },
+    "containers": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ContainerState"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "devrepro_version": {
+      "title": "Devrepro Version",
+      "type": "string"
+    },
+    "gpu": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GpuStack"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "path_analysis": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PathAnalysis"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "platform": {
+      "$ref": "#/$defs/PlatformInfo"
+    },
+    "privacy": {
+      "additionalProperties": true,
+      "title": "Privacy",
+      "type": "object"
+    },
+    "requirements_fingerprint": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ProjectRequirement"
+      },
+      "title": "Requirements Fingerprint",
+      "type": "array"
+    },
+    "schema_version": {
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "score": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ReproducibilityScore"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "tools": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ToolInstallation"
+      },
+      "title": "Tools",
+      "type": "array"
+    },
+    "virtualenvs": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/VirtualenvInfo"
+      },
+      "title": "Virtualenvs",
+      "type": "array"
+    },
+    "wsl": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WslState"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "devrepro_version",
+    "platform"
+  ],
+  "title": "Snapshot",
+  "type": "object"
+}

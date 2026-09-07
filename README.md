@@ -78,7 +78,7 @@ Output to terminal, JSON or standalone HTML.
   API keys, SSH/cloud/registry credentials and private hosts are redacted;
   probable secrets block snapshot/report export entirely.
 - Every report states exactly what was collected and its redaction status.
-  See [docs/privacy.md](docs/privacy.md) for the complete inventory.
+  See [docs/PRIVACY.md](docs/PRIVACY.md) for the complete inventory.
 
 ## Supported platforms & toolchains
 
@@ -134,7 +134,8 @@ Findings, Environment Diff, Snapshots, Rules, Remediation Plan, History,
 Docs, Contributors, About). It reads sanitized JSON exports or the optional
 localhost API served by `devrepro serve`.
 
-![DevRepro Doctor dashboard](docs/images/dashboard.png)
+Run it locally with `npm ci && npm run dev` in `web/`, or point it at a
+running `devrepro serve`.
 
 ## Commands
 
@@ -176,7 +177,7 @@ See [docs/ci-github-actions.md](docs/ci-github-actions.md) for the full guide.
 - [ROADMAP.md](ROADMAP.md) — where we're going
 - [CONTRIBUTING.md](CONTRIBUTING.md) — how to help
 - [SECURITY.md](SECURITY.md) — reporting vulnerabilities
-- [docs/plugins.md](docs/plugins.md) — plugin API reference
+- [docs/PLUGINS.md](docs/PLUGINS.md) — plugin API reference
 
 ## Contributing
 
