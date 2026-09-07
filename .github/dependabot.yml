@@ -26,6 +26,14 @@ updates:
         patterns:
           - "*"
     open-pull-requests-limit: 2
+    ignore:
+      # TypeScript 7 is not installable here yet: typescript-eslint declares
+      # `peer typescript@">=4.8.4 <6.1.0"`, and 8.69.0 is its latest release,
+      # so `npm ci` fails with ERESOLVE before anything compiles. Dependabot
+      # reopens this bump as soon as it is declined and will keep doing so
+      # weekly. Remove once a typescript-eslint release supports TypeScript 7.
+      - dependency-name: "typescript"
+        versions: [">=7"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
