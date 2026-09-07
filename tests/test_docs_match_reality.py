@@ -123,8 +123,7 @@ def test_readme_scan_example_matches_the_renderer() -> None:
     capture = _capture_module()
     readme = _read("README.md")
     assert readme == capture.splice(readme), (
-        "README example drifted from the renderer; "
-        "run: python scripts/capture_readme_example.py"
+        "README example drifted from the renderer; run: python scripts/capture_readme_example.py"
     )
 
 
