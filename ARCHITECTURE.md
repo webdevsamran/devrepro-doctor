@@ -84,7 +84,7 @@ their schema version; loaders validate and refuse unknown future versions.
 Entry-point groups: `devrepro.probes`, `devrepro.rules`,
 `devrepro.remediations`, `devrepro.project_detectors`, `devrepro.exporters`.
 Plugin API version is reported by `devrepro plugins`; breaking changes bump
-the documented version in docs/plugins.md.
+the documented version in docs/PLUGINS.md.
 
 ## Non-goals
 

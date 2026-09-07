@@ -58,20 +58,35 @@ runs:
     - name: Run diagnostics
       id: scan
       shell: bash
+      env:
+        # Passed through the environment rather than interpolated into the
+        # script body: `${{ }}` expansion happens before bash sees the line,
+        # so an input containing shell metacharacters would otherwise be
+        # executed rather than quoted.
+        DEVREPRO_COMMAND: ${{ inputs.command }}
+        DEVREPRO_POLICY: ${{ inputs.policy }}
+        DEVREPRO_SARIF: ${{ inputs.sarif-output }}
+        DEVREPRO_FAIL_ON_WARNINGS: ${{ inputs.fail-on-warnings }}
       run: |
         set +e
-        ARGS=("${{ inputs.command }}" --json)
-        if [ -n "${{ inputs.policy }}" ]; then ARGS+=(--policy "${{ inputs.policy }}"); fi
-        if [ -n "${{ inputs.sarif-output }}" ]; then
-          devrepro scan --format sarif -o "${{ inputs.sarif-output }}"
-          ARGS=("${{ inputs.command }}")
+        ARGS=("$DEVREPRO_COMMAND" --json)
+        if [ -n "$DEVREPRO_POLICY" ]; then ARGS+=(--policy "$DEVREPRO_POLICY"); fi
+        if [ -n "$DEVREPRO_SARIF" ]; then
+          devrepro scan --format sarif -o "$DEVREPRO_SARIF"
         fi
+        # --json is kept in every path. It used to be dropped whenever
+        # sarif-output was set, so the next line parsed a Rich table, threw,
+        # and fell back to verdict=UNKNOWN -- for exactly the usage the README
+        # documents.
         devrepro "${ARGS[@]}" | tee devrepro-output.json
-        CODE=$?
+        # ${PIPESTATUS[0]} is devrepro's status. Plain $? after a pipeline is
+        # tee's, which is always 0, so this gate reported success no matter how
+        # blocked the machine was.
+        CODE=${PIPESTATUS[0]}
         VERDICT=$(python -c "import json;print(json.load(open('devrepro-output.json')).get('verdict','UNKNOWN'))" || echo UNKNOWN)
         echo "verdict=$VERDICT" >> "$GITHUB_OUTPUT"
         echo "DevRepro Doctor exit code: $CODE (verdict: $VERDICT)"
-        if [ "$CODE" -eq 1 ] && [ "${{ inputs.fail-on-warnings }}" != 'true' ]; then
+        if [ "$CODE" -eq 1 ] && [ "$DEVREPRO_FAIL_ON_WARNINGS" != 'true' ]; then
           exit 0
         fi
         exit "$CODE"

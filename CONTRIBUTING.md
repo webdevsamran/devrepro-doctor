@@ -57,7 +57,7 @@ See ARCHITECTURE.md for the module map and data flow. Key contracts:
   `devrepro.project_detectors`.
 - **Exporters**: implement `Exporter`; entry point group `devrepro.exporters`.
 
-Plugin APIs are versioned: see `docs/plugins.md`.
+Plugin APIs are versioned: see `docs/PLUGINS.md`.
 
 ## Testing requirements
 
@@ -95,7 +95,7 @@ files alone.
 
 ## Release
 
-Maintainers cut releases per docs/release.md (checksums + provenance).
+Maintainers cut releases per [docs/release.md](docs/release.md): a `v*` tag builds, generates an SPDX SBOM, and publishes to PyPI through Trusted Publishing (provenance attested by the publish action; no separate checksum files are produced).
 Do not claim Homebrew/winget/Scoop availability until those packages exist.
 
 ## Questions

@@ -46,7 +46,13 @@ jobs:
           path: coverage.xml
           if-no-files-found: error
       - name: Schema validation
-        run: python scripts/validate_schemas.py
+        # --check fails if the committed schemas have drifted from the models;
+        # validate_schemas.py then proves they are well-formed, current and
+        # actually validate an instance. It used to glob an empty directory
+        # and pass unconditionally on all twelve matrix legs.
+        run: |
+          python scripts/generate_schemas.py --check
+          python scripts/validate_schemas.py
 
   frontend:
     name: Frontend
