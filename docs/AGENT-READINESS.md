@@ -44,6 +44,41 @@ Shell plumbing is filtered out. A `run: |` block is full of `grep`, `sed` and
 variable assignments; none of that is a gate, and listing it would bury the
 findings that matter.
 
+## 3. What could an agent reach from here?
+
+Reported by default; `--no-blast-radius` turns it off.
+
+2026 produced real, attributable damage from agents operating in environments
+nobody had checked: a production database and its backups deleted in nine
+seconds, a platform's data wiped, a thirteen-hour outage after an agent chose
+to delete and recreate an environment. The post-mortems name the same causes
+each time — production and development blurred together, permissions too broad,
+approval arriving too late.
+
+Those are environment-verification questions, and they can be answered before
+the agent's first action:
+
+| Exposure | Why it is on the list |
+|---|---|
+| **Uncommitted work** | A reset, checkout or clean destroys work that exists nowhere else. |
+| **Unpushed commits** | They exist only on this machine; a force-push loses them. |
+| **Inherited credentials** | Every subprocess an agent starts gets them — a build script, a test, a package postinstall. |
+| **Production target** | `NODE_ENV=production`, `AWS_PROFILE=prod-admin`, a `prod-` kubectl context. A command that is harmless against dev is not harmless here. |
+| **Ambient credentials** | A logged-in `aws`, `gcloud` or `kubectl` needs no token in the environment. Nothing in the shell reveals the authority is there. |
+| **Elevated privileges** | Running as root means mistakes are unbounded by file permissions. |
+
+Two properties make this safe to run and safe to publish:
+
+- **Credentials are named, never read.** The report lists `GITHUB_TOKEN`; it
+  never touches its value. The whole briefing can be pasted into an issue or
+  handed to the agent itself.
+- **Nothing is mutated, including the git index.** The checks use read-only
+  plumbing, and a test asserts no mutating git subcommand is ever invoked —
+  an assessment of what an agent might destroy must not destroy anything.
+
+This is not a safety guarantee, and does not try to be. It is a briefing, so a
+person decides what to do rather than finding out afterwards.
+
 ## Exit codes
 
 Follows the [project contract](EXIT-CODES.md):

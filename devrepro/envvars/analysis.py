@@ -16,6 +16,8 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from devrepro.privacy.gate import CREDENTIAL_NAME_PATTERN
+
 __all__ = [
     "DotenvFinding",
     "EnvOrigin",
@@ -37,9 +39,10 @@ _PROJECT_ENV_SOURCES = (
     ".devrepro.toml",
 )
 
-_SECRET_NAME_PATTERNS = re.compile(
-    r"(?i)(password|passwd|secret|token|api[_-]?key|private[_-]?key|credential)"
-)
+# See privacy/gate.py: one definition, shared with the env probe and the
+# blast-radius assessment. It used to be duplicated in both places with the
+# same terms in a different order.
+_SECRET_NAME_PATTERNS = CREDENTIAL_NAME_PATTERN
 
 # value shapes that look like live credentials (used ONLY to flag, never stored)
 _VALUE_SHAPES = (

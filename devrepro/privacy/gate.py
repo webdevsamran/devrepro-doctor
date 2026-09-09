@@ -23,9 +23,35 @@ from pathlib import Path
 
 from devrepro.core.errors import PrivacyViolationError
 
-__all__ = ["PrivacyGate", "assert_no_secrets", "redact", "scan_for_secrets"]
+__all__ = [
+    "CREDENTIAL_NAME_PATTERN",
+    "PrivacyGate",
+    "assert_no_secrets",
+    "looks_like_credential_name",
+    "redact",
+    "scan_for_secrets",
+]
 
 _EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+
+#: Variable NAMES that suggest a credential. Names only -- this pattern is
+#: never applied to a value, and matching one is not proof of anything: it is a
+#: heuristic used to decide what to mention, not what to read.
+#:
+#: Deliberately narrower than "anything security-adjacent". `SESSION_ID` is an
+#: identifier, not a credential, and a report that flags every variable with a
+#: vaguely alarming name trains its reader to skim past the ones that matter.
+CREDENTIAL_NAME_PATTERN = re.compile(
+    r"(password|passwd|secret|token|api[_-]?key|private[_-]?key|access[_-]?key"
+    r"|credential|session[_-]?(token|key|secret)|_pat$|auth[_-]?(token|key))",
+    re.IGNORECASE,
+)
+
+
+def looks_like_credential_name(name: str) -> bool:
+    """Whether a variable NAME suggests it holds a credential."""
+    return bool(CREDENTIAL_NAME_PATTERN.search(name))
+
 
 _SECRET_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("aws-access-key", re.compile(r"AKIA[0-9A-Z]{16}")),

@@ -7,11 +7,11 @@ from typing import TYPE_CHECKING
 
 import typer
 
-from devrepro.cli.common import JsonOption, emit
+from devrepro.cli.common import JsonOption, emit, secho
 from devrepro.core.exit_codes import ExitCode
 
 if TYPE_CHECKING:
-    from devrepro.agents import AgentManifest, CommandCheck
+    from devrepro.agents import AgentManifest, BlastRadius, CommandCheck
 
 #: Characters that mean the shell would do work the runner cannot: pipes,
 #: redirection, globbing, substitution. Such a command is never executed by
@@ -40,6 +40,11 @@ def register(app: typer.Typer) -> None:
             help="OPT-IN: execute each resolvable declared command. Off by default.",
         ),
         timeout: float = typer.Option(120.0, help="Per-command timeout for --run, seconds."),
+        blast_radius: bool = typer.Option(
+            True,
+            "--blast-radius/--no-blast-radius",
+            help="Report what an agent starting here could reach.",
+        ),
         as_json: bool = JsonOption,
     ) -> None:
         """Check whether an AI coding agent can work in this repository.
@@ -53,6 +58,7 @@ def register(app: typer.Typer) -> None:
         running one needs --run, which reports each command before it runs.
         """
         from devrepro.agents import (
+            assess_blast_radius,
             check_declared_commands,
             ci_declared_commands,
             discover_manifests,
@@ -63,6 +69,8 @@ def register(app: typer.Typer) -> None:
         declared = [c for m in manifests for c in m.commands]
         checks = check_declared_commands(declared, root=path)
         drift = manifest_vs_ci(declared, ci_declared_commands(path))
+
+        radius = assess_blast_radius(path) if blast_radius else None
 
         executed: list[dict[str, object]] = []
         if run:
@@ -86,13 +94,30 @@ def register(app: typer.Typer) -> None:
             "undeclared_ci_commands": drift,
             "verdict": _verdict(manifests, checks),
         }
+        if radius is not None:
+            payload["blast_radius"] = {
+                "highest_severity": radius.highest_severity,
+                "uncommitted_files": radius.uncommitted_files,
+                "unpushed_commits": radius.unpushed_commits,
+                "credential_names": list(radius.credential_names),
+                "exposures": [
+                    {
+                        "kind": e.kind,
+                        "severity": e.severity,
+                        "summary": e.summary,
+                        "detail": e.detail,
+                        "evidence": e.evidence,
+                    }
+                    for e in radius.exposures
+                ],
+            }
         if run:
             payload["executed"] = executed
 
         if as_json:
             emit(payload, True)
         else:
-            _render(manifests, checks, drift, executed, run=run)
+            _render(manifests, checks, drift, executed, run=run, radius=radius)
 
         raise typer.Exit(_exit_code(manifests, checks, drift))
 
@@ -160,6 +185,35 @@ def _execute(
     return results
 
 
+_SEVERITY_COLOUR = {"high": "red", "medium": "yellow", "info": "cyan"}
+
+
+def _render_blast_radius(radius: BlastRadius) -> None:
+    """Print the briefing.
+
+    Ordered high severity first: the reader is about to hand this machine to
+    something autonomous, and the thing most worth knowing should not be third.
+    """
+    typer.echo("")
+    if not radius.exposures:
+        secho("Blast radius: nothing notable reachable from here.", fg="green")
+        return
+
+    secho(
+        f"Blast radius ({radius.highest_severity}):",
+        fg=_SEVERITY_COLOUR.get(radius.highest_severity, "white"),
+    )
+    order = {"high": 0, "medium": 1, "info": 2}
+    for exposure in sorted(radius.exposures, key=lambda e: order.get(e.severity, 3)):
+        secho(
+            f"  [{exposure.severity:<6}] {exposure.summary}",
+            fg=_SEVERITY_COLOUR.get(exposure.severity),
+        )
+        typer.echo(f"        {exposure.detail}")
+        if exposure.evidence:
+            typer.echo(f"        evidence: {exposure.evidence}")
+
+
 def _render(
     manifests: list[AgentManifest],
     checks: list[CommandCheck],
@@ -167,6 +221,7 @@ def _render(
     executed: list[dict[str, object]],
     *,
     run: bool,
+    radius: BlastRadius | None = None,
 ) -> None:
     if not manifests:
         typer.secho(
@@ -174,6 +229,8 @@ def _render(
             fg="yellow",
         )
         typer.echo("An agent working here has no declared setup, build or test commands.")
+        if radius is not None:
+            _render_blast_radius(radius)
         return
 
     found = ", ".join(m.path for m in manifests)
@@ -194,6 +251,9 @@ def _render(
         typer.echo(
             "    An agent that runs everything the manifest lists can still be failed by these."
         )
+
+    if radius is not None:
+        _render_blast_radius(radius)
 
     if run:
         typer.echo("")

@@ -107,6 +107,25 @@ by reading it.
   copy-paste of the published Action failed at the install step. It now
   defaults to installing from this repository.
 
+### Added - blast-radius briefing in `agent-check`
+
+What could an agent reach from here, answered before it starts: uncommitted
+work, unpushed commits, credential-shaped variables its subprocesses inherit,
+whether this shell points at production, cloud CLIs already logged in, and
+whether the process is running as root.
+
+- **Credentials are named, never read.** A test asserts a real-shaped token
+  placed in the environment never appears anywhere in the report, so the
+  briefing is safe to paste into an issue or hand to the agent itself.
+- **Nothing is mutated, including the git index.** A test asserts no mutating
+  git subcommand is ever invoked; an assessment of what an agent might destroy
+  must not destroy anything.
+- The first version wrote its own credential-name pattern and flagged nine
+  variables on this machine, of which one was a credential --
+  `CLAUDE_CODE_HOST_SESSION_ID` is an identifier. The pattern now lives once,
+  in `devrepro/privacy/`, shared with the env probe and the env-var analysis
+  which had been carrying near-identical copies of it.
+
 ### Added - filesystem and locale hygiene checks
 
 The problems that do not look like environment problems, and all detected

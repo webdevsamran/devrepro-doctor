@@ -7,17 +7,15 @@ suggest credentials left empty), never by content.
 
 from __future__ import annotations
 
-import re
-
 from devrepro.core.models import Evidence, FindingState
+from devrepro.privacy.gate import CREDENTIAL_NAME_PATTERN
 from devrepro.probes.base import Probe, ProbeResult
 
 __all__ = ["EnvAuditProbe"]
 
-_SECRET_NAME_HINTS = re.compile(
-    r"(token|secret|password|passwd|api[_-]?key|private[_-]?key|credential)",
-    re.IGNORECASE,
-)
+# One definition, in the privacy module. It used to live here and again in
+# envvars/analysis.py, with the same terms in a different order.
+_SECRET_NAME_HINTS = CREDENTIAL_NAME_PATTERN
 
 
 class EnvAuditProbe(Probe):
