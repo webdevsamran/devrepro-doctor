@@ -17,6 +17,37 @@ __all__ = ["diff_snapshots"]
 _PLATFORM_KEYS = {"os_name", "os_version", "arch", "kernel"}
 
 
+def _compare_optional(
+    entries: list[DiffEntry],
+    *,
+    component: str,
+    name: str,
+    a_value: object,
+    b_value: object,
+    classification: DiffClassification,
+    detail: str,
+    project_critical: bool = False,
+) -> None:
+    """Append a DiffEntry when two optional values differ.
+
+    Both sides being absent is not a difference -- neither machine reported the
+    capability, which is silence, not drift.
+    """
+    if a_value == b_value or (a_value is None and b_value is None):
+        return
+    entries.append(
+        DiffEntry(
+            component=component,
+            name=name,
+            classification=classification,
+            a_value=str(a_value),
+            b_value=str(b_value),
+            detail=detail,
+            project_critical=project_critical,
+        )
+    )
+
+
 def diff_snapshots(a: Snapshot, b: Snapshot) -> EnvironmentDiff:
     if a.schema_version != b.schema_version:
         raise DiffError(
@@ -166,6 +197,58 @@ def diff_snapshots(a: Snapshot, b: Snapshot) -> EnvironmentDiff:
                 detail="Docker daemon health differs; container builds will behave differently.",
                 project_critical=True,
             )
+        )
+
+    # Docker CLI version drift is not build-breaking on its own, but it is the
+    # first thing anyone asks about when an image builds on one machine only.
+    _compare_optional(
+        entries,
+        component="container",
+        name="docker-cli",
+        a_value=a.containers.docker_cli_version if a.containers else None,
+        b_value=b.containers.docker_cli_version if b.containers else None,
+        classification=DiffClassification.VERSION_DRIFT,
+        detail="Docker CLI version differs between the two machines.",
+    )
+
+    for name, attr, detail in (
+        (
+            "wsl-available",
+            "available",
+            "WSL availability differs; Linux-path builds behave differently.",
+        ),
+        (
+            "wsl-default-distro",
+            "default_distro",
+            "The default WSL distro differs; commands run against another filesystem.",
+        ),
+    ):
+        _compare_optional(
+            entries,
+            component="wsl",
+            name=name,
+            a_value=getattr(a.wsl, attr, None) if a.wsl else None,
+            b_value=getattr(b.wsl, attr, None) if b.wsl else None,
+            classification=DiffClassification.PLATFORM_EXPECTED,
+            detail=detail,
+        )
+
+    # A CUDA/driver difference is the single most common reason an ML build or
+    # test suite passes on one machine and fails on another.
+    for name, attr in (
+        ("nvidia-driver", "nvidia_driver"),
+        ("cuda-toolkit", "cuda_toolkit"),
+        ("rocm", "rocm"),
+    ):
+        _compare_optional(
+            entries,
+            component="gpu",
+            name=name,
+            a_value=getattr(a.gpu, attr, None) if a.gpu else None,
+            b_value=getattr(b.gpu, attr, None) if b.gpu else None,
+            classification=DiffClassification.PROJECT_CRITICAL,
+            detail=f"{name} differs; GPU workloads may not reproduce.",
+            project_critical=True,
         )
 
     return EnvironmentDiff(

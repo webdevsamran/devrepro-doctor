@@ -165,6 +165,9 @@ def run_scan(
         policy_applied=policy is not None,
         score=score,
         probe_errors=tuple(probe_errors),
+        containers=containers,
+        wsl=wsl,
+        gpu=gpu,
     )
     return _sanitize_report(report)
 

@@ -35,9 +35,9 @@ def snapshot_from_report(report: ScanReport) -> Snapshot:
             t for t in report.tools if t.name in ("gcc", "clang", "cl", "rustc", "javac")
         ),
         requirements_fingerprint=report.requirements,
-        containers=None,
-        wsl=None,
-        gpu=None,
+        containers=report.containers,
+        wsl=report.wsl,
+        gpu=report.gpu,
         virtualenvs=(),
         score=report.score,
         privacy=dict(report.privacy),

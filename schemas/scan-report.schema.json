@@ -1,5 +1,73 @@
 {
   "$defs": {
+    "ContainerState": {
+      "additionalProperties": false,
+      "properties": {
+        "compose_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Compose Version"
+        },
+        "docker_cli_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Docker Cli Version"
+        },
+        "docker_daemon_ok": {
+          "default": false,
+          "title": "Docker Daemon Ok",
+          "type": "boolean"
+        },
+        "errors": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Errors",
+          "type": "array"
+        },
+        "kubectl_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kubectl Version"
+        },
+        "podman_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Podman Version"
+        }
+      },
+      "title": "ContainerState",
+      "type": "object"
+    },
     "Evidence": {
       "additionalProperties": false,
       "description": "Proof backing a finding. Findings without evidence are invalid.",
@@ -175,6 +243,110 @@
       ],
       "title": "FindingState",
       "type": "string"
+    },
+    "GpuStack": {
+      "additionalProperties": false,
+      "properties": {
+        "cuda_toolkit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cuda Toolkit"
+        },
+        "directml": {
+          "default": false,
+          "title": "Directml",
+          "type": "boolean"
+        },
+        "metal": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metal"
+        },
+        "notes": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "nvidia_driver": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nvidia Driver"
+        },
+        "oneapi": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Oneapi"
+        },
+        "rocm": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rocm"
+        },
+        "vulkan": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vulkan"
+        },
+        "wsl_gpu_passthrough": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Wsl Gpu Passthrough"
+        }
+      },
+      "title": "GpuStack",
+      "type": "object"
     },
     "PathAnalysis": {
       "additionalProperties": false,
@@ -534,6 +706,70 @@
       ],
       "title": "ToolInstallation",
       "type": "object"
+    },
+    "WslState": {
+      "additionalProperties": false,
+      "properties": {
+        "available": {
+          "default": false,
+          "title": "Available",
+          "type": "boolean"
+        },
+        "default_distro": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Default Distro"
+        },
+        "distros": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Distros",
+          "type": "array"
+        },
+        "errors": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Errors",
+          "type": "array"
+        },
+        "interop_enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Interop Enabled"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "title": "WslState",
+      "type": "object"
     }
   },
   "$id": "https://github.com/webdevsamran/devrepro-doctor/schemas/scan-report.schema.json",
@@ -541,6 +777,17 @@
   "additionalProperties": false,
   "description": "Complete output of one scan, ready for rendering/export.",
   "properties": {
+    "containers": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ContainerState"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "created_at": {
       "format": "date-time",
       "title": "Created At",
@@ -557,6 +804,17 @@
       },
       "title": "Findings",
       "type": "array"
+    },
+    "gpu": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GpuStack"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "path_analysis": {
       "anyOf": [
@@ -621,6 +879,17 @@
       },
       "title": "Tools",
       "type": "array"
+    },
+    "wsl": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WslState"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     }
   },
   "required": [

@@ -372,6 +372,14 @@ class ScanReport(_FrozenModel):
     policy_applied: bool = False
     score: ReproducibilityScore | None = None
     probe_errors: tuple[str, ...] = ()
+    # Collected by the container/wsl/gpu probes and declared in ``privacy``
+    # below. These were computed by the scan and then dropped on the floor, so
+    # a Snapshot could never carry them and ``diff_snapshots`` could never
+    # report container drift -- "Docker works there but not here" was
+    # unanswerable despite the probes gathering exactly that.
+    containers: ContainerState | None = None
+    wsl: WslState | None = None
+    gpu: GpuStack | None = None
     privacy: dict[str, Any] = Field(
         default_factory=lambda: {
             "redacted": True,

@@ -5,10 +5,13 @@ from __future__ import annotations
 import json
 
 from devrepro.core.models import (
+    ContainerState,
     DiffClassification,
+    GpuStack,
     PlatformInfo,
     Snapshot,
     ToolInstallation,
+    WslState,
 )
 from devrepro.diff.engine import diff_snapshots
 from devrepro.snapshots.history import compute_drift
@@ -63,3 +66,99 @@ def test_drift_kinds() -> None:
     items = compute_drift(_snap("prev", "3.11.8"), _snap("cur", "3.12.4"))
     kinds = {i.kind for i in items}
     assert "runtime-changed" in kinds
+
+
+# --- container / WSL / GPU drift -------------------------------------------
+#
+# These comparisons existed (or were promised by the section header) but could
+# never fire: `snapshot_from_report` hardcoded containers/wsl/gpu to None
+# because `ScanReport` never carried them, so both sides of every comparison
+# were always None. The probes had been collecting the state all along.
+
+
+def _machine(
+    *,
+    daemon_ok: bool = True,
+    docker_cli: str = "29.7.2",
+    cuda: str | None = "12.4",
+    wsl_distro: str | None = None,
+) -> Snapshot:
+    return Snapshot(
+        devrepro_version="0.1.0",
+        platform=PlatformInfo(os_name="Linux", os_version="6.5", arch="x86_64"),
+        containers=ContainerState(docker_cli_version=docker_cli, docker_daemon_ok=daemon_ok),
+        gpu=GpuStack(cuda_toolkit=cuda),
+        wsl=WslState(available=wsl_distro is not None, default_distro=wsl_distro),
+    )
+
+
+def _entry(diff, component: str, name: str):
+    return next((e for e in diff.entries if e.component == component and e.name == name), None)
+
+
+def test_docker_daemon_health_difference_is_project_critical() -> None:
+    diff = diff_snapshots(_machine(daemon_ok=True), _machine(daemon_ok=False))
+    entry = _entry(diff, "container", "docker-daemon")
+    assert entry is not None, "docker daemon drift not reported"
+    assert entry.project_critical is True
+    assert entry.classification is DiffClassification.PROJECT_CRITICAL
+
+
+def test_docker_cli_version_difference_is_version_drift() -> None:
+    diff = diff_snapshots(_machine(docker_cli="29.7.2"), _machine(docker_cli="24.0.7"))
+    entry = _entry(diff, "container", "docker-cli")
+    assert entry is not None
+    assert entry.classification is DiffClassification.VERSION_DRIFT
+    assert entry.a_value == "29.7.2" and entry.b_value == "24.0.7"
+
+
+def test_cuda_toolkit_difference_is_project_critical() -> None:
+    """The classic 'trains here, not there' cause."""
+    diff = diff_snapshots(_machine(cuda="12.4"), _machine(cuda="11.8"))
+    entry = _entry(diff, "gpu", "cuda-toolkit")
+    assert entry is not None
+    assert entry.project_critical is True
+
+
+def test_wsl_default_distro_difference_is_reported() -> None:
+    diff = diff_snapshots(_machine(wsl_distro="Ubuntu"), _machine(wsl_distro="docker-desktop"))
+    entry = _entry(diff, "wsl", "wsl-default-distro")
+    assert entry is not None
+    assert entry.a_value == "Ubuntu" and entry.b_value == "docker-desktop"
+
+
+def test_identical_machines_report_no_container_wsl_or_gpu_drift() -> None:
+    diff = diff_snapshots(_machine(), _machine())
+    assert not [e for e in diff.entries if e.component in {"container", "wsl", "gpu"}]
+
+
+def test_absent_on_both_sides_is_not_drift() -> None:
+    """Neither machine reporting a capability is silence, not a difference."""
+    bare = Snapshot(
+        devrepro_version="0.1.0",
+        platform=PlatformInfo(os_name="Linux", os_version="6.5", arch="x86_64"),
+    )
+    diff = diff_snapshots(bare, bare)
+    assert not [e for e in diff.entries if e.component in {"container", "wsl", "gpu"}]
+
+
+def test_snapshot_from_report_propagates_probe_state() -> None:
+    """A Snapshot must carry what the scan collected.
+
+    `snapshot_from_report` hardcoded these to None, so container/WSL/GPU drift
+    was structurally unreportable no matter what the probes found.
+    """
+    from devrepro.core.models import ScanReport
+    from devrepro.snapshots.store import snapshot_from_report
+
+    report = ScanReport(
+        devrepro_version="0.1.0",
+        platform=PlatformInfo(os_name="Linux", os_version="6.5", arch="x86_64"),
+        containers=ContainerState(docker_cli_version="29.7.2", docker_daemon_ok=False),
+        wsl=WslState(available=True, default_distro="Ubuntu"),
+        gpu=GpuStack(cuda_toolkit="12.4"),
+    )
+    snap = snapshot_from_report(report)
+    assert snap.containers is not None and snap.containers.docker_cli_version == "29.7.2"
+    assert snap.wsl is not None and snap.wsl.default_distro == "Ubuntu"
+    assert snap.gpu is not None and snap.gpu.cuda_toolkit == "12.4"
