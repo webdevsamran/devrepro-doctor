@@ -45,8 +45,9 @@ jobs:
 
 State mapping: BLOCKED/ERROR → SARIF `error`, WARN/UNKNOWN → `warning`,
 INFO/PASS → `note`. Findings carry stable rule IDs (`node/version-mismatch`,
-`python/multiple-installations`, …) plus detected/required versions and a
-remediation hint when available.
+`path/duplicates`, …) plus detected/required versions and a remediation hint
+when available. Run `devrepro rules` for the packs, and see
+`scripts/capture_readme_example.py` for the id shapes the docs guard accepts.
 
 ## Notes
 

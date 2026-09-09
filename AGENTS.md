@@ -26,15 +26,25 @@ the frontend.
 ## Commands CI runs
 
 ```bash
-ruff check devrepro tests
-ruff format --check devrepro tests
+ruff check devrepro tests scripts
+ruff format --check devrepro tests scripts
 mypy devrepro
 pytest -q --cov=devrepro --cov-fail-under=70
+python scripts/generate_schemas.py --check
 python scripts/validate_schemas.py
+python scripts/secret_scan.py
+python scripts/check_action_pins.py
+python scripts/generate_landscape.py --check
+python scripts/capture_readme_example.py --check
 pip-audit --skip-editable
 mkdocs build --strict
 cd web && npm ci && npm run lint && npm run typecheck && npm test && npm run build
 ```
+
+Every line above is a required check. The list was previously a subset: it
+omitted `scripts/` from both ruff invocations and left out five gates
+entirely, so an agent could run everything here, see it pass, and still be
+failed by CI for reasons this file never mentioned.
 
 `fail_under = 70` is in `pyproject.toml` as well as on the CI command line, so
 a local `pytest --cov` enforces the same floor CI does.
@@ -57,11 +67,17 @@ gates and onboarding scripts depend on them.
 **Documented output is captured, never written.** The README's scan example
 comes from `scripts/capture_readme_example.py`, which renders a fixture
 through `render_terminal_table` -- the same function `devrepro doctor` calls
--- and `--check` fails CI on drift. It previously showed a rule id
-(`python/multiple-installations`) that no code emits, in an `Evidence:` /
-`Safe remediation:` layout the renderer cannot produce, under the caption
-"examples from actual scans". The capture refuses to run if the example names
-a rule id nothing emits.
+-- and `--check` fails CI on drift. It previously showed a hand-written block
+in an `Evidence:` / `Safe remediation:` layout the renderer cannot produce,
+under the caption "examples from actual scans". The capture refuses to run if
+the example names a rule id nothing emits.
+
+That check asks `is_emittable_rule_id`, which knows both shapes a rule id
+takes: written out in full, or composed onto a runtime prefix as in
+`f"{name}/multiple-installations"` and `f"{ecosystem}/manager-conflict"`. It
+recognised only the literal form until recently, so it would have rejected a
+README documenting either -- `python/multiple-installations` is emitted by
+`probes/toolchains.py` whenever duplicate Python installs are found.
 
 **Schemas are generated, not hand-written.** `schemas/*.json` come from the
 Pydantic models via `python scripts/generate_schemas.py`. Run it after
@@ -69,9 +85,13 @@ changing a model and commit the result; `scripts/validate_schemas.py` fails
 if the committed files are stale, missing, or fail to validate an instance.
 
 **Probes are tested against recorded output.** `tests/fixtures/recordings/`
-holds real command output for ubuntu/fedora/macos/windows/wsl/docker. That is
-what makes probe tests deterministic on a runner that has none of those
-tools — add a recording rather than mocking ad hoc.
+holds command output for ubuntu/fedora/macos/windows/wsl/docker, loaded by
+`recorded_path()` / `recorded_docker_failures()` in `tests/conftest.py` and
+replayed through `RecordingRunner`. That is what makes probe tests
+deterministic on a runner that has none of those tools -- add a recording
+rather than mocking ad hoc, and assert only host-independent properties:
+`PathProbe` calls `os.path.normcase` and `Path.is_dir()` directly, so
+normalisation follows the machine running the tests, not `ctx.platform`.
 
 ## Do not touch without being asked
 

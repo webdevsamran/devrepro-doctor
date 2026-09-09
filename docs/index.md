@@ -8,9 +8,13 @@ DevRepro Doctor answers all of them in a single read-only scan, then tells
 you what can be fixed **safely**.
 
 ```bash
-pip install devrepro-doctor
+pip install git+https://github.com/webdevsamran/devrepro-doctor
 devrepro doctor            # full read-only diagnostic scan
 ```
+
+> **Not on PyPI yet.** `pip install devrepro-doctor` does not work: the name is
+> unregistered, so publishing is pending a PyPI Trusted Publisher for this
+> repository. Install from git until then; the command above is what CI uses.
 
 <div class="grid cards" markdown>
 

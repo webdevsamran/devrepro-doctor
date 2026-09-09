@@ -34,7 +34,28 @@ opportunity. An earlier version of this file claimed "Playwright smoke tests
 exist in CI scope"; that was never true, and the only `playwright` string in
 the repository is a transitive optional peer inside `web/package-lock.json`.
 
-### 6. PostgreSQL backend for the fleet service
+### 6. Filesystem case-sensitivity is not detected
+This list previously claimed case-sensitivity diagnostics under "Where we are
+ahead". No such check exists -- there is no `fsutil`, no `CaseSensitiveInfo`
+read and no probe for it anywhere in `devrepro/`. A case-insensitive checkout
+of a repo containing `Foo.py` and `foo.py` is a real and confusing failure, so
+this is worth building; it was simply never true. **Status: open, wanted.**
+
+### 7. `guard` gates on the whole machine, so it is unusable as a commit hook
+`devrepro guard` describes itself as "designed for `devrepro guard` in a git
+pre-commit hook", but it runs a full scan and exits 2 on *any* ERROR/BLOCKED
+finding anywhere on the machine. Adding it to this repository's
+`.pre-commit-config.yaml` blocks every commit while Docker Desktop happens to
+be stopped -- even though `.devrepro.toml` marks docker optional and no commit
+of Python source depends on a running daemon.
+
+That is the failure mode where a gate gets switched off in the first week. A
+commit hook needs to gate on what the commit changes -- lockfiles, manifests,
+CI workflows, `.devrepro.toml` -- not on ambient machine state. Until `guard`
+grows that scoping, the hook is deliberately not wired here. **Status: open;
+`guard` needs a diff-scoped mode before it earns a place in a hook.**
+
+### 8. PostgreSQL backend for the fleet service
 SQLite ships today; a PostgreSQL adapter for large multi-user deployments is
 planned behind the same `ServerDB` call sites.
 
@@ -51,7 +72,7 @@ planned behind the same `ServerDB` call sites.
 ## Where we are ahead
 
 - Cross-platform depth including Windows App Execution Aliases, WSL interop,
-  PowerShell execution policy, long-path and case-sensitivity diagnostics.
+  PowerShell execution policy and long-path diagnostics.
 - Explainable PATH precedence ("why does this executable win?").
 - Privacy-sanitized snapshots with field classification and secret-scan gates.
 - Semantic machine-to-machine diff with project-critical classification.

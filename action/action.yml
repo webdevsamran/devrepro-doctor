@@ -23,11 +23,14 @@ inputs:
     default: '3.12'
   package:
     description: >
-      What to pip-install. Defaults to the published PyPI package. Until the
-      package is published, pass the repo you want to install from, e.g.
-      'git+https://github.com/webdevsamran/devrepro-doctor@main'.
+      What to pip-install. Defaults to installing from this repository,
+      because devrepro-doctor is not on PyPI yet: `pip install
+      devrepro-doctor` returns 404, so the previous default made every
+      copy-paste of this action fail at the install step. Once the package is
+      published, change this default to 'devrepro-doctor'. Pass any
+      pip-installable spec to override, e.g. a tag or a local path.
     required: false
-    default: 'devrepro-doctor'
+    default: 'git+https://github.com/webdevsamran/devrepro-doctor@main'
   sarif-output:
     description: >
       Set to a file path to also write a SARIF report there (e.g.
