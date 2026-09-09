@@ -1,0 +1,65 @@
+"""The documented exit codes must match the ones the code defines.
+
+Every project in this family calls its exit codes a public contract -- CI
+gates and onboarding scripts branch on them, so a code that changes meaning
+breaks something silently, somewhere else. A *document* that disagrees with the
+code is worse than no document, because wrappers get written from the document.
+
+Checking this is cheap, so it is checked.
+"""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+_ROOT = Path(__file__).resolve().parent.parent
+_DOC = _ROOT / "docs" / "exit-codes.md"
+
+
+def _documented() -> dict[int, str]:
+    rows = re.findall(
+        r"^\|\s*`(\d+)`\s*\|\s*`([^`]+)`\s*\|", _DOC.read_text(encoding="utf-8"), re.M
+    )
+    return {int(code): name for code, name in rows}
+
+
+def _defined() -> dict[int, str]:
+    src = (_ROOT / "devrepro/core/exit_codes.py").read_text(encoding="utf-8")
+    return {
+        int(m.group(2)): m.group(1) for m in re.finditer(r"^\s{4}([A-Z_]+)\s*=\s*(\d+)", src, re.M)
+    }
+
+
+def test_every_defined_code_is_documented() -> None:
+    documented, defined = _documented(), _defined()
+    missing = sorted(set(defined) - set(documented))
+    assert not missing, f"exit codes defined in code but absent from docs/exit-codes.md: {missing}"
+
+
+def test_no_documented_code_is_invented() -> None:
+    documented, defined = _documented(), _defined()
+    extra = sorted(set(documented) - set(defined))
+    assert not extra, f"docs/exit-codes.md documents codes the code does not define: {extra}"
+
+
+def test_each_code_is_documented_with_its_real_name() -> None:
+    documented, defined = _documented(), _defined()
+    wrong = {
+        code: (documented[code], defined[code])
+        for code in sorted(set(documented) & set(defined))
+        if documented[code] != defined[code]
+    }
+    assert not wrong, f"docs name codes differently from the code: {wrong}"
+
+
+def test_the_cross_project_warning_is_present() -> None:
+    """The collision is the reason this document exists.
+
+    Only `0` means the same thing across the four sibling projects. In
+    devrepro-doctor `1` means the machine is usable; elsewhere it means
+    failure. A wrapper treating non-zero as failure blocks a successful run.
+    """
+    text = _DOC.read_text(encoding="utf-8")
+    assert "If you use more than one of these tools" in text
+    assert "devrepro-doctor" in text
