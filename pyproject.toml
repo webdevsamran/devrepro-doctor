@@ -134,7 +134,7 @@ ignore_missing_imports = true
 # devrepro/platforms/windows_extra.py are needed on Linux/macOS and unused on
 # Windows, so suppress the unused-ignore warning for that module only.
 [[tool.mypy.overrides]]
-module = "devrepro.platforms.windows_extra"
+module = ["devrepro.platforms.windows_extra", "devrepro.platforms.hygiene"]
 warn_unused_ignores = false
 
 [tool.pytest.ini_options]

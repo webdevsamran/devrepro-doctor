@@ -107,6 +107,34 @@ by reading it.
   copy-paste of the published Action failed at the install step. It now
   defaults to installing from this repository.
 
+### Added - filesystem and locale hygiene checks
+
+The problems that do not look like environment problems, and all detected
+read-only:
+
+- **Case sensitivity**, without writing anything. The usual technique is to
+  create `foo` and stat `FOO`; a scan does not write, so an existing entry's
+  name is re-cased and the two paths compared with `samefile`. That distinction
+  is the whole check: a case-sensitive directory really can hold both `README`
+  and `readme`, and asking only "does the re-cased name exist?" would call that
+  case-insensitive -- exactly backwards.
+- **Reserved filenames.** A repository containing `aux.js` cannot be checked
+  out on Windows at all, and git reports a failure that names neither the file
+  nor the reason. Reported on every platform, because the person who can still
+  fix it cheaply is the one about to commit it.
+- **Symlink privilege**, read from the documented Developer Mode registry value
+  rather than by attempting to create one. Git does not fail when it cannot
+  make a symlink; it writes a plain file containing the target, so the working
+  tree differs from the commit while `git status` says clean.
+- **Locale**, because a non-UTF-8 preferred encoding is why a build that
+  handles an accented filename on one machine raises UnicodeDecodeError on
+  another. This machine reports cp1252 -- the same setting that ended
+  `devrepro check` in a UnicodeEncodeError earlier in this changelog.
+
+`PRODUCT_GAPS.md` claimed case-sensitivity diagnostics under "Where we are
+ahead" for some time before any existed. It is now true, so the entry moves
+from the gap list to the capability list.
+
 ### Added - `devrepro explain` and a real rule catalogue
 
 A finding gives you a rule id and one line. That is right for a table and not

@@ -5,7 +5,7 @@
 > `devrepro explain <rule-id>` prints any one of these.
 > `devrepro rules --catalog` lists them all.
 
-Every finding carries a rule id. There are **85** documented ids.
+Every finding carries a rule id. There are **89** documented ids.
 
 Two shapes exist. Most are written out in full where they are emitted.
 Some are composed at runtime from a tool or ecosystem name:
@@ -436,6 +436,49 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* Reported as unknown rather than absent.
 
 *How to fix it.* Run `nvidia-smi` or the equivalent for your vendor by hand.
+
+
+## `hygiene/`
+
+### `hygiene/filesystem-case`
+
+**Filesystem case sensitivity**
+
+*What it means.* Whether this filesystem distinguishes `Config.py` from `config.py`.
+
+*Why it matters.* Linux is case-sensitive; Windows and macOS are not, by default. A repository authored on Linux that contains two files differing only in case loses one of them on checkout elsewhere, with no error at any point -- git reports success and the working tree is wrong.
+
+*How to fix it.* Nothing to change about the filesystem. Avoid committing paths that differ only in case; `git config core.ignorecase` affects how git compares them but not what the filesystem stores.
+
+### `hygiene/non-utf8-locale`
+
+**Text encoding is not UTF-8**
+
+*What it means.* The preferred encoding a subprocess inherits is a legacy codepage rather than UTF-8.
+
+*Why it matters.* Any tool that writes a non-ASCII character to this console can die with UnicodeEncodeError, and filenames with accents may not round-trip. This project hit exactly that: a single arrow in a remediation hint ended `devrepro check` on a cp1252 console.
+
+*How to fix it.* Set `PYTHONUTF8=1` for Python tools, or enable the OS-wide UTF-8 option (Windows: Region settings, 'Beta: Use Unicode UTF-8'). Note that the OS-wide switch affects every application, so it is worth changing deliberately rather than casually.
+
+### `hygiene/reserved-filename`
+
+**A path uses a name Windows reserves**
+
+*What it means.* The repository contains a path whose name is a DOS device name -- `con`, `prn`, `aux`, `nul`, `com1`-`com9` or `lpt1`-`lpt9` -- with or without an extension, so `aux.js` counts.
+
+*Why it matters.* Windows cannot create the file at all. The clone fails with an error that names neither the file nor the reason, and the repository is simply unusable there.
+
+*How to fix it.* Rename the path. This is reported on every platform on purpose: the person who can still fix it cheaply is the one about to commit it, not the one who cannot clone it.
+
+### `hygiene/symlinks-unavailable`
+
+**This process cannot create symlinks**
+
+*What it means.* On Windows, symlink creation needs Developer Mode or SeCreateSymbolicLinkPrivilege, and neither is available here.
+
+*Why it matters.* Git does not fail when it cannot create a symlink. It writes an ordinary file containing the link target instead, so the working tree differs from the commit while `git status` reports everything clean.
+
+*How to fix it.* Enable Developer Mode in Windows Settings, or work inside WSL where symlinks behave normally.
 
 
 ## `java/`
