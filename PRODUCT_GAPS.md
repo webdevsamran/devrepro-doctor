@@ -26,16 +26,7 @@ resident agent process with its own installer is future work.
 Enterprise remote machine scanning requires strict credential handling and
 authorization review; it is intentionally absent rather than half-built.
 
-### 5. There is no frontend e2e coverage
-The frontend is covered by vitest component tests only (27 of them, in
-`web/src/test/`), which now include the navigation model, routing coverage and
-the command palette. There is still no Playwright, no browser-driven test and
-no route-level e2e across the 32 routes -- adding any of it is an open
-contributor opportunity. An earlier version of this file claimed "Playwright smoke tests
-exist in CI scope"; that was never true, and the only `playwright` string in
-the repository is a transitive optional peer inside `web/package-lock.json`.
-
-### 6. PostgreSQL backend for the fleet service
+### 5. PostgreSQL backend for the fleet service
 SQLite ships today; a PostgreSQL adapter for large multi-user deployments is
 planned behind the same `ServerDB` call sites.
 
@@ -62,4 +53,10 @@ planned behind the same `ServerDB` call sites.
 - Diff-scoped gating: `guard --scope changed` gates only when a commit alters
   the environment contract, and narrows to findings that change could be about,
   so a stopped Docker daemon does not block a commit touching a Python manifest.
+- Browser-driven coverage of every route in two viewports, with axe-core
+  accessibility checks gating on serious and critical violations. Component
+  tests in jsdom never lay anything out, so a lazy chunk that fails to resolve,
+  a colour below the contrast threshold, a scroll container no keyboard can
+  reach and a layout that overflows at 390px all passed them; each of those was
+  real and each was found the day the browser suite was added.
 - Remediation plans with risk, rollback and dry-run transactions — never one-click magic.

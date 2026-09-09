@@ -18,6 +18,7 @@
     "strict": false,
     "contexts": [
       "Frontend",
+      "Frontend e2e + accessibility",
       "Docs site",
       "Dependency security scan",
       "Python (ubuntu-latest, 3.11)",

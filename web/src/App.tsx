@@ -78,7 +78,10 @@ function Shell() {
       </a>
 
       <aside className="sidebar" data-open={sheetOpen} aria-label="Sections">
-        <Link to="/home" className="brand">
+        {/* The label is explicit because `.brand-text` is hidden below 68rem
+            and the mark is decorative, which left the link with no accessible
+            name at all on tablet and phone widths. */}
+        <Link to="/home" className="brand" aria-label="DevRepro Doctor, home">
           <span className="brand-mark" aria-hidden="true">
             ◉
           </span>

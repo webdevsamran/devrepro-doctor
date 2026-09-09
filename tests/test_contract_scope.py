@@ -13,6 +13,7 @@ policy that declare what a machine must provide.
 from __future__ import annotations
 
 import json
+import subprocess
 from typing import TYPE_CHECKING
 
 import pytest
@@ -183,18 +184,37 @@ def test_mixed_changes_take_the_union() -> None:
 # ---------------------------------------------------------------------- CLI
 
 
-def test_a_clean_tree_passes_without_scanning() -> None:
+def test_a_clean_tree_passes_without_scanning(tmp_path: Path) -> None:
     """The property that makes the hook survivable.
 
     Most commits touch no contract file, and for those the gate must be a
     near-instant no-op -- a hook that runs a full machine scan on every commit
     is a hook that gets removed.
+
+    Pointed at a temporary repository on purpose. The first version ran against
+    this checkout, so it passed only while the working tree happened to be
+    clean and failed the moment anyone edited a lockfile -- which is exactly
+    when they would be running it. A test whose result depends on uncommitted
+    work is measuring the wrong thing.
     """
-    result = runner.invoke(app, ["guard", "--scope", "changed", "--json"])
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+
+    result = runner.invoke(app, ["guard", "--scope", "changed", "--json", "--path", str(tmp_path)])
+
     assert result.exit_code == ExitCode.READY
     payload = json.loads(result.output)
     assert payload["contract_changes"] == []
     assert payload["blockers"] == []
+
+
+def test_a_changed_lockfile_is_seen_by_the_gate(tmp_path: Path) -> None:
+    """The other half: the fast path must not swallow a real contract change."""
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    (tmp_path / "uv.lock").write_text("version = 1" + NL, encoding="utf-8")
+
+    changes = contract_changes(tmp_path)
+
+    assert [(c.path, c.kind) for c in changes] == [("uv.lock", "lockfile")]
 
 
 def test_an_unknown_scope_is_a_usage_error() -> None:

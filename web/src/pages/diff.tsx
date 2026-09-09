@@ -255,7 +255,7 @@ export function DiffPage() {
             </label>
             .
           </p>
-          <p className="tiny subtle mb-0">
+          <p className="tiny muted mb-0">
             Produce one with{' '}
             <code>devrepro diff machineA.json machineB.json --format json -o diff.json</code>. The
             file is read in this browser and never uploaded.
@@ -324,7 +324,7 @@ export function DiffPage() {
                 Project-critical only
               </label>
             </div>
-            <p className="tiny subtle mt-4 mb-0">
+            <p className="tiny muted mt-4 mb-0">
               Showing {visible.length} of {diff.entries.length}. Filters are in the URL, so this
               view can be linked to.
             </p>

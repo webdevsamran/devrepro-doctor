@@ -1,9 +1,43 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Finding, FindingState } from '../types'
 
 export function Badge({ state }: { state: FindingState | string }) {
   return <span className={`badge badge-${state.toLowerCase()}`}>{state}</span>
+}
+
+/**
+ * True while an element can actually be scrolled sideways.
+ *
+ * A `.card` scrolls horizontally when its content overflows, and a scrollable
+ * region that cannot be focused is unreachable for anyone not using a mouse --
+ * axe reports it as a serious violation, correctly. Adding `tabIndex` to every
+ * card would fix that by putting thirty-odd empty stops in the tab order, so
+ * the attribute follows the measurement instead: only a card that really has
+ * somewhere to scroll becomes a stop.
+ */
+function useHorizontallyScrollable() {
+  const ref = useRef<HTMLElement | null>(null)
+  const [scrollable, setScrollable] = useState(false)
+
+  const measure = useCallback(() => {
+    const el = ref.current
+    if (el) setScrollable(el.scrollWidth > el.clientWidth + 1)
+  }, [])
+
+  useEffect(() => {
+    measure()
+    const el = ref.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    // Content and viewport both change: a filter can shorten a table, and a
+    // rotation can widen the card.
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    for (const child of Array.from(el.children)) observer.observe(child)
+    return () => observer.disconnect()
+  }, [measure])
+
+  return { ref, scrollable }
 }
 
 export function Card({
@@ -19,8 +53,15 @@ export function Card({
   children: ReactNode
   className?: string
 }) {
+  const { ref, scrollable } = useHorizontallyScrollable()
   return (
-    <section className={`card ${className ?? ''}`}>
+    <section
+      ref={ref}
+      className={`card ${className ?? ''}`}
+      {...(scrollable
+        ? { tabIndex: 0, role: 'region', 'aria-label': title ? `${title}, scrollable` : 'Scrollable content' }
+        : {})}
+    >
       {(title || actions) && (
         <header className="card-header">
           <div>

@@ -9,6 +9,56 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - browser-driven coverage of every route, and the faults it found
+
+- `PRODUCT_GAPS.md` recorded the absence of this as gap 5, and an earlier
+  version of that file claimed Playwright smoke tests existed when they never
+  had. `web/e2e/` now holds three suites -- every route renders without a
+  console error, every route passes axe-core, and the palette, theme and mobile
+  sheet behave -- run across a desktop and a phone viewport against the
+  production build, in a new `Frontend e2e + accessibility` CI job.
+- The point is not duplicate coverage. jsdom never lays anything out, so the
+  vitest suite could not see any of the following, all of which were real and
+  all of which were found the day the browser suite was added:
+  - **Every route scrolled sideways on a phone.** The topbar is a grid item, a
+    grid item defaults to `min-width: auto`, and its min-content width -- 407px
+    -- became the floor for the whole single-column mobile layout. The mobile
+    rule also re-showed `.sidebar-label`, which labels the sidebar links *and*
+    the topbar's "Jump to…" button, putting the widest item back on the
+    smallest screen.
+  - **The sidebar group headings failed WCAG AA on every route.** The token
+    behind them, `--fg-subtle`, was 2.56:1 on white -- under even the 3:1
+    large-text bar, so it could not legitimately be used for any text at all.
+    Both text tiers moved one step, which keeps three distinct levels and puts
+    the weakest at 4.57:1.
+  - **Severity badges failed at 4.02:1 and 4.42:1.** Text on a soft tint of its
+    own hue loses contrast against it. Fills are unchanged -- a swatch is not
+    text -- and a darker `-ink` pair now carries the label.
+  - **The brand link had no accessible name** below 68rem, where its text is
+    hidden and its mark is decorative.
+  - **Scrollable regions could not be reached by keyboard.** A long executable
+    path turned an ordinary card into a scroll container; paths now wrap, and a
+    card becomes a tab stop only when it measures as actually scrollable, so
+    the fix does not add thirty empty stops to the tab order.
+  - **The filter chip count was below AA twice** -- first at `opacity: 0.75`,
+    then at an 80% mix toward the surface. Its size already carries the
+    hierarchy, so it inherits the chip's colour.
+- axe runs with reduced motion forced. It computes the *effective* foreground,
+  so measuring during a card's fade-in reported 2.84:1 for a value that passes,
+  and a gate that fails at random gets switched off.
+- `test_docs_match_reality` now checks the Playwright claim in both directions.
+  The original fault was a gaps file advertising tests that did not exist; the
+  live risk is the opposite drift, and a gaps file that still calls browser
+  coverage missing is the version a contributor would act on.
+
+### Fixed - a test that passed only while the working tree was clean
+
+- `test_a_clean_tree_passes_without_scanning` invoked `guard --scope changed`
+  against this checkout, so it failed the moment anyone edited a lockfile --
+  exactly when they would be running it. It now builds a temporary repository,
+  and a second test covers the other half: that the fast path does not swallow
+  a real contract change.
+
 ### Changed - the environment diff is a diff viewer now
 
 - It was a six-column table keyed by array index, rendering every entry flat --

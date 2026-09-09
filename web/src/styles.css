@@ -49,8 +49,15 @@
     --border-strong: var(--grey-300);
 
     --fg: var(--grey-900);
-    --fg-muted: var(--grey-500);
-    --fg-subtle: var(--grey-400);
+    /* Both of these are *text* tokens, so both have to clear WCAG AA (4.5:1)
+       at body size. `--fg-subtle` was `--grey-400`, which is 2.56:1 on white --
+       below even the 3:1 large-text bar, so it could not legitimately be used
+       for any text at all. An axe sweep caught it on the sidebar group
+       headings; the token was the bug, not that one usage. The tier moved down
+       one step each, which keeps three distinct levels and puts the weakest at
+       4.57:1. */
+    --fg-muted: var(--grey-600);
+    --fg-subtle: var(--grey-500);
     --fg-on-accent: #ffffff;
 
     --accent: var(--accent-600);
@@ -66,6 +73,16 @@
     --sev-info: #175cd3;
     --sev-pass: #067647;
     --sev-unknown: #667085;
+    /* Text on a soft tint of its own hue loses contrast against it: `--sev-error`
+       on `--sev-error-soft` measures 4.02:1 and `--sev-warn` 4.42:1, both under
+       AA. The fill colours stay as they are -- swatches and chart series are
+       not text -- and a darker `-ink` pair carries the label. */
+    --sev-blocked-ink: #912018;
+    --sev-error-ink: #b42318;
+    --sev-warn-ink: #93370d;
+    --sev-info-ink: #14509b;
+    --sev-pass-ink: #05603a;
+    --sev-unknown-ink: #475467;
 
     --sev-blocked-soft: color-mix(in srgb, var(--sev-blocked) 12%, transparent);
     --sev-error-soft: color-mix(in srgb, var(--sev-error) 12%, transparent);
@@ -125,8 +142,10 @@
       --border-strong: var(--grey-600);
 
       --fg: var(--grey-50);
-      --fg-muted: var(--grey-400);
-      --fg-subtle: var(--grey-500);
+      /* Dark inverts the same reasoning: `--grey-500` on `--grey-900` is 3.75:1,
+         so the tiers step up rather than down. */
+      --fg-muted: var(--grey-300);
+      --fg-subtle: var(--grey-400);
 
       --accent: var(--accent-400);
       --accent-hover: var(--accent-300);
@@ -138,6 +157,14 @@
       --sev-info: #84caff;
       --sev-pass: #6ce9a6;
       --sev-unknown: #98a2b3;
+      /* Dark inverts the problem: these fills are already light against a dark
+         tint, so the label colour is the fill colour. */
+      --sev-blocked-ink: var(--sev-blocked);
+      --sev-error-ink: var(--sev-error);
+      --sev-warn-ink: var(--sev-warn);
+      --sev-info-ink: var(--sev-info);
+      --sev-pass-ink: var(--sev-pass);
+      --sev-unknown-ink: var(--sev-unknown);
 
       --shadow-1: 0 1px 2px rgb(0 0 0 / 40%);
       --shadow-2: 0 2px 6px rgb(0 0 0 / 45%), 0 8px 20px rgb(0 0 0 / 30%);
@@ -155,8 +182,10 @@
     --border-strong: var(--grey-600);
 
     --fg: var(--grey-50);
-    --fg-muted: var(--grey-400);
-    --fg-subtle: var(--grey-500);
+    /* Dark inverts the same reasoning: `--grey-500` on `--grey-900` is 3.75:1,
+       so the tiers step up rather than down. */
+    --fg-muted: var(--grey-300);
+    --fg-subtle: var(--grey-400);
 
     --accent: var(--accent-400);
     --accent-hover: var(--accent-300);
@@ -168,6 +197,14 @@
     --sev-info: #84caff;
     --sev-pass: #6ce9a6;
     --sev-unknown: #98a2b3;
+    /* Dark inverts the problem: these fills are already light against a dark
+       tint, so the label colour is the fill colour. */
+    --sev-blocked-ink: var(--sev-blocked);
+    --sev-error-ink: var(--sev-error);
+    --sev-warn-ink: var(--sev-warn);
+    --sev-info-ink: var(--sev-info);
+    --sev-pass-ink: var(--sev-pass);
+    --sev-unknown-ink: var(--sev-unknown);
 
     --shadow-1: 0 1px 2px rgb(0 0 0 / 40%);
     --shadow-2: 0 2px 6px rgb(0 0 0 / 45%), 0 8px 20px rgb(0 0 0 / 30%);
@@ -224,6 +261,13 @@
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
   }
+
+  /* An executable path is the longest unbreakable string in this interface, and
+     `.card` scrolls horizontally when its content overflows. That turned an
+     ordinary toolchain card into a scrollable region no keyboard could reach.
+     Wrapping is both the accessible answer and the readable one -- a wrapped
+     Windows path is still legible; a clipped one is not. */
+  .mono, code { overflow-wrap: anywhere; }
 
   /* Versions and counts line up column-wise; proportional digits make a table
      of version numbers much harder to scan. */
@@ -307,6 +351,12 @@
     align-items: center;
     gap: var(--sp-3);
     padding: 0 var(--sp-5);
+    /* A grid item defaults to `min-width: auto`, so the topbar's min-content
+       width -- hamburger, breadcrumb, palette button, theme toggle, gaps and
+       padding -- became the floor for the whole single-column mobile grid. At
+       375px that floor was 407px, which widened `.content` and the fixed
+       sidebar with it and made the body scroll sideways on every route. */
+    min-width: 0;
     background: color-mix(in srgb, var(--surface) 82%, transparent);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border);
@@ -374,7 +424,12 @@
       transition: transform var(--dur) var(--ease-out);
     }
     .sidebar[data-open='true'] { transform: translateY(0); }
-    .sidebar-label, .nav-group-title { display: revert; }
+    /* Scoped to the sidebar. `.sidebar-label` also labels the topbar's palette
+       button, and reverting it unscoped put "Jump to…" back on a phone -- the
+       single widest contributor to the overflow above. */
+    .sidebar .sidebar-label,
+    .sidebar .nav-group-title { display: revert; }
+    .topbar { padding: 0 var(--sp-3); }
     .content { padding: var(--sp-4) var(--sp-4) 5rem; }
     .grid-3, .grid-4 { grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); }
     .stat-value { font-size: 1.25rem; }
@@ -573,14 +628,14 @@
     background: currentcolor;
     flex: none;
   }
-  .badge-blocked { color: var(--sev-blocked); background: var(--sev-blocked-soft); border-color: var(--sev-blocked-soft); }
-  .badge-error   { color: var(--sev-error);   background: var(--sev-error-soft); }
-  .badge-warn    { color: var(--sev-warn);    background: var(--sev-warn-soft); }
-  .badge-info    { color: var(--sev-info);    background: var(--sev-info-soft); }
-  .badge-pass    { color: var(--sev-pass);    background: var(--sev-pass-soft); }
-  .badge-unknown { color: var(--sev-unknown); background: var(--sev-unknown-soft); }
+  .badge-blocked { color: var(--sev-blocked-ink); background: var(--sev-blocked-soft); border-color: var(--sev-blocked-soft); }
+  .badge-error   { color: var(--sev-error-ink);   background: var(--sev-error-soft); }
+  .badge-warn    { color: var(--sev-warn-ink);    background: var(--sev-warn-soft); }
+  .badge-info    { color: var(--sev-info-ink);    background: var(--sev-info-soft); }
+  .badge-pass    { color: var(--sev-pass-ink);    background: var(--sev-pass-soft); }
+  .badge-unknown { color: var(--sev-unknown-ink); background: var(--sev-unknown-soft); }
 
-  .badge-same, .badge-platform-expected { color: var(--sev-pass); background: var(--sev-pass-soft); }
+  .badge-same, .badge-platform-expected { color: var(--sev-pass-ink); background: var(--sev-pass-soft); }
   .badge-version-drift, .badge-missing,
   .badge-path-precedence { color: var(--sev-warn); background: var(--sev-warn-soft); }
   .badge-project-critical { color: var(--sev-blocked); background: var(--sev-blocked-soft); }
@@ -622,7 +677,12 @@
   .chip-count {
     font-variant-numeric: tabular-nums;
     font-size: 0.75rem;
-    opacity: 0.75;
+    /* Deliberately `currentcolor`. Both earlier attempts at de-emphasis --
+       `opacity: 0.75`, then an 80% mix toward the surface -- put the count at
+       3.3:1 on an active chip, under AA. The size difference already carries
+       the hierarchy, and a count is the part of a filter chip you most need to
+       read. */
+    color: currentcolor;
   }
 
   /* --- inputs --- */
@@ -1002,7 +1062,15 @@
   .subtle { color: var(--fg-subtle); }
   .small { font-size: 0.8125rem; }
   .tiny { font-size: 0.75rem; }
-  .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* `min-width: 0` is what makes this work inside a flex row: a flex item's
+     automatic minimum is its min-content width, so a nowrap element refuses to
+     shrink and pushes its container wider instead of ellipsising. */
+  .truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
   .break { word-break: break-word; overflow-wrap: anywhere; }
   .mb-0 { margin-bottom: 0; }
   .mt-4 { margin-top: var(--sp-4); }

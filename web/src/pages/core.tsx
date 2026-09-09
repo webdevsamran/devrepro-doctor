@@ -23,7 +23,7 @@ export function HomePage({ onStart }: { onStart: () => void }) {
       </ul>
       <button className="btn btn-primary" onClick={onStart}>Open machine overview →</button>
       <Card title="60-second CLI start">
-        <pre>{`pip install git+https://github.com/webdevsamran/devrepro-doctor
+        <pre tabIndex={0}>{`pip install git+https://github.com/webdevsamran/devrepro-doctor
 devrepro doctor
 devrepro snapshot
 devrepro diff A B`}</pre>
@@ -437,7 +437,7 @@ export function SnapshotsPage({ report }: PageProps) {
         <CopyButton text={JSON.stringify(report, null, 2)} label="Copy snapshot JSON" />
       </Card>
       <Card title="Create / compare via CLI">
-        <pre>{[
+        <pre tabIndex={0}>{[
           '# create',
           'devrepro snapshot -o snap.json',
           '# compare two machines',
@@ -494,7 +494,7 @@ export function HistoryPage() {
     <>
       <h2>History</h2>
       <p className="muted">Local-only history lives in <code>~/.devrepro-doctor/history</code>. View drift with:</p>
-      <pre>devrepro history --json</pre>
+      <pre tabIndex={0}>devrepro history --json</pre>
       <p>Drift kinds reported: runtime changed, Docker upgraded, compiler missing, PATH precedence changed, new blocker introduced.</p>
     </>
   )
@@ -506,7 +506,7 @@ export function DocsPage() {
     <>
       <h2>Docs</h2>
       <Card title="CLI quick reference">
-        <pre>{`devrepro doctor          # full read-only diagnostic scan
+        <pre tabIndex={0}>{`devrepro doctor          # full read-only diagnostic scan
 devrepro info            # quick machine summary
 devrepro scan -o r.json  # emit a sanitized report artifact
 devrepro project         # what does this project declare?
@@ -526,7 +526,7 @@ devrepro serve           # localhost-only UI + API
 devrepro self-test`}</pre>
       </Card>
       <Card title="Policy example (.devrepro.toml)">
-        <pre>{`[supported_os]
+        <pre tabIndex={0}>{`[supported_os]
 linux = true
 
 [required_runtimes]

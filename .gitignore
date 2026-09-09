@@ -42,3 +42,9 @@ Thumbs.db
 
 # Local scan output used by the dev server; never committed.
 web/public/report.json
+
+# Playwright
+web/test-results/
+web/playwright-report/
+web/blob-report/
+web/.playwright/

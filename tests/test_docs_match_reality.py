@@ -58,14 +58,34 @@ def test_roadmap_frontend_page_count_is_current() -> None:
     )
 
 
-def test_docs_do_not_claim_playwright_that_does_not_exist() -> None:
+def test_the_playwright_claim_matches_the_dependency_both_ways() -> None:
+    """The claim and the dependency have to agree in whichever direction is wrong.
+
+    This started one-directional, because the fault it was written for was a
+    `PRODUCT_GAPS.md` that advertised Playwright smoke tests that had never
+    existed. Playwright exists now, which makes the old assertion vacuous and
+    the opposite drift the live risk: a gaps file that still records browser
+    coverage as missing after it shipped is just as untrue, and is the version
+    a contributor would act on by writing it a second time.
+    """
     package_json = _read("web/package.json")
     has_playwright = "playwright" in package_json
     gaps = _read("PRODUCT_GAPS.md")
-    claims_it_exists = "Playwright smoke tests exist" in gaps
-    assert not (claims_it_exists and not has_playwright), (
+
+    claims_absent = "There is no frontend e2e coverage" in gaps
+    claims_present = "Playwright smoke tests exist" in gaps
+
+    assert not (claims_present and not has_playwright), (
         "PRODUCT_GAPS.md claims Playwright tests exist, but it is not a dependency"
     )
+    assert not (claims_absent and has_playwright), (
+        "PRODUCT_GAPS.md records e2e coverage as missing, but Playwright is a dependency "
+        "and web/e2e/ has specs"
+    )
+    if has_playwright:
+        assert (_ROOT / "web" / "e2e").is_dir(), (
+            "Playwright is a dependency but there are no specs for it to run"
+        )
 
 
 def test_branch_protection_contexts_match_real_job_names() -> None:
