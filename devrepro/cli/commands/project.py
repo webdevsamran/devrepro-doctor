@@ -124,20 +124,24 @@ def register(app: typer.Typer) -> None:
         else:
             typer.echo(f"CI toolchains found: {len(ci)}")
             for r in rows:
+                # Marks and colours are looked up with a default: a new status
+                # from local_vs_ci_diff must not crash the human-readable path.
+                # "bright_black" is click's grey; "grey50" is a Rich name click
+                # rejects, and it raised TypeError for every ci-absent row.
                 mark = {
                     "match": "+",
                     "mismatch": "!",
                     "unknown-local": "?",
                     "wildcard": "~",
                     "ci-absent": "-",
-                }[r["status"]]
+                }.get(r["status"], "*")
                 color = {
                     "match": "green",
                     "mismatch": "red",
                     "unknown-local": "yellow",
                     "wildcard": "yellow",
-                    "ci-absent": "grey50",
-                }[r["status"]]
+                    "ci-absent": "bright_black",
+                }.get(r["status"], "white")
                 typer.secho(
                     f"  [{mark}] {r['tool']}: CI={r['ci_spec']} local={r['local_version']}"
                     f" — {r['detail']}",

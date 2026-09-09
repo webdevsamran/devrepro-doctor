@@ -240,7 +240,7 @@ class ToolchainProbe(Probe):
                         detected=aliases[0].exe_path,
                         component="python",
                         remediation_hint="Disable App execution aliases for python.exe "
-                        "(Settings → Apps → Advanced app settings). SAFE to toggle.",
+                        "(Settings > Apps > Advanced app settings). SAFE to toggle.",
                     )
                 )
 
