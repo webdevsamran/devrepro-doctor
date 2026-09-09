@@ -35,21 +35,7 @@ contributor opportunity. An earlier version of this file claimed "Playwright smo
 exist in CI scope"; that was never true, and the only `playwright` string in
 the repository is a transitive optional peer inside `web/package-lock.json`.
 
-### 6. `guard` gates on the whole machine, so it is unusable as a commit hook
-`devrepro guard` describes itself as "designed for `devrepro guard` in a git
-pre-commit hook", but it runs a full scan and exits 2 on *any* ERROR/BLOCKED
-finding anywhere on the machine. Adding it to this repository's
-`.pre-commit-config.yaml` blocks every commit while Docker Desktop happens to
-be stopped -- even though `.devrepro.toml` marks docker optional and no commit
-of Python source depends on a running daemon.
-
-That is the failure mode where a gate gets switched off in the first week. A
-commit hook needs to gate on what the commit changes -- lockfiles, manifests,
-CI workflows, `.devrepro.toml` -- not on ambient machine state. Until `guard`
-grows that scoping, the hook is deliberately not wired here. **Status: open;
-`guard` needs a diff-scoped mode before it earns a place in a hook.**
-
-### 7. PostgreSQL backend for the fleet service
+### 6. PostgreSQL backend for the fleet service
 SQLite ships today; a PostgreSQL adapter for large multi-user deployments is
 planned behind the same `ServerDB` call sites.
 
@@ -73,4 +59,7 @@ planned behind the same `ServerDB` call sites.
 - Privacy-sanitized snapshots with field classification and secret-scan gates.
 - Semantic machine-to-machine diff with project-critical classification.
 - Local-vs-CI toolchain comparison.
+- Diff-scoped gating: `guard --scope changed` gates only when a commit alters
+  the environment contract, and narrows to findings that change could be about,
+  so a stopped Docker daemon does not block a commit touching a Python manifest.
 - Remediation plans with risk, rollback and dry-run transactions — never one-click magic.

@@ -198,15 +198,16 @@ def test_init_writes_a_loadable_policy_and_valid_yaml(tmp_path: Path) -> None:
     assert "preflight" in workflow["jobs"]
 
     hook = yaml.safe_load((tmp_path / ".pre-commit-config.devrepro.yaml").read_text())
-    assert hook["repos"][0]["hooks"][0]["id"] == "devrepro-check"
+    assert hook["repos"][0]["hooks"][0]["id"] == "devrepro-contract-guard"
 
 
-def test_the_generated_hook_gates_on_the_environment_contract(tmp_path: Path) -> None:
-    """It must fire on lockfiles and manifests, and not on source or docs.
+def test_the_generated_hook_is_diff_scoped(tmp_path: Path) -> None:
+    """A hook that runs a full machine scan on every commit gets removed.
 
-    A hook that runs on every file is a hook that gets removed. This is also
-    why the generated hook calls `check`, not `guard`: `guard` fails on any
-    machine-wide blocker, so a stopped Docker daemon would block every commit.
+    The generated hook uses `guard --scope changed`, which exits without
+    scanning unless the commit alters the environment contract. Bare `guard`
+    would be wrong here: it fails on any blocker anywhere, so a stopped Docker
+    daemon would block a commit touching only source.
     """
     import re
 
@@ -214,7 +215,9 @@ def test_the_generated_hook_gates_on_the_environment_contract(tmp_path: Path) ->
     runner.invoke(app, ["init", str(tmp_path), "--write"])
     hook = yaml.safe_load((tmp_path / ".pre-commit-config.devrepro.yaml").read_text())
     entry = hook["repos"][0]["hooks"][0]
-    assert "guard" not in entry["entry"]
+
+    assert "guard" in entry["entry"]
+    assert "--scope changed" in entry["entry"], "the hook must be diff-scoped"
 
     rx = re.compile(entry["files"], re.VERBOSE)
     for should_match in (

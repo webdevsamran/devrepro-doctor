@@ -23,6 +23,20 @@ repos:
 
   - repo: local
     hooks:
+      # Gates only when a commit changes the environment contract -- a
+      # lockfile, manifest, toolchain pin, workflow, container definition or
+      # policy. A source-only commit exits in well under a second without
+      # scanning anything.
+      #
+      # `--scope machine`, the default, is deliberately NOT used here: it fails
+      # on any blocker anywhere, so a stopped Docker daemon would block every
+      # commit and this hook would be deleted within a week.
+      - id: devrepro-contract-guard
+        name: devrepro environment-contract guard
+        entry: python -m devrepro guard --scope changed --quiet
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: mypy
         name: mypy (strict)
         entry: python -m mypy

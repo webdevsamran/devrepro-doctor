@@ -412,12 +412,15 @@ _PRECOMMIT_SNIPPET = """# Add these to your .pre-commit-config.yaml.
 repos:
   - repo: local
     hooks:
-      - id: devrepro-check
-        name: devrepro policy check
-        entry: devrepro check --policy .devrepro.toml --quiet
+      - id: devrepro-contract-guard
+        name: devrepro environment-contract guard
+        entry: devrepro guard --scope changed --quiet
         language: system
         pass_filenames: false
-        # Runs only when the environment contract itself changes.
+        always_run: true
+        # `guard --scope changed` decides for itself whether anything in the
+        # environment contract moved, so no `files:` filter is needed here --
+        # it is kept below only as documentation of what counts.
         files: >-
           (?x)^(
             \\.devrepro\\.toml|

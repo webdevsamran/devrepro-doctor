@@ -180,39 +180,109 @@ def register(app: typer.Typer) -> None:
 
     @app.command()
     def guard(
+        # Keyword-only: these are all flags, never positional.
+        *,
         policy_path: Path | None = PolicyOption,
         json_out: bool = JsonOption,
         quiet: bool = QuietOption,
+        scope: str = typer.Option(
+            "machine",
+            "--scope",
+            help="machine (default) | changed: only gate when the environment contract changed.",
+        ),
+        base: str | None = typer.Option(
+            None,
+            "--base",
+            help="Compare against this ref instead of the working tree, e.g. origin/main.",
+        ),
+        path: Path = typer.Option(Path(), "--path", help="Repository root."),
     ) -> None:
         """Pre-commit/CI gate: exit 2 when the machine has blockers, else 0.
 
-        Designed for `devrepro guard` in a git pre-commit hook or CI job;
-        output stays short so hook logs stay readable, and `--quiet` drops it
-        entirely so a passing hook prints nothing at all.
+        Output stays short so hook logs stay readable, and `--quiet` drops it
+        entirely so a passing hook prints nothing.
 
-        Note this gates on the whole machine, not on what a commit changed: a
-        stopped Docker daemon blocks every commit. See `devrepro ci --scope
-        changed` for the diff-scoped gate that belongs in a hook.
+        `--scope machine` gates on everything found anywhere, which is right
+        for a CI job on a fresh runner and wrong for a commit hook: a stopped
+        Docker daemon then blocks a commit that touches only source, and the
+        hook gets deleted within a week.
+
+        `--scope changed` gates only when the commit alters the **environment
+        contract** -- a lockfile, manifest, toolchain pin, CI workflow,
+        container definition or policy. Scoping to changed files the way a
+        linter does would be meaningless here, because a machine has no
+        per-file technical debt; what changes is what the machine is being
+        asked to provide. When nothing in the contract moved, the gate exits 0
+        without scanning at all, which is also what makes it fast enough for a
+        hook.
         """
         from devrepro.cli.pipeline import run_scan
+        from devrepro.project.contract import contract_changes
+
+        changes = []
+        if scope == "changed":
+            changes = contract_changes(path, base=base)
+            if not changes:
+                if not quiet:
+                    if json_out:
+                        emit(
+                            {
+                                "verdict": "READY",
+                                "scope": "changed",
+                                "contract_changes": [],
+                                "blockers": [],
+                                "detail": "No environment-contract file changed; "
+                                "nothing to re-check.",
+                            },
+                            True,
+                        )
+                    else:
+                        typer.echo("GUARD: ok (no environment-contract change)")
+                raise typer.Exit(ExitCode.READY)
+        elif scope != "machine":
+            secho(f"unknown scope {scope!r}; expected 'machine' or 'changed'.", fg="red", err=True)
+            raise typer.Exit(ExitCode.USAGE_ERROR)
 
         report = run_scan(policy=load_policy_or_none(policy_path))
-        blockers = [
-            f.rule_id
-            for f in report.findings
-            if f.state in (FindingState.ERROR, FindingState.BLOCKED)
+        blocking = [
+            f for f in report.findings if f.state in (FindingState.ERROR, FindingState.BLOCKED)
         ]
+
+        if scope == "changed":
+            # Narrow to findings the change could plausibly be about. Changing a
+            # Python manifest should not be blocked by a stopped Docker daemon:
+            # scoping decided whether to look, this decides where.
+            from devrepro.project.contract import relevant_rule_prefixes
+
+            prefixes = relevant_rule_prefixes(changes)
+            if prefixes is not None:
+                blocking = [f for f in blocking if f.rule_id.split("/", 1)[0] in prefixes]
+
+        blockers = [f.rule_id for f in blocking]
         if quiet:
             pass
         elif json_out:
-            emit({"verdict": "BLOCKED" if blockers else "READY", "blockers": blockers}, True)
-        elif blockers:
-            secho(f"GUARD: blocked by {len(blockers)} finding(s):", fg="red")
-            for rid in blockers:
-                typer.echo(f"  - {rid}")
-            typer.echo("Run `devrepro doctor` for full details and remediation plans.")
+            emit(
+                {
+                    "verdict": "BLOCKED" if blockers else "READY",
+                    "scope": scope,
+                    "contract_changes": [{"path": c.path, "kind": c.kind} for c in changes],
+                    "blockers": blockers,
+                },
+                True,
+            )
         else:
-            typer.echo("GUARD: ok")
+            if changes:
+                typer.echo(f"GUARD: {len(changes)} environment-contract change(s):")
+                for change in changes:
+                    typer.echo(f"  [{change.kind}] {change.path}")
+            if blockers:
+                secho(f"GUARD: blocked by {len(blockers)} finding(s):", fg="red")
+                for rid in blockers:
+                    typer.echo(f"  - {rid}")
+                typer.echo("Run `devrepro doctor` for full details and remediation plans.")
+            else:
+                typer.echo("GUARD: ok")
         raise typer.Exit(ExitCode.BLOCKED if blockers else ExitCode.READY)
 
     @app.command()

@@ -9,6 +9,30 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - `guard --scope changed`, and the pre-commit hook it makes possible
+
+- `devrepro guard` described itself as designed for a pre-commit hook and then
+  gated on every finding anywhere, so a stopped Docker daemon blocked a commit
+  touching only Python source. That is a gate people delete in week one, and
+  it is why `PRODUCT_GAPS.md` recorded the hook as unshippable rather than
+  wiring one up.
+- Scoping to "changed files" the way a linter does is meaningless for a tool
+  that scans a machine, because a machine has no per-file technical debt. What
+  changes is the **environment contract**: the lockfiles, manifests, toolchain
+  pins, CI workflows, container definitions and policy that declare what a
+  machine has to provide. `devrepro/project/contract.py` classifies a path into
+  one of those kinds, and `--scope changed` exits READY without scanning at all
+  when nothing in the contract moved -- 0.6s on this repository, against 4.4s
+  for a full scan.
+- The kind of change also decides *where* to look: changing `pyproject.toml`
+  makes the Python rules relevant and leaves Docker alone, so a stopped daemon
+  no longer blocks a Python commit. A `.devrepro.toml` change re-opens
+  everything, because the policy is the declaration of what the machine must
+  provide.
+- `.pre-commit-config.yaml` now runs that gate on this repository, and
+  `devrepro init` generates the same hook instead of the `check`-based one it
+  emitted while `guard` was still unsafe for the job.
+
 ### Fixed - `devrepro ci-diff` crashed in its default mode
 
 - `cli/commands/project.py` mapped the `ci-absent` status to the colour
