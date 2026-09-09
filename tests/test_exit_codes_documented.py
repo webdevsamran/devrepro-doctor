@@ -14,7 +14,10 @@ import re
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parent.parent
-_DOC = _ROOT / "docs" / "exit-codes.md"
+# Spelled exactly as git tracks it. This repo's file is EXIT-CODES.md and
+# mkdocs.yml references that name; a lowercase path resolves on Windows and
+# fails on Linux, which is how it reached CI green locally and red there.
+_DOC = _ROOT / "docs" / "EXIT-CODES.md"
 
 
 def _documented() -> dict[int, str]:

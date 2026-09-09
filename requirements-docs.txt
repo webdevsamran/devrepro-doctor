@@ -1,2 +1,11 @@
-# Pinned below 9.7: later lines changed licensing terms; 9.6.x remains ISC.
+# Pinned to a minor range so a docs build is reproducible, not for licensing
+# reasons. The previous comment here read "Pinned below 9.7: later lines changed
+# licensing terms; 9.6.x remains ISC" and was wrong three ways: mkdocs-material
+# is MIT at 9.5, 9.6, 9.7.0 and 9.7.7 (checked against PyPI classifiers), there
+# is no ISC line, and the pin it annotated had already been moved to >=9.7.7 by
+# the Dependabot bump in #17 -- across the exact boundary the comment declared.
+#
+# That is the part worth remembering: an automated bump walked through a stated
+# constraint because the constraint lived in a comment nothing enforced. If a
+# licence boundary ever does matter here, it needs a check, not a sentence.
 mkdocs-material>=9.7.7,<9.8

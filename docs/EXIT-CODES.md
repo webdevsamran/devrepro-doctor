@@ -4,7 +4,7 @@
 scripts branch on them, so an existing code never changes meaning -- new ones
 are appended.
 
-Defined in [`devrepro/core/exit_codes.py`](../devrepro/core/exit_codes.py).
+Defined in [`devrepro/core/exit_codes.py`](https://github.com/webdevsamran/devrepro-doctor/blob/main/devrepro/core/exit_codes.py).
 
 | Code | Name | Meaning |
 |---|---|---|
