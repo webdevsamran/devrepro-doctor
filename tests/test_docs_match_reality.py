@@ -130,18 +130,44 @@ def test_readme_scan_example_matches_the_renderer() -> None:
 def test_readme_scan_example_names_only_real_rules() -> None:
     """Every rule id shown must be one some code path can emit.
 
-    `python/multiple-installations` was shown for months; the real rule is
-    `python/multiple-versions`. A reader who grepped for the documented id
-    found nothing.
+    The README carried a hand-written block for months whose ids and layout the
+    renderer could not produce; a reader who grepped for them found nothing.
+
+    The check now asks `is_emittable_rule_id`, not set membership. Rule ids come
+    in two shapes and only one is a literal: probes compose ids onto a runtime
+    prefix, as in `f"{name}/multiple-installations"` and
+    `f"{ecosystem}/manager-conflict"`. Those were absent from
+    `emittable_rule_ids()`, so this test would have rejected a README that
+    documented them correctly -- `python/multiple-installations` is emitted
+    whenever duplicate Python installs are found, which is exactly the
+    situation the example depicts.
     """
     capture = _capture_module()
-    known = capture.emittable_rule_ids()
     shown = [rule for _, rule, _ in capture.EXAMPLE_FINDINGS]
     assert shown, "the example lost its findings"
-    assert not [r for r in shown if r not in known], (
-        f"README example names rule ids no code emits: {[r for r in shown if r not in known]}"
-    )
-    assert "python/multiple-installations" not in _read("README.md")
+    unemittable = [r for r in shown if not capture.is_emittable_rule_id(r)]
+    assert not unemittable, f"README example names rule ids no code emits: {unemittable}"
+
+
+def test_the_rule_id_guard_recognises_composed_ids() -> None:
+    """The guard must over-approximate, as its docstring claims.
+
+    It previously recognised only literal ids and the single spelling
+    `rule_id=f"{rule_prefix}/..."`, missing every id a probe builds from a tool
+    name or ecosystem. A guard that rejects real ids is worse than none: it
+    pushes the docs away from the truth.
+    """
+    capture = _capture_module()
+    suffixes = capture.composed_rule_suffixes()
+    assert "multiple-installations" in suffixes
+    assert "manager-conflict" in suffixes
+
+    assert capture.is_emittable_rule_id("python/multiple-installations")
+    assert capture.is_emittable_rule_id("kubectl/multiple-installations")
+    assert capture.is_emittable_rule_id("node/manager-conflict")
+    # Still rejects what it exists to reject.
+    assert not capture.is_emittable_rule_id("totally/made-up-rule")
+    assert not capture.is_emittable_rule_id("python/nonsense-suffix")
 
 
 def test_the_documented_layout_is_the_one_the_command_prints() -> None:

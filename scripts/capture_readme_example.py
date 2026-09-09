@@ -78,7 +78,18 @@ EXAMPLE_FINDINGS = (
 #: rule ids always contain a `/`, so requiring one is also more accurate.
 _LITERAL_ID = re.compile(r'"([a-z0-9][a-z0-9-]*(?:/[a-z0-9][a-z0-9-]*)+)"')
 _PACK_NAME = re.compile(r'pack="([a-z0-9-]+)"')
-_COMPOSED_SUFFIX = re.compile(r'rule_id=f"\{rule_prefix\}/([a-z0-9-]+)"')
+#: A rule id composed at runtime: ``rule_id=f"{rule_prefix}/version-mismatch"``
+#: in the rule packs, and the positional
+#: ``self.finding(f"{name}/multiple-installations", ...)`` in the probes.
+#:
+#: The variable is deliberately not pinned to ``rule_prefix``. Probes build
+#: ids from a tool name or an ecosystem, and the earlier pattern matched
+#: only the ``rule_id=f"{rule_prefix}/..."`` spelling, so two real and
+#: routinely emitted families were invisible here:
+#: ``f"{name}/multiple-installations"`` and ``f"{ecosystem}/manager-conflict"``.
+#: This guard described itself as an over-approximation while actually
+#: under-approximating, and would have rejected a README documenting either.
+_COMPOSED_SUFFIX = re.compile(r'f"\{[a-z_][a-z0-9_]*\}/([a-z0-9-]+)"')
 
 
 def emittable_rule_ids() -> set[str]:
@@ -110,9 +121,39 @@ def emittable_rule_ids() -> set[str]:
     return ids
 
 
+def composed_rule_suffixes() -> set[str]:
+    """Suffixes of rule ids the code assembles at runtime.
+
+    The prefix of a composed id is a value, not a literal: a tool name, an
+    ecosystem, a pack. It cannot be enumerated statically -- ``python``,
+    ``git``, ``bun``, ``kubectl`` and every other detected tool all reach
+    ``f"{name}/multiple-installations"``. The suffix is the part this file can
+    know, and :func:`is_emittable_rule_id` accepts any prefix in front of one.
+    """
+    blob = "\n".join(
+        path.read_text(encoding="utf-8", errors="replace")
+        for path in (ROOT / "devrepro").rglob("*.py")
+    )
+    return set(_COMPOSED_SUFFIX.findall(blob))
+
+
+def is_emittable_rule_id(rule_id: str) -> bool:
+    """Can any code path produce this rule id?
+
+    True when the id appears in full in the source, or when its suffix is one
+    the code composes onto a runtime prefix. That second case is what the
+    set-only membership check missed: ``python/multiple-installations`` fires
+    whenever duplicate Python installs are found -- the exact scenario the
+    README example depicts -- yet it was absent from ``emittable_rule_ids()``.
+    """
+    if rule_id in emittable_rule_ids():
+        return True
+    _, _, suffix = rule_id.partition("/")
+    return bool(suffix) and suffix in composed_rule_suffixes()
+
+
 def _assert_rules_exist() -> None:
-    known = emittable_rule_ids()
-    missing = [rule for _, rule, _ in EXAMPLE_FINDINGS if rule not in known]
+    missing = [rule for _, rule, _ in EXAMPLE_FINDINGS if not is_emittable_rule_id(rule)]
     if missing:
         raise SystemExit(
             "the README example names rule ids that no code emits: " + ", ".join(missing)
