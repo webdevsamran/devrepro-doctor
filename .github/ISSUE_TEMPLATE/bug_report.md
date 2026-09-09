@@ -20,7 +20,7 @@ that DevRepro should already have redacted usernames/home paths/secrets.
 **Environment**
 - OS + version:
 - Shell:
-- DevRepro version:
+- DevRepro version (`devrepro --version`):
 
 **Additional context**
 Anything else relevant.
