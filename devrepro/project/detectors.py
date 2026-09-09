@@ -93,8 +93,21 @@ def _pep508_split(dep: str) -> tuple[str, str, str]:
     return m.group(1), m.group(2) or "", m.group(3).strip()
 
 
+#: How far below the root to look for lockfiles. A monorepo keeps them one or
+#: two levels down (``web/``, ``packages/api/``); going deeper costs walk time
+#: on every scan for diminishing returns.
+_MAX_LOCKFILE_DEPTH = 3
+
+
 def _lockfiles(root: Path) -> list[ProjectRequirement]:
-    """Lockfile presence is itself a reproducibility signal."""
+    """Lockfile presence is itself a reproducibility signal.
+
+    Searches the root *and* nested project directories. It used to look only at
+    the root, so the reproducibility score reported "Lockfiles found: none" for
+    any repo keeping its lockfiles in a subdirectory -- including this one,
+    whose `web/package-lock.json` `devrepro monorepo` finds and
+    `devrepro doctor` did not. Two commands disagreed about the same tree.
+    """
     out: list[ProjectRequirement] = []
     markers = [
         ("poetry.lock", "python", "poetry-lock"),
@@ -110,11 +123,57 @@ def _lockfiles(root: Path) -> list[ProjectRequirement]:
         ("Gemfile.lock", "ruby", "bundler-lock"),
         ("poetry.toml", "python", "poetry-config"),
     ]
+    by_name = {fname: (eco, label) for fname, eco, label in markers}
+
     for fname, eco, label in markers:
         p = root / fname
         if p.is_file():
             out.append(_req(eco, label, "*", RequirementKind.TOOL, p, note="lockfile present"))
+
+    for directory in _nested_dirs(root, _MAX_LOCKFILE_DEPTH):
+        rel = directory.relative_to(root).as_posix()
+        for fname, (eco, label) in by_name.items():
+            p = directory / fname
+            if p.is_file():
+                # Qualify the name so the score's explanation distinguishes
+                # `npm-lock` at the root from `npm-lock@web`.
+                out.append(
+                    _req(
+                        eco,
+                        f"{label}@{rel}",
+                        "*",
+                        RequirementKind.TOOL,
+                        p,
+                        note="lockfile present",
+                    )
+                )
     return out
+
+
+def _nested_dirs(root: Path, max_depth: int) -> list[Path]:
+    """Directories below ``root``, pruned and depth-bounded.
+
+    Shares ``SKIP_DIRS`` with the monorepo analyzer so both agree on what is
+    not a project (``node_modules``, ``.venv``, build output).
+    """
+    from devrepro.project.monorepo import SKIP_DIRS
+
+    found: list[Path] = []
+    stack: list[tuple[Path, int]] = [(root, 0)]
+    while stack:
+        current, depth = stack.pop()
+        if depth >= max_depth:
+            continue
+        try:
+            children = [c for c in current.iterdir() if c.is_dir()]
+        except OSError:
+            continue
+        for child in children:
+            if child.name in SKIP_DIRS or child.name.startswith("."):
+                continue
+            found.append(child)
+            stack.append((child, depth + 1))
+    return found
 
 
 # ------------------------------------------------------------------ node --

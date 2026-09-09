@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 __all__ = [
+    "SKIP_DIRS",
     "LanguageInventory",
     "LockfileCoverage",
     "MonorepoReport",
@@ -64,7 +65,7 @@ _WORKSPACE_MARKERS = (
     "MODULE.bazel",
 )
 
-_SKIP_DIRS = {
+SKIP_DIRS = {
     ".git",
     "node_modules",
     ".venv",
@@ -191,7 +192,7 @@ def _walk(root: Path) -> list[tuple[str, list[str], list[str]]]:
     """os.walk wrapper that prunes skip dirs and yields repo-relative dirs."""
     out: list[tuple[str, list[str], list[str]]] = []
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = sorted(d for d in dirnames if d not in _SKIP_DIRS)
+        dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS)
         rel = Path(dirpath).relative_to(root).as_posix()
         out.append((rel, dirnames, filenames))
     return out

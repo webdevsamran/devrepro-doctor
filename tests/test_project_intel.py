@@ -289,3 +289,55 @@ def test_devcontainer_marked_generated():
     dc = json.loads(generate_devcontainer(forward_ports=(5432,)))
     assert "REVIEW REQUIRED" in dc["//"]
     assert dc["forwardPorts"] == [5432]
+
+
+# --- nested lockfile discovery ---------------------------------------------
+
+
+def _project(root, name="x"):
+    """Minimal project root so detect_requirements has something to anchor on."""
+    (root / "pyproject.toml").write_text('[project]\nname = "' + name + '"\n', encoding="utf-8")
+
+
+def test_lockfiles_are_found_below_the_root(tmp_path) -> None:
+    """A monorepo keeps lockfiles in subdirectories, not just at the root.
+
+    Root-only detection made `devrepro doctor` report "Lockfiles found: none"
+    for repos whose lockfiles live one level down, while `devrepro monorepo`
+    found the very same project. The reproducibility score is a headline
+    number, so under-reporting it matters.
+    """
+    from devrepro.project.detectors import detect_requirements
+
+    _project(tmp_path)
+    web = tmp_path / "web"
+    web.mkdir()
+    (web / "package.json").write_text('{"name": "w"}', encoding="utf-8")
+    (web / "package-lock.json").write_text('{"lockfileVersion": 3}', encoding="utf-8")
+
+    locks = [r.name for r in detect_requirements(tmp_path) if r.note == "lockfile present"]
+    assert "npm-lock@web" in locks, f"nested lockfile not found; got {locks}"
+
+
+def test_root_lockfile_keeps_its_unqualified_name(tmp_path) -> None:
+    """Root lockfiles must not gain a path suffix -- that name is displayed."""
+    from devrepro.project.detectors import detect_requirements
+
+    _project(tmp_path)
+    (tmp_path / "uv.lock").write_text("version = 1", encoding="utf-8")
+
+    locks = [r.name for r in detect_requirements(tmp_path) if r.note == "lockfile present"]
+    assert "uv-lock" in locks
+
+
+def test_lockfile_search_skips_dependency_and_build_directories(tmp_path) -> None:
+    """`node_modules` is full of lockfiles and none of them are the project's."""
+    from devrepro.project.detectors import detect_requirements
+
+    _project(tmp_path)
+    buried = tmp_path / "node_modules" / "left-pad"
+    buried.mkdir(parents=True)
+    (buried / "package-lock.json").write_text("{}", encoding="utf-8")
+
+    locks = [r.name for r in detect_requirements(tmp_path) if r.note == "lockfile present"]
+    assert not locks, f"node_modules should be pruned; got {locks}"
