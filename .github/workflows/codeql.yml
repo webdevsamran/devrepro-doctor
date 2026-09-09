@@ -23,6 +23,10 @@ jobs:
       - uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
         with:
           languages: ${{ matrix.language }}
+          # Matches local-ai-hardware-bench. The default suite skips a lot that
+          # matters for a tool that shells out to probe a machine; the four
+          # projects should not disagree about how hard they look.
+          queries: security-extended
       - if: matrix.language == 'javascript-typescript'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:

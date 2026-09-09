@@ -53,6 +53,14 @@ jobs:
         run: |
           python scripts/generate_schemas.py --check
           python scripts/validate_schemas.py
+      - name: Secret scan
+        # The only secret check here was a local pre-commit `detect-private-key`
+        # hook, which `git commit --no-verify` skips and CI never ran.
+        run: python scripts/secret_scan.py
+      - name: Pinned actions match their version comments
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python scripts/check_action_pins.py
       - name: README example matches the real renderer
         # The README used to show a hand-written scan with a rule id no code
         # emits, under the caption "examples from actual scans". This renders a
@@ -77,6 +85,11 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      # This repository ran pip-audit and nothing on the npm side, so half its
+      # dependency surface was unexamined. local-ai-hardware-bench has audited
+      # its frontend from the start.
+      - name: npm audit (fail on high+)
+        run: npm audit --audit-level=high
       - run: npm run build
 
   docs:

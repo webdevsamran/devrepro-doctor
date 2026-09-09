@@ -102,6 +102,10 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
+# Shared verbatim across the four sibling repositories, whose ruff
+# rule sets differ: S310 must be suppressed where it is enabled, and
+# that suppression must not read as unused (RUF100) where it is not.
+"scripts/check_action_pins.py" = ["S310", "RUF100"]
 "tests/*" = ["S101", "D", "PLR2004", "B017"]
 "web/**" = []
 
