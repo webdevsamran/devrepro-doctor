@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { MeterRow, ScoreRadial, StackedBar } from '../components/charts'
 import { scorePercent } from '../types'
-import type { EnvironmentDiff, Finding, ScanReport } from '../types'
+import type { Finding, ScanReport } from '../types'
 import { Badge, Card, CopyButton, EmptyState, EvidenceDrawer, SeverityFilter } from '../components/ui'
 
 type PageProps = { report: ScanReport }
@@ -421,38 +421,6 @@ export function FindingsPage({ report }: PageProps) {
             ))}
           </section>
         ))
-      )}
-    </>
-  )
-}
-
-/* -------------------------------------------------- Environment Diff --- */
-export function DiffPage() {
-  const [diff, setDiff] = useState<EnvironmentDiff | null>(null)
-  const [err, setErr] = useState('')
-  const load = async (file: File) => {
-    try { setDiff(JSON.parse(await file.text()) as EnvironmentDiff); setErr('') }
-    catch { setErr('Not a valid environment diff JSON export.') }
-  }
-  return (
-    <>
-      <h2>Environment diff</h2>
-      <p className="muted">Load a diff JSON produced by <code>devrepro diff A B --format json -o diff.json</code>.</p>
-      <input type="file" accept=".json" aria-label="Diff JSON file" onChange={(e) => e.target.files?.[0] && load(e.target.files[0])} />
-      {err && <p role="alert">{err}</p>}
-      {diff && (
-        <table className="table">
-          <thead><tr><th>Component</th><th>Name</th><th>Classification</th><th>A</th><th>B</th><th>Critical</th></tr></thead>
-          <tbody>
-            {diff.entries.map((e, i) => (
-              <tr key={i} className={e.project_critical ? 'row-critical' : ''}>
-                <td>{e.component}</td><td>{e.name}</td><td><Badge state={e.classification.toUpperCase()} /></td>
-                <td><code>{e.a_value ?? '—'}</code></td><td><code>{e.b_value ?? '—'}</code></td>
-                <td>{e.project_critical ? '⚠️' : ''}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       )}
     </>
   )

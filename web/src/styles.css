@@ -605,6 +605,14 @@
   }
   .chip:hover { border-color: var(--fg-subtle); }
   .chip input { position: absolute; opacity: 0; pointer-events: none; }
+  /* The real checkbox is transparent, so the browser drew the focus ring on
+     something invisible and keyboard users got no indicator at all. Hoisting
+     it onto the label restores it; `:has` rather than `:focus-within` so a
+     mouse click does not leave a ring behind. */
+  .chip:has(input:focus-visible) {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
   .chip-on {
     border-color: var(--accent);
     color: var(--accent);
@@ -670,8 +678,105 @@
     transition: background var(--dur-micro) var(--ease);
   }
   .table tbody tr:hover { background: var(--surface-2); }
-  .table tbody tr:last-child td { border-bottom: none; }
+  /* `th` as well as `td`: a row-header cell -- which the diff viewer uses so
+     each row is announced by its component -- kept a border the rest of its
+     row had dropped, and the line stopped a column short. */
+  .table tbody tr:last-child :is(td, th) { border-bottom: none; }
   .row-critical { background: var(--sev-error-soft); }
+
+  /* --- diff viewer --- */
+  .dropzone {
+    border: 1.5px dashed var(--border-strong);
+    border-radius: var(--radius-md);
+    padding: var(--sp-6);
+    text-align: center;
+    background: var(--surface);
+    transition:
+      border-color var(--dur-standard) var(--ease),
+      background var(--dur-standard) var(--ease);
+  }
+  .dropzone-active {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .dropzone input[type='file'] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .link-button {
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .link-button:has(input:focus-visible) {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  .swatch {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 2px;
+    display: inline-block;
+    flex: none;
+  }
+  .pill {
+    font-size: 0.6875rem;
+    font-weight: 650;
+    padding: 0.05rem 0.4rem;
+    border-radius: var(--radius-full);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .pill-critical {
+    background: var(--sev-error-soft);
+    color: var(--sev-error);
+  }
+
+  /* Wide tables scroll inside their own box. The page body must never scroll
+     sideways -- a diff of a Windows machine has PATH values that are longer
+     than any viewport. */
+  .table-scroll {
+    overflow-x: auto;
+    border-radius: var(--radius-md);
+  }
+  .table-diff { table-layout: auto; }
+  .table-diff .diff-name {
+    text-align: left;
+    font-weight: 500;
+  }
+  .diff-name-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem;
+  }
+  .diff-component {
+    color: var(--fg-muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .diff-side {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  /* Colour is a second channel here, never the only one: the A and B columns
+     are labelled in the header and the classification is spelled out in the
+     group heading above. */
+  .diff-a { color: var(--sev-error); }
+  .diff-b { color: var(--sev-pass); }
+  .diff-detail { max-width: 32ch; }
+
+  @media (max-width: 640px) {
+    .diff-side { white-space: normal; }
+    .diff-detail { display: none; }
+  }
 
   /* --- meters + timeline (the components that referenced the missing token) --- */
   .meter {

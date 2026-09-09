@@ -9,6 +9,40 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Changed - the environment diff is a diff viewer now
+
+- It was a six-column table keyed by array index, rendering every entry flat --
+  including the fifteen classified `same`. That is a data dump: the question
+  someone arrives with is "what differs that matters to this project", and the
+  answer was buried.
+- The engine already decided that a version difference is drift, a PATH order
+  change is precedence, and a missing declared tool is project-critical, so the
+  classification is now the structure: grouped, ordered most-alarming-first,
+  with project-critical rows leading their group and `same` and
+  `platform-expected` off by default but still counted in their chips.
+- Filters, search and the project-critical toggle live in the URL. A diff is
+  something you send to someone, and a link that reopens the filtered view
+  beats a screenshot with a paragraph of explanation. "Copy as Markdown" emits
+  the visible rows for a pull request, with pipes escaped so a PATH value
+  cannot break the table.
+- Files are read in the browser and never uploaded, which the drop zone says.
+- Nothing is recomputed in TypeScript. A second implementation of the
+  classification would drift from the Python one and the two would eventually
+  disagree in front of a user.
+
+### Fixed - three layout and accessibility faults the rebuild exposed
+
+- `display: flex` on a `<th>` stops it being a table-cell, so the browser wrapped
+  it in an anonymous cell and column widths stopped lining up with the header.
+  The flex moved to an inner element.
+- `.table tbody tr:last-child td` reset the border on `td` only, so a row-header
+  cell kept a line the rest of its row had dropped. It now covers `th` too.
+- The chip pattern hides its real checkbox at `opacity: 0`, so the browser drew
+  the focus ring on something invisible and keyboard users got no indicator at
+  all -- on the severity filter as well as the new one. The ring is now hoisted
+  onto the label, via `:has(input:focus-visible)` so a mouse click does not
+  leave one behind.
+
 ### Added - lockfiles are a requirement on the machine, not just a checkmark
 
 - Lockfile handling was presence-only: `detectors.py` recorded that one exists
