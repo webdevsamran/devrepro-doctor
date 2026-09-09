@@ -1,1 +1,1 @@
---8<-- "../INTEROP.md"
+--8<-- "INTEROP.md"
