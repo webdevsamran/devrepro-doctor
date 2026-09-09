@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -152,23 +153,47 @@ def detect_toolchain(
     """Resolve every tool spec against PATH. Returns all installations,
     including duplicates of the same tool at different paths.
     """
-    installs: list[ToolInstallation] = []
+    # Resolving PATH is filesystem work and stays sequential; asking each
+    # executable for its version is a subprocess, and there are dozens.
+    planned: list[tuple[ToolSpec, str, int, int]] = []
     for spec in specs:
         for cmd in spec.commands:
             matches = resolve_all_on_path(cmd, path_env=path_env)
             for precedence, exe in enumerate(matches):
-                version, _out = _run_version(runner, exe, spec)
-                installs.append(
-                    ToolInstallation(
-                        name=spec.name,
-                        version=version,
-                        exe_path=exe,
-                        install_source=_install_source(exe),
-                        is_active=precedence == 0,
-                        precedence=precedence if len(matches) > 1 else None,
-                    )
-                )
-    return installs
+                planned.append((spec, exe, precedence, len(matches)))
+
+    if not planned:
+        return []
+
+    # Independent, I/O-bound, and the GIL is released around subprocess.run.
+    # Bounded because a machine with many toolchains should not open sixty
+    # processes at once.
+    versions: list[str | None] = [None] * len(planned)
+    with ThreadPoolExecutor(max_workers=min(12, len(planned))) as pool:
+        futures = {
+            pool.submit(_run_version, runner, exe, spec): index
+            for index, (spec, exe, _precedence, _total) in enumerate(planned)
+        }
+        for future in as_completed(futures):
+            index = futures[future]
+            try:
+                versions[index] = future.result()[0]
+            except Exception:
+                versions[index] = None
+
+    # Rebuilt in the original order: `precedence` and `is_active` come from it,
+    # so a reordered result would change which installation is called active.
+    return [
+        ToolInstallation(
+            name=spec.name,
+            version=versions[index],
+            exe_path=exe,
+            install_source=_install_source(exe),
+            is_active=precedence == 0,
+            precedence=precedence if total > 1 else None,
+        )
+        for index, (spec, exe, precedence, total) in enumerate(planned)
+    ]
 
 
 def find_duplicates(installs: list[ToolInstallation]) -> dict[str, list[ToolInstallation]]:

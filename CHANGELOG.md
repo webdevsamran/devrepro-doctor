@@ -107,6 +107,32 @@ by reading it.
   copy-paste of the published Action failed at the install step. It now
   defaults to installing from this repository.
 
+### Fixed - a scan took 26 seconds; it now takes 4
+
+Sixteen of those seconds were spent resolving PATH, and the cause was
+algorithmic rather than incidental. `resolve_all_on_path` tested each candidate
+filename against the filesystem: a 45-entry PATH times 14 PATHEXT variants is
+630 filesystem calls per tool, and with forty tool specs that is roughly thirty
+thousand -- almost all for paths that do not exist. Worse, it called
+`Path.resolve()`, the expensive part, *before* checking existence.
+
+Listing each directory once turns the work from directories-times-candidates
+into directories. The same 28 tool installations, the same 28 findings and the
+same score come back **25 times faster** on the resolution path, and the whole
+scan is 5-6x quicker.
+
+Version probing is concurrent now as well -- those subprocess calls are
+independent and I/O-bound -- with ordering preserved exactly, because
+`precedence` and `is_active` are derived from it.
+
+The test suite went from over ten minutes to eighty-three seconds, which
+matters twelve times over on the CI matrix. `tests/test_performance.py` guards
+the algorithm rather than the wall clock, with thresholds loose enough to
+survive a shared runner.
+
+This also changes the second prerequisite in `docs/MCP-EXPOSURE.md`, which
+named scan cost as a reason not to expose scans to an agent.
+
 ### Added - manifest freshness, manifest agreement, and a readiness score
 
 `npm` resolving says nothing about whether `npm run build` names a script the

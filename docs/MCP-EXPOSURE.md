@@ -61,8 +61,15 @@ elsewhere: they start processes or move data.
    something entirely different in the sibling projects. The tool result would
    need to carry the verdict explicitly rather than relying on a convention
    that does not cross the boundary.
-2. **Scan cost.** A full `doctor` run takes seconds and shells out repeatedly.
-   That is fine for a CLI and slow for an interactive tool call; the server
-   would want a cached report with an explicit refresh.
+2. **Scan cost.** Largely addressed. A scan took 26 seconds on the
+   development machine and now takes about 4. Sixteen of those seconds went on
+   resolving PATH by testing every candidate filename against the filesystem --
+   a 45-entry PATH times 14 PATHEXT variants, per tool -- and calling
+   `Path.resolve()` before checking whether the path existed. Listing each
+   directory once is 25 times faster and returns identical results.
+
+   Four seconds is still slow for an interactive tool call, so a cached report
+   with an explicit refresh remains the right design. It is no longer the
+   blocker it was.
 3. **Confinement.** `check --project` takes a path. Same concern as anywhere
    else: the server needs a configured root rather than trusting an argument.
