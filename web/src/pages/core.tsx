@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { scorePercent } from '../types'
 import type { EnvironmentDiff, ScanReport } from '../types'
 import { Badge, Card, CopyButton, EmptyState, EvidenceDrawer, SeverityFilter } from '../components/ui'
 
@@ -20,11 +21,11 @@ export function HomePage({ onStart }: { onStart: () => void }) {
       </ul>
       <button className="btn btn-primary" onClick={onStart}>Open machine overview →</button>
       <Card title="60-second CLI start">
-        <pre>{`pip install devrepro-doctor
+        <pre>{`pip install git+https://github.com/webdevsamran/devrepro-doctor
 devrepro doctor
 devrepro snapshot
 devrepro diff A B`}</pre>
-        <CopyButton text={`pip install devrepro-doctor
+        <CopyButton text={`pip install git+https://github.com/webdevsamran/devrepro-doctor
 devrepro doctor`} label="Copy commands" />
       </Card>
     </div>
@@ -72,13 +73,17 @@ function Stat({ label, value }: { label: string; value: string }) {
 export function ScoreCard({ report }: PageProps) {
   const s = report.score!
   return (
-    <Card title={`Reproducibility completeness: ${s.total}/${s.possible} (${s.percent}%)`}>
+    <Card title={`Reproducibility completeness: ${s.total}/${s.possible} (${scorePercent(s)}%)`}>
       <p className="muted">Describes how completely the project <em>declares</em> its environment. It does not guarantee reproducibility.</p>
       <table className="table">
         <thead><tr><th>Point</th><th>Earned</th><th>Why</th></tr></thead>
         <tbody>
           {s.points.map((p) => (
-            <tr key={p.name}><td>{p.name}</td><td>{p.earned}/{p.possible}</td><td>{p.why}</td></tr>
+            <tr key={p.criterion}>
+              <td className="mono">{p.criterion}</td>
+              <td className="num">{p.earned}/{p.possible}</td>
+              <td>{p.explanation}</td>
+            </tr>
           ))}
         </tbody>
       </table>

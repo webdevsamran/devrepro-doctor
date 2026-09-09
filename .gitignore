@@ -39,3 +39,6 @@ Thumbs.db
 .env.*
 *.pem
 *.key
+
+# Local scan output used by the dev server; never committed.
+web/public/report.json

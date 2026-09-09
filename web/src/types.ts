@@ -54,9 +54,26 @@ export interface ProjectRequirement {
   note?: string
 }
 
-export interface ScorePoint { name: string; earned: number; possible: number; why: string }
+/** Mirrors `ReproducibilityPoint` in devrepro/core/models.py. The field names
+ *  here were `name`/`why` and never matched the model, so every row rendered
+ *  two empty cells. */
+export interface ScorePoint {
+  criterion: string
+  earned: number
+  possible: number
+  explanation: string
+}
 
-export interface Score { total: number; possible: number; percent: number; points: ScorePoint[] }
+/** `percent` is intentionally absent: it is a Python property, and the report
+ *  round-trips through a model that forbids extra fields, so it cannot be
+ *  serialized. Derive it with `scorePercent()`. */
+export interface Score { total: number; possible: number; points: ScorePoint[] }
+
+/** Same rounding as `ReproducibilityScore.percent` in devrepro/core/models.py. */
+export function scorePercent(score: Score): number {
+  if (!score.possible) return 0
+  return Math.round((100 * score.total) / score.possible * 10) / 10
+}
 
 export interface ScanReport {
   schema_version: string

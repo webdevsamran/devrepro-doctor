@@ -28,17 +28,20 @@ def _cli_command_count() -> int:
 
 
 def _frontend_page_count() -> int:
-    """Count entries in App.tsx's NAV array.
+    """Count the routes the console registers.
 
-    The array closes on a line that is exactly "]" -- splitting on the first
-    "]" instead would stop inside the first entry.
+    The navigation used to be a flat `NAV` array of 32 tuples inside App.tsx,
+    parsed here by bracket-matching. It now lives in `web/src/nav.ts` as
+    grouped `NavItem` objects, which is also what the router and the command
+    palette read -- one source of truth rather than three.
+
+    Each item declares exactly one `id:`, so counting those counts the routes.
     """
-    lines = _read("web/src/App.tsx").splitlines()
-    start = next(i for i, line in enumerate(lines) if line.startswith("const NAV = ["))
-    end = next(
-        i for i, line in enumerate(lines[start + 1 :], start + 1) if line.rstrip().startswith("]")
-    )
-    return sum(1 for line in lines[start + 1 : end] if line.lstrip().startswith("["))
+    source = _read("web/src/nav.ts")
+    groups = source.split("export const NAV_GROUPS", 1)
+    assert len(groups) == 2, "nav.ts no longer declares NAV_GROUPS"
+    body = groups[1].split("export const ALL_ITEMS", 1)[0]
+    return len(re.findall(r"^\s*\{ id: ", body, flags=re.MULTILINE))
 
 
 def test_roadmap_cli_command_count_is_current() -> None:

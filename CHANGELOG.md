@@ -107,6 +107,57 @@ by reading it.
   copy-paste of the published Action failed at the install step. It now
   defaults to installing from this repository.
 
+### Changed - the web console is a dashboard now
+
+- **Navigation.** Thirty-two links lived in one flat wrapping row in the header;
+  at that count a flat list stops being navigation. They are now six groups in
+  a collapsible sidebar, with a ⌘K command palette, breadcrumbs and a real
+  router. `web/src/nav.ts` is the single source of truth the sidebar, the
+  router and the palette all read -- previously the list, the render chain and
+  a Python doc test each had their own copy.
+- **Code splitting.** The old shell imported every page eagerly and rendered a
+  thirty-two branch `{page === 'x' && ...}` chain, so every visitor downloaded
+  every view to look at one. Routes are lazy: four page chunks load on demand
+  and the initial route is ~84 kB gzipped.
+- **Design system.** 86 lines of CSS became a layered token system: a full
+  light and dark palette, a severity ramp used by badges, rows and charts
+  alike, spacing/radius/elevation scales, and three motion durations behind one
+  easing. `--surface-2` is defined -- it was referenced with a hard-coded `#333`
+  fallback and never declared, so meter tracks and timeline rails rendered dark
+  grey in light mode.
+- **Theme.** Light / dark / system, persisted, and honouring a later change to
+  the OS setting. It was a boolean in component state that could not express
+  "follow the system" and forgot the choice on reload.
+- **Charts.** Score radial, stacked severity bar, meters and sparklines, drawn
+  in SVG against theme tokens rather than pulled from a charting library, so
+  they follow light/dark for free and add nothing to the bundle. Each is
+  `role="img"` with the number in its label.
+- **Responsive.** Sidebar collapses to icons on tablet and becomes a bottom
+  sheet on mobile. Grid items and cards are pinned to `min-width: 0` and wide
+  content scrolls inside its own card, so one long version string can no longer
+  widen the page.
+- **Motion and micro-interactions.** Route entry, button press depth, animated
+  arcs and meters, count-ups, skeletons shaped like the page they precede, copy
+  buttons that confirm. All of it collapses under `prefers-reduced-motion`.
+
+### Fixed - the reproducibility score rendered as "(undefined%)"
+
+- The console showed `4/9 (undefined%)` above a table whose Point and Why
+  columns were blank. `ScorePoint` declared `name` and `why`; the model has
+  `criterion` and `explanation`. `Score` declared a `percent` the payload does
+  not carry, because `percent` is a Python property and Pydantic does not
+  serialize those.
+- Making it a `computed_field` looked like the fix and is not: every report
+  round-trips through `_sanitize_report`, which dumps, redacts and
+  re-validates, and a computed field is output-only, so `extra="forbid"`
+  rejected it and every scan raised. That round-trip is what makes the privacy
+  gate a guarantee, so the console derives the percentage instead and the model
+  records why.
+
+### Fixed - the console offered an install command that returns 404
+
+- The Home page printed `pip install devrepro-doctor`, with a copy button.
+
 ### Added - `devrepro agent-check`
 
 Can an AI coding agent actually work in this repository, on this machine?

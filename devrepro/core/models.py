@@ -248,6 +248,15 @@ class ReproducibilityScore(_FrozenModel):
 
     @property
     def percent(self) -> float:
+        """Convenience for Python callers; deliberately NOT serialized.
+
+        Making this a ``computed_field`` so the JSON carried it breaks every
+        scan: ``_sanitize_report`` dumps the report, redacts it and re-validates
+        it, and a computed field is output-only, so ``extra="forbid"`` rejects
+        it on the way back in. That round-trip is what turns the privacy gate
+        from a convention into a guarantee, so consumers of the JSON derive the
+        percentage from ``total`` and ``possible`` instead.
+        """
         return round(100.0 * self.total / self.possible, 1) if self.possible else 0.0
 
 

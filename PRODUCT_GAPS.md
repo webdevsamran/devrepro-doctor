@@ -27,10 +27,11 @@ Enterprise remote machine scanning requires strict credential handling and
 authorization review; it is intentionally absent rather than half-built.
 
 ### 5. There is no frontend e2e coverage
-The frontend is covered by vitest component tests only (11 of them, in
-`web/src/test/`). There is no Playwright, no browser-driven test and no
-route-level e2e across the 32 pages -- adding any of it is an open contributor
-opportunity. An earlier version of this file claimed "Playwright smoke tests
+The frontend is covered by vitest component tests only (27 of them, in
+`web/src/test/`), which now include the navigation model, routing coverage and
+the command palette. There is still no Playwright, no browser-driven test and
+no route-level e2e across the 32 routes -- adding any of it is an open
+contributor opportunity. An earlier version of this file claimed "Playwright smoke tests
 exist in CI scope"; that was never true, and the only `playwright` string in
 the repository is a transitive optional peer inside `web/package-lock.json`.
 
