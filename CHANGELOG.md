@@ -107,6 +107,31 @@ by reading it.
   copy-paste of the published Action failed at the install step. It now
   defaults to installing from this repository.
 
+### Fixed - the findings list gave React duplicate keys
+
+Rule ids are not unique within a report. A single scan emits
+`env/credential-names-present` twice, and `node/missing` covers both node and
+git because the composed prefix is the pack rather than the component. The list
+was keyed by rule id, so React reused one element for both -- which
+misassociates component state, and an open evidence drawer belongs to the wrong
+finding.
+
+The regression test for this initially watched `console.error` for React's
+duplicate-key warning, and passed happily with the bug reintroduced: React
+deduplicates its warnings. It now asserts on the key function directly, and
+fails as it should.
+
+### Changed - findings triage
+
+- **Filters live in the URL.** Severity, search and grouping are search params,
+  so a triage view can be linked to. "Look at this" is most of what anyone does
+  with a findings list, and a link that reopens someone else's filters beats
+  describing them.
+- Group by severity, component or rule prefix; sorted most-severe-first.
+- Severity chips carry counts, including for severities currently filtered out,
+  so the shape of the report is visible without changing the filter.
+- **Copy as Markdown** renders the visible findings as a table for an issue.
+
 ### Added - package sources and per-runtime certificate trust
 
 Two failures that look like network problems and are configuration problems.

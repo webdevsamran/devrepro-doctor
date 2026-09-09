@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { MeterRow, ScoreRadial, StackedBar } from '../components/charts'
 import { scorePercent } from '../types'
-import type { EnvironmentDiff, ScanReport } from '../types'
+import type { EnvironmentDiff, Finding, ScanReport } from '../types'
 import { Badge, Card, CopyButton, EmptyState, EvidenceDrawer, SeverityFilter } from '../components/ui'
 
 type PageProps = { report: ScanReport }
@@ -240,39 +241,186 @@ export function PathPage({ report }: PageProps) {
 }
 
 /* -------------------------------------------------------- Findings --- */
-export function FindingsPage({ report }: PageProps) {
-  const [selected, setSelected] = useState<Set<string>>(new Set(['BLOCKED', 'ERROR', 'WARN']))
-  const [q, setQ] = useState('')
-  const toggle = (s: string) => {
-    const next = new Set(selected)
-    if (next.has(s)) next.delete(s)
-    else next.add(s)
-    setSelected(next)
-  }
-  const findings = report.findings.filter(
-    (f) => selected.has(f.state) && (!q || f.summary.toLowerCase().includes(q.toLowerCase()) || f.rule_id.includes(q)),
+const SEVERITY_RANK: Record<string, number> = {
+  BLOCKED: 0,
+  ERROR: 1,
+  WARN: 2,
+  UNKNOWN: 3,
+  INFO: 4,
+  PASS: 5,
+}
+
+/** A stable, unique key for a finding.
+ *
+ *  Rule ids are NOT unique within a report: `env/credential-names-present` is
+ *  emitted twice by a single scan, and `node/missing` covers both node and git
+ *  because the composed prefix is the pack rather than the component. Keying a
+ *  list by rule id gives React duplicate keys, which misassociates component
+ *  state -- an open evidence drawer jumps to a different finding.
+ */
+export function findingKey(finding: Finding, index: number): string {
+  return `${finding.rule_id}::${finding.component ?? ''}::${index}`
+}
+
+function findingsToMarkdown(findings: Finding[]): string {
+  const NL = String.fromCharCode(10)
+  const rows = findings.map(
+    (f) =>
+      `| ${f.state} | \`${f.rule_id}\` | ${f.summary.replace(/\|/g, '\\|')} |`,
   )
+  return [
+    '| State | Rule | Summary |',
+    '|---|---|---|',
+    ...rows,
+    '',
+    '_Produced by `devrepro doctor`. Read-only scan; output is privacy-redacted._',
+  ].join(NL)
+}
+
+export function FindingsPage({ report }: PageProps) {
+  // Filter state lives in the URL so a triage view can be linked to. "Look at
+  // this" is most of what anyone does with a findings list, and a link that
+  // reopens someone else's filters is the difference between sharing a view
+  // and describing one.
+  const [params, setParams] = useSearchParams()
+
+  const activeStates = useMemo(() => {
+    const raw = params.get('state')
+    return new Set(raw ? raw.split(',').filter(Boolean) : ['BLOCKED', 'ERROR', 'WARN'])
+  }, [params])
+
+  const query = params.get('q') ?? ''
+  const groupBy = params.get('group') ?? 'none'
+
+  const update = (key: string, value: string | null) => {
+    const next = new URLSearchParams(params)
+    if (value === null || value === '') next.delete(key)
+    else next.set(key, value)
+    setParams(next, { replace: true })
+  }
+
+  const toggle = (state: string) => {
+    const next = new Set(activeStates)
+    if (next.has(state)) next.delete(state)
+    else next.add(state)
+    update('state', [...next].join(','))
+  }
+
+  const counts = useMemo(() => {
+    const tally: Record<string, number> = {}
+    for (const f of report.findings) tally[f.state] = (tally[f.state] ?? 0) + 1
+    return tally
+  }, [report.findings])
+
+  const visible = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    return report.findings
+      .filter((f) => activeStates.has(f.state))
+      .filter(
+        (f) =>
+          !needle ||
+          f.summary.toLowerCase().includes(needle) ||
+          f.rule_id.toLowerCase().includes(needle) ||
+          (f.component ?? '').toLowerCase().includes(needle),
+      )
+      .slice()
+      .sort(
+        (a, b) =>
+          (SEVERITY_RANK[a.state] ?? 9) - (SEVERITY_RANK[b.state] ?? 9) ||
+          a.rule_id.localeCompare(b.rule_id),
+      )
+  }, [report.findings, activeStates, query])
+
+  const groups = useMemo(() => {
+    if (groupBy === 'none') return [['', visible] as const]
+    const buckets = new Map<string, Finding[]>()
+    for (const f of visible) {
+      const key =
+        groupBy === 'component'
+          ? (f.component ?? 'uncategorised')
+          : groupBy === 'state'
+            ? f.state
+            : f.rule_id.split('/')[0]
+      const bucket = buckets.get(key)
+      if (bucket) bucket.push(f)
+      else buckets.set(key, [f])
+    }
+    return [...buckets.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+  }, [visible, groupBy])
+
   return (
     <>
-      <h2>Findings</h2>
-      <input className="search" placeholder="Search findings…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search findings" />
-      <SeverityFilter selected={selected} onToggle={toggle} />
-      {findings.length === 0 ? <EmptyState what="matching findings" /> : (
-        <div className="findings-list">
-          {findings.map((f) => (
-            <article key={f.rule_id} className="card finding">
-              <header>
-                <Badge state={f.state} /> <code>{f.rule_id}</code>
-                {f.component && <span className="muted"> · {f.component}</span>}
-              </header>
-              <p>{f.summary}</p>
-              {(f.detected || f.required) && (
-                <p className="small">detected: <code>{f.detected ?? '—'}</code> · required: <code>{f.required ?? '—'}</code></p>
-              )}
-              <EvidenceDrawer finding={f} />
-            </article>
-          ))}
+      <div className="row-between">
+        <h2 className="mb-0">Findings</h2>
+        <div className="row">
+          <CopyButton text={findingsToMarkdown(visible)} label="Copy as Markdown" />
         </div>
+      </div>
+
+      <div className="card enter">
+        <input
+          className="input"
+          placeholder="Search rule, summary or component…"
+          value={query}
+          onChange={(e) => update('q', e.target.value)}
+          aria-label="Search findings"
+        />
+        <div className="row mt-4">
+          <SeverityFilter selected={activeStates} counts={counts} onToggle={toggle} />
+          <div className="spacer" />
+          <label className="row small muted" style={{ gap: 'var(--sp-2)' }}>
+            Group by
+            <select
+              className="input"
+              style={{ width: 'auto' }}
+              value={groupBy}
+              onChange={(e) => update('group', e.target.value)}
+            >
+              <option value="none">nothing</option>
+              <option value="state">severity</option>
+              <option value="component">component</option>
+              <option value="pack">rule prefix</option>
+            </select>
+          </label>
+        </div>
+        <p className="tiny subtle mt-4 mb-0">
+          Showing {visible.length} of {report.findings.length}. Filters are in the URL, so
+          this view can be linked to.
+        </p>
+      </div>
+
+      {visible.length === 0 ? (
+        <EmptyState
+          what="matching findings"
+          hint="Every severity may be filtered out — check the chips above."
+        />
+      ) : (
+        groups.map(([groupName, items]) => (
+          <section key={groupName || 'all'}>
+            {groupName && (
+              <h3 className="mt-4">
+                {groupName} <span className="subtle small">({items.length})</span>
+              </h3>
+            )}
+            {items.map((f, index) => (
+              <article key={findingKey(f, index)} className="card finding enter">
+                <header className="row">
+                  <Badge state={f.state} />
+                  <code>{f.rule_id}</code>
+                  {f.component && <span className="muted small">· {f.component}</span>}
+                </header>
+                <p className="mb-0">{f.summary}</p>
+                {(f.detected || f.required) && (
+                  <p className="small muted">
+                    detected <code>{f.detected ?? '—'}</code> · required{' '}
+                    <code>{f.required ?? '—'}</code>
+                  </p>
+                )}
+                <EvidenceDrawer finding={f} />
+              </article>
+            ))}
+          </section>
+        ))
       )}
     </>
   )
