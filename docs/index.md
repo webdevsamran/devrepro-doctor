@@ -39,4 +39,4 @@ devrepro doctor            # full read-only diagnostic scan
 - [Interoperability](interop.md) — how we relate to Nix, mise, Devbox, devenv…
 - [Roadmap](roadmap.md) — where we're going
 
---8<-- "../README.md"
+--8<-- "README.md"

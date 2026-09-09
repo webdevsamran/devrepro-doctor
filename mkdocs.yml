@@ -52,8 +52,8 @@ markdown_extensions:
   - admonition
   - pymdownx.superfences
   - pymdownx.snippets:
-      base_path: docs
-      check_paths: false
+      base_path: .
+      check_paths: true
   - tables
   - toc:
       permalink: true
@@ -61,3 +61,18 @@ markdown_extensions:
 validation:
   omitted_files: warn
   absolute_links: warn
+  links:
+    # Root documents (README, ARCHITECTURE, CONTRIBUTING...) are included into
+    # this site by snippet and carry links written relative to the repository
+    # root, where they are correct and where most people read them. Inside the
+    # site those targets sit outside the docs tree, so mkdocs reports them as
+    # not-found and --strict aborts.
+    #
+    # Downgraded to info deliberately, and paired with `check_paths: true`
+    # above, which is the check that actually matters: a snippet that cannot be
+    # found now fails the build. It previously did not. With check_paths off,
+    # all nine includes in this site silently resolved to nothing, and the
+    # published pages for Architecture, Roadmap, Contributing, Security,
+    # Interop, Product gaps, Changelog and Code of conduct were empty while the
+    # build stayed green.
+    not_found: info

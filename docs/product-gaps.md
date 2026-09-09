@@ -1,1 +1,1 @@
---8<-- "../PRODUCT_GAPS.md"
+--8<-- "PRODUCT_GAPS.md"

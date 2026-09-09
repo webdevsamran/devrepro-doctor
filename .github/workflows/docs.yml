@@ -33,6 +33,11 @@ jobs:
         run: pip install -r requirements-docs.txt
       - name: Build (strict)
         run: mkdocs build --strict --site-dir site
+      - name: Docs site actually contains its documents
+        # `mkdocs build --strict` succeeded for months while publishing empty
+        # pages: all nine snippet includes used a `../` path that pymdownx
+        # refuses, and check_paths:false made the refusal silent.
+        run: python scripts/check_docs_site.py --site site
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: site
