@@ -44,7 +44,53 @@ Shell plumbing is filtered out. A `run: |` block is full of `grep`, `sed` and
 variable assignments; none of that is a gate, and listing it would bury the
 findings that matter.
 
-## 3. What could an agent reach from here?
+## 3. Are the declared commands still real?
+
+`npm` resolving says nothing about whether `npm run build` names a script this
+project still defines. Someone renames it, and `AGENTS.md` keeps telling every
+agent the old name. The program exists, so a PATH check passes it, and the
+agent finds out by running it and reading an error.
+
+Targets are read from `package.json` scripts, Makefile targets, `justfile`
+recipes and `[project.scripts]` — sources that genuinely declare named entry
+points. Nothing is guessed: a freshness check that invents targets produces
+false confidence, which is worse than saying nothing.
+
+Targets resolve **in the directory the command runs in**. `cd web && npm run
+build` is checked against `web/package.json`, because that is where a monorepo
+keeps it. `cd` scopes to its own line: each line of a manifest is meant to be
+runnable on its own from the root, which is also how CI runs them.
+
+## 4. Do the manifests agree with each other?
+
+A repository carrying both `AGENTS.md` and `CLAUDE.md` has two documents that
+drift independently, and an agent reads whichever one its vendor looks for.
+Commands present in one and absent from another are reported.
+
+## 5. Agent readiness score
+
+A single number with every point explained, the same contract the
+reproducibility score holds. Weighted by what costs an agent time: a command
+that cannot run at all outranks one that is merely undocumented, because the
+first ends the turn and the second only misleads.
+
+| Factor | Points |
+|---|---|
+| A manifest exists | 3 |
+| It declares runnable commands | 2 |
+| Those commands resolve on this machine | 4 |
+| Their targets still exist in the project | 3 |
+| It covers every gate CI enforces | 3 |
+| Multiple manifests agree | 2 |
+
+Grades: `ready` ≥ 90%, `workable` ≥ 60%, `rough` ≥ 30%, `unprepared` below.
+
+It measures whether an agent has accurate instructions and a machine that can
+follow them. It says nothing about whether the agent will do good work, and a
+number claiming otherwise would be exactly the unfounded score this project's
+own documentation warns against.
+
+## 6. What could an agent reach from here?
 
 Reported by default; `--no-blast-radius` turns it off.
 

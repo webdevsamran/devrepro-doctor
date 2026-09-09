@@ -107,6 +107,35 @@ by reading it.
   copy-paste of the published Action failed at the install step. It now
   defaults to installing from this repository.
 
+### Added - manifest freshness, manifest agreement, and a readiness score
+
+`npm` resolving says nothing about whether `npm run build` names a script the
+project still defines. Someone renames it and `AGENTS.md` keeps naming the old
+one; the program exists, so a PATH check passes it, and the agent finds out by
+running it.
+
+- Targets are read from `package.json` scripts, Makefile targets, `justfile`
+  recipes and `[project.scripts]` -- sources that genuinely declare named entry
+  points. Nothing is inferred: a freshness check that invents targets produces
+  false confidence.
+- Targets resolve **in the directory the command runs in**. `cd web && npm run
+  build` is checked against `web/package.json`, which is where a monorepo keeps
+  it. `cd` scopes to its own line, because each line of a manifest is meant to
+  be runnable from the root and CI runs them that way -- carrying the directory
+  across lines turned a second `cd web` into `web/web`.
+- A repository with both `AGENTS.md` and `CLAUDE.md` has two documents that
+  drift apart, and an agent reads whichever its vendor looks for. Commands
+  present in one and absent from another are now reported.
+- **Agent readiness score**, out of 17, with every point explained -- the same
+  contract the reproducibility score holds. Weighted by what costs an agent
+  time: a command that cannot run outranks one that is merely undocumented,
+  because the first ends the turn and the second only misleads. This repository
+  scores 13/17, losing four because `pip-audit` is not installed on this
+  machine.
+
+The score deliberately measures whether an agent has accurate instructions and
+a machine that can follow them, and nothing about whether it will do good work.
+
 ### Added - detection of version managers that are installed but bypassed
 
 A version manager works by putting its shims early on PATH, so the whole

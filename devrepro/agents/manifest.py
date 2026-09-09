@@ -96,6 +96,10 @@ class DeclaredCommand:
     program: str
     manifest: str
     line: int
+    #: Directory this command runs in, relative to the repository root.
+    #: `cd web && npm run lint` puts the second command in `web`, and checking
+    #: its target against the root would look in the wrong package.json.
+    cwd: str = "."
 
     @property
     def is_runnable(self) -> bool:
@@ -170,13 +174,45 @@ def parse_declared_commands(text: str, manifest: str) -> list[DeclaredCommand]:
         if not in_shell_block:
             continue
 
+        # `cd` scopes to its own line. A line is one shell invocation -- the
+        # `&&` in `cd web && npm ci` chains within it -- and each line of a
+        # manifest is meant to be runnable on its own from the repository root,
+        # which is also how CI runs them: every `run:` step starts fresh.
+        # Carrying the directory across lines turned a second `cd web` into
+        # `web/web`.
+        cwd = "."
         for part in _split_command_line(line):
             program = _program_of(part)
-            if program:
-                commands.append(
-                    DeclaredCommand(raw=part, program=program, manifest=manifest, line=lineno)
-                )
+            if not program:
+                continue
+            commands.append(
+                DeclaredCommand(raw=part, program=program, manifest=manifest, line=lineno, cwd=cwd)
+            )
+            # A `cd` applies to everything after it in the same block. Blocks
+            # are independent: a reader starts each one from the root.
+            if program == "cd":
+                cwd = _apply_cd(cwd, part)
     return commands
+
+
+def _apply_cd(cwd: str, command: str) -> str:
+    """Where a `cd` leaves the shell, relative to the repository root."""
+    tokens = command.split()
+    if len(tokens) < 2:
+        return "."  # bare `cd` goes home; treat it as leaving the project
+    target = tokens[1].strip("\"'")
+    if target.startswith(("/", "~")) or (len(target) > 1 and target[1] == ":"):
+        return "."  # absolute: outside the repository, so nothing to check
+    parts = [] if cwd == "." else cwd.split("/")
+    for segment in target.replace("\\", "/").split("/"):
+        if segment in ("", "."):
+            continue
+        if segment == "..":
+            if parts:
+                parts.pop()
+        else:
+            parts.append(segment)
+    return "/".join(parts) or "."
 
 
 def _split_command_line(line: str) -> list[str]:

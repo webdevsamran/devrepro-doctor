@@ -25,6 +25,13 @@ flag, mirroring `network --allow-network` and `fix --yes`.
 from __future__ import annotations
 
 from devrepro.agents.blast_radius import BlastRadius, Exposure, assess_blast_radius
+from devrepro.agents.freshness import (
+    ManifestDisagreement,
+    StaleCommand,
+    compare_manifests,
+    project_script_names,
+    stale_commands,
+)
 from devrepro.agents.manifest import (
     AGENT_MANIFESTS,
     AgentManifest,
@@ -36,18 +43,27 @@ from devrepro.agents.manifest import (
     manifest_vs_ci,
     parse_declared_commands,
 )
+from devrepro.agents.score import AgentReadiness, ReadinessFactor, score_readiness
 
 __all__ = [
     "AGENT_MANIFESTS",
     "AgentManifest",
+    "AgentReadiness",
     "BlastRadius",
     "CommandCheck",
     "DeclaredCommand",
     "Exposure",
+    "ManifestDisagreement",
+    "ReadinessFactor",
+    "StaleCommand",
     "assess_blast_radius",
     "check_declared_commands",
     "ci_declared_commands",
+    "compare_manifests",
     "discover_manifests",
     "manifest_vs_ci",
     "parse_declared_commands",
+    "project_script_names",
+    "score_readiness",
+    "stale_commands",
 ]

@@ -11,7 +11,14 @@ from devrepro.cli.common import JsonOption, emit, secho
 from devrepro.core.exit_codes import ExitCode
 
 if TYPE_CHECKING:
-    from devrepro.agents import AgentManifest, BlastRadius, CommandCheck
+    from devrepro.agents import (
+        AgentManifest,
+        AgentReadiness,
+        BlastRadius,
+        CommandCheck,
+        ManifestDisagreement,
+        StaleCommand,
+    )
 
 #: Characters that mean the shell would do work the runner cannot: pipes,
 #: redirection, globbing, substitution. Such a command is never executed by
@@ -61,14 +68,26 @@ def register(app: typer.Typer) -> None:
             assess_blast_radius,
             check_declared_commands,
             ci_declared_commands,
+            compare_manifests,
             discover_manifests,
             manifest_vs_ci,
+            score_readiness,
+            stale_commands,
         )
 
         manifests = discover_manifests(path)
         declared = [c for m in manifests for c in m.commands]
         checks = check_declared_commands(declared, root=path)
         drift = manifest_vs_ci(declared, ci_declared_commands(path))
+        stale = stale_commands(declared, path)
+        disagreements = compare_manifests(manifests)
+        readiness = score_readiness(
+            manifests=manifests,
+            checks=checks,
+            drift=drift,
+            stale=stale,
+            disagreements=disagreements,
+        )
 
         radius = assess_blast_radius(path) if blast_radius else None
 
@@ -92,6 +111,40 @@ def register(app: typer.Typer) -> None:
                 for c in checks
             ],
             "undeclared_ci_commands": drift,
+            "stale_commands": [
+                {
+                    "command": st.raw,
+                    "runner": st.runner,
+                    "target": st.target,
+                    "manifest": st.manifest,
+                    "line": st.line,
+                    "available": list(st.available),
+                }
+                for st in stale
+            ],
+            "manifest_disagreements": [
+                {
+                    "command": d.command,
+                    "present_in": list(d.present_in),
+                    "absent_from": list(d.absent_from),
+                }
+                for d in disagreements
+            ],
+            "readiness": {
+                "total": readiness.total,
+                "possible": readiness.possible,
+                "percent": readiness.percent,
+                "grade": readiness.grade,
+                "factors": [
+                    {
+                        "name": f.name,
+                        "earned": f.earned,
+                        "possible": f.possible,
+                        "explanation": f.explanation,
+                    }
+                    for f in readiness.factors
+                ],
+            },
             "verdict": _verdict(manifests, checks),
         }
         if radius is not None:
@@ -117,7 +170,17 @@ def register(app: typer.Typer) -> None:
         if as_json:
             emit(payload, True)
         else:
-            _render(manifests, checks, drift, executed, run=run, radius=radius)
+            _render(
+                manifests,
+                checks,
+                drift,
+                executed,
+                run=run,
+                radius=radius,
+                stale=stale,
+                disagreements=disagreements,
+                readiness=readiness,
+            )
 
         raise typer.Exit(_exit_code(manifests, checks, drift))
 
@@ -222,6 +285,9 @@ def _render(
     *,
     run: bool,
     radius: BlastRadius | None = None,
+    stale: list[StaleCommand] | None = None,
+    disagreements: list[ManifestDisagreement] | None = None,
+    readiness: AgentReadiness | None = None,
 ) -> None:
     if not manifests:
         typer.secho(
@@ -251,6 +317,34 @@ def _render(
         typer.echo(
             "    An agent that runs everything the manifest lists can still be failed by these."
         )
+
+    if stale:
+        typer.echo("")
+        secho(f"{len(stale)} declared command(s) name a target that no longer exists:", fg="red")
+        for stale_command in stale:
+            typer.echo(f"  - {stale_command.summary}")
+        typer.echo("    The program resolves, so nothing catches these until an agent runs them.")
+
+    if disagreements:
+        typer.echo("")
+        secho(f"{len(disagreements)} command(s) differ between manifests:", fg="yellow")
+        for disagreement in disagreements:
+            typer.echo(
+                f"  - {disagreement.command}: in {', '.join(disagreement.present_in)}; "
+                f"absent from {', '.join(disagreement.absent_from)}"
+            )
+
+    if readiness is not None:
+        typer.echo("")
+        typer.echo(
+            f"Agent readiness: {readiness.total}/{readiness.possible} "
+            f"({readiness.percent}%, {readiness.grade})"
+        )
+        for factor in readiness.factors:
+            mark = "+" if factor.earned == factor.possible else "-"
+            typer.echo(
+                f"  [{mark}] {factor.earned}/{factor.possible} {factor.name}: {factor.explanation}"
+            )
 
     if radius is not None:
         _render_blast_radius(radius)
