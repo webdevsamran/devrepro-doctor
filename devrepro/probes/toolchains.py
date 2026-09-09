@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from devrepro.core.models import Evidence, FindingState, ToolInstallation
+from devrepro.core.models import Evidence, Finding, FindingState, ToolInstallation
 from devrepro.probes.base import Probe, ProbeResult
 from devrepro.probes.helpers import extract_version, resolve_all_on_path
 
@@ -184,12 +184,57 @@ class ToolchainProbe(Probe):
     version = "1"
     dependencies = ()
 
+    def _shim_findings(
+        self, dups: dict[str, list[ToolInstallation]], path_env: str
+    ) -> list[Finding]:
+        """Version managers that are installed but not in the resolution path.
+
+        A manager reporting the right version while every command resolves
+        somewhere else is invisible from inside the manager: `pyenv version`
+        and `python --version` disagree, and neither one is wrong about what it
+        was asked.
+        """
+        from devrepro.platforms.shims import analyse_shims
+
+        resolutions = {
+            name: [i.exe_path for i in group if i.exe_path] for name, group in dups.items()
+        }
+        analysis = analyse_shims(path_env, resolutions, platform=self.ctx.platform)
+
+        findings: list[Finding] = []
+        for shadow in analysis.shadowed:
+            findings.append(
+                self.finding(
+                    f"{shadow.tool}/shim-bypassed",
+                    FindingState.WARN,
+                    f"{shadow.manager} manages {shadow.tool!r}, but another "
+                    f"installation resolves first.",
+                    evidence=(
+                        Evidence(
+                            source="env",
+                            excerpt=shadow.summary,
+                        ),
+                    ),
+                    detected=shadow.winning_path,
+                    required=shadow.shim_path,
+                    component=shadow.tool,
+                    remediation_hint=(
+                        f"Move the {shadow.manager} shim directory earlier in PATH "
+                        f"than {shadow.winning_path}. Until then the version "
+                        f"{shadow.manager} reports is not the one commands get, and "
+                        "the project's pin is not being honoured."
+                    ),
+                )
+            )
+        return findings
+
     def run(self) -> ProbeResult:
         path_env = self.ctx.env.get("PATH")
         installs = detect_toolchain(self.ctx.runner, path_env=path_env)
         dups = find_duplicates(installs)
 
         findings = []
+        findings.extend(self._shim_findings(dups, path_env or ""))
         ev_dup = Evidence(
             source="command",
             command=(

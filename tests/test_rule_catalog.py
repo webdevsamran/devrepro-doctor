@@ -97,7 +97,12 @@ def test_literal_ids_appear_in_the_source() -> None:
     blob = "\n".join(
         p.read_text(encoding="utf-8", errors="replace") for p in DEVREPRO.rglob("*.py")
     )
-    composed_suffixes = {*VERSION_SUFFIXES, "manager-conflict", "multiple-installations"}
+    composed_suffixes = {
+        *VERSION_SUFFIXES,
+        "manager-conflict",
+        "multiple-installations",
+        "shim-bypassed",
+    }
     for rule_id in known_rule_ids():
         _, _, suffix = rule_id.partition("/")
         if suffix in composed_suffixes:

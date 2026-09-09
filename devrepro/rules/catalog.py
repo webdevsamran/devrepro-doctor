@@ -104,6 +104,20 @@ _COMPOSED: dict[str, tuple[str, str, str, str]] = {
         "Keep the installation you intend to use and remove or de-prefer the "
         "rest; `devrepro plan` proposes the PATH edit.",
     ),
+    "shim-bypassed": (
+        "A version manager is installed but not being used",
+        "The manager's shim directory is on PATH, but another installation of "
+        "this tool resolves before it.",
+        "The manager still reports the version it intends -- `pyenv version` "
+        "says 3.12 -- while every command gets something else, because "
+        "resolution is decided by PATH order and nothing else. Neither tool is "
+        "wrong about what it was asked, so nothing reports a problem, and the "
+        "project's pinned version is quietly not in effect.",
+        "Move the manager's shim directory earlier in PATH than the installation "
+        "that currently wins. `devrepro which <tool>` lists every candidate in "
+        "precedence order. Note that an IDE's integrated terminal often has a "
+        "different PATH from a login shell, so check the one you actually build in.",
+    ),
     "manager-conflict": (
         "Two version managers fighting over one ecosystem",
         "More than one version manager for this ecosystem initialises in your "
@@ -494,6 +508,10 @@ MANAGER_CONFLICT_ECOSYSTEMS = ("python", "node")
 #: `f"{name}/multiple-installations"` in probes/toolchains.py takes *any*
 #: detected tool name, so its prefix domain is unbounded. These are the tools
 #: this project probes for; the id is valid for any of them.
+#: `f"{tool}/shim-bypassed"` in probes/toolchains.py: same unbounded prefix
+#: domain as multiple-installations.
+SHIM_BYPASS_EXAMPLES = ("python", "node", "ruby", "java")
+
 MULTIPLE_INSTALL_EXAMPLES = (
     "python",
     "node",
@@ -518,6 +536,7 @@ def known_rule_ids() -> list[str]:
     ids |= {f"{pack}/{suffix}" for pack in VERSION_CHECKING_PACKS for suffix in VERSION_SUFFIXES}
     ids |= {f"{eco}/manager-conflict" for eco in MANAGER_CONFLICT_ECOSYSTEMS}
     ids |= {f"{tool}/multiple-installations" for tool in MULTIPLE_INSTALL_EXAMPLES}
+    ids |= {f"{tool}/shim-bypassed" for tool in SHIM_BYPASS_EXAMPLES}
     return sorted(ids)
 
 

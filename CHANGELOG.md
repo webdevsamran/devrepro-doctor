@@ -107,6 +107,32 @@ by reading it.
   copy-paste of the published Action failed at the install step. It now
   defaults to installing from this repository.
 
+### Added - detection of version managers that are installed but bypassed
+
+A version manager works by putting its shims early on PATH, so the whole
+mechanism depends on ordering -- and ordering is what silently changes when an
+installer prepends itself or an IDE launches with a different PATH from your
+terminal.
+
+When that happens the manager is still installed, still configured, and still
+reports the version it intends: `pyenv version` says 3.12 while
+`python --version` says 3.9. Neither tool is wrong about what it was asked, so
+nothing anywhere reports a problem, and the project's pin is quietly not in
+effect.
+
+`{tool}/shim-bypassed` names the winning path, the shim it precedes, and the
+manager being bypassed. Eleven managers are recognised: pyenv, asdf, mise,
+rbenv, nodenv, volta, nvm, fnm, conda, rustup and SDKMAN.
+
+A manager that simply does not provide a tool is not reported -- rustup owning
+`.cargo/bin` says nothing about `python`, and a check that flagged every manager
+against every tool would be noise, which gets switched off.
+
+The analysis is platform-parameterised, so a Windows PATH layout is tested from
+a Linux CI leg. That immediately caught a marker of mine that could never match:
+`normalize_path` runs `os.path.normpath`, which strips a trailing separator, so
+the `.fnm/` marker would never have fired against a real entry.
+
 ### Fixed - `generate mise` emitted a file that could not be parsed
 
 Run against this repository it produced:

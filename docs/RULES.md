@@ -5,7 +5,7 @@
 > `devrepro explain <rule-id>` prints any one of these.
 > `devrepro rules --catalog` lists them all.
 
-Every finding carries a rule id. There are **89** documented ids.
+Every finding carries a rule id. There are **93** documented ids.
 
 Two shapes exist. Most are written out in full where they are emitted.
 Some are composed at runtime from a tool or ecosystem name:
@@ -513,6 +513,16 @@ than exhaustive. `devrepro explain` resolves any prefix.
 
 *How to fix it.* Run `devrepro which <tool>` to see every candidate and which one wins. Keep the installation you intend to use and remove or de-prefer the rest; `devrepro plan` proposes the PATH edit.
 
+### `java/shim-bypassed`
+
+**A version manager is installed but not being used**
+
+*What it means.* The manager's shim directory is on PATH, but another installation of this tool resolves before it.
+
+*Why it matters.* The manager still reports the version it intends -- `pyenv version` says 3.12 -- while every command gets something else, because resolution is decided by PATH order and nothing else. Neither tool is wrong about what it was asked, so nothing reports a problem, and the project's pinned version is quietly not in effect.
+
+*How to fix it.* Move the manager's shim directory earlier in PATH than the installation that currently wins. `devrepro which <tool>` lists every candidate in precedence order. Note that an IDE's integrated terminal often has a different PATH from a login shell, so check the one you actually build in.
+
 ### `java/version-mismatch`
 
 **Version outside the declared range**
@@ -618,6 +628,16 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* The one that wins depends on PATH order, which differs between your shell, your editor's terminal, and CI. That is how the same command produces different versions in different windows on one machine.
 
 *How to fix it.* Run `devrepro which <tool>` to see every candidate and which one wins. Keep the installation you intend to use and remove or de-prefer the rest; `devrepro plan` proposes the PATH edit.
+
+### `node/shim-bypassed`
+
+**A version manager is installed but not being used**
+
+*What it means.* The manager's shim directory is on PATH, but another installation of this tool resolves before it.
+
+*Why it matters.* The manager still reports the version it intends -- `pyenv version` says 3.12 -- while every command gets something else, because resolution is decided by PATH order and nothing else. Neither tool is wrong about what it was asked, so nothing reports a problem, and the project's pinned version is quietly not in effect.
+
+*How to fix it.* Move the manager's shim directory earlier in PATH than the installation that currently wins. `devrepro which <tool>` lists every candidate in precedence order. Note that an IDE's integrated terminal often has a different PATH from a login shell, so check the one you actually build in.
 
 ### `node/version-mismatch`
 
@@ -774,6 +794,16 @@ than exhaustive. `devrepro explain` resolves any prefix.
 
 *How to fix it.* No action needed unless a requirement is unmet. Use a per-project version manager or a virtualenv to make the choice explicit.
 
+### `python/shim-bypassed`
+
+**A version manager is installed but not being used**
+
+*What it means.* The manager's shim directory is on PATH, but another installation of this tool resolves before it.
+
+*Why it matters.* The manager still reports the version it intends -- `pyenv version` says 3.12 -- while every command gets something else, because resolution is decided by PATH order and nothing else. Neither tool is wrong about what it was asked, so nothing reports a problem, and the project's pinned version is quietly not in effect.
+
+*How to fix it.* Move the manager's shim directory earlier in PATH than the installation that currently wins. `devrepro which <tool>` lists every candidate in precedence order. Note that an IDE's integrated terminal often has a different PATH from a login shell, so check the one you actually build in.
+
 ### `python/store-alias-shadow`
 
 **A Store alias is shadowing a real Python**
@@ -813,6 +843,19 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* The requirement cannot be checked either way, so this is reported as unknown rather than passing. A silent pass here would be a lie.
 
 *How to fix it.* Run the tool's version command by hand and open an issue with the output, so the parser can learn the shape.
+
+
+## `ruby/`
+
+### `ruby/shim-bypassed`
+
+**A version manager is installed but not being used**
+
+*What it means.* The manager's shim directory is on PATH, but another installation of this tool resolves before it.
+
+*Why it matters.* The manager still reports the version it intends -- `pyenv version` says 3.12 -- while every command gets something else, because resolution is decided by PATH order and nothing else. Neither tool is wrong about what it was asked, so nothing reports a problem, and the project's pinned version is quietly not in effect.
+
+*How to fix it.* Move the manager's shim directory earlier in PATH than the installation that currently wins. `devrepro which <tool>` lists every candidate in precedence order. Note that an IDE's integrated terminal often has a different PATH from a login shell, so check the one you actually build in.
 
 
 ## `rust/`
