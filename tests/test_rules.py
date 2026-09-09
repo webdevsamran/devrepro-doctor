@@ -13,7 +13,7 @@ from devrepro.core.models import (
     ToolInstallation,
 )
 from devrepro.project.policy import load_policy
-from devrepro.rules.base import RuleContext, RuleEngine, load_builtin_packs
+from devrepro.rules.base import PACK_NAMES, RuleContext, RuleEngine, load_builtin_packs
 
 POLICY = Path(__file__).parent / "fixtures" / "policy" / ".devrepro.toml"
 
@@ -97,3 +97,21 @@ def test_all_findings_have_evidence_and_ids() -> None:
     ctx = _ctx(tools=[_tool("python", "3.9")], reqs=[_req("python", ">=3.11")])
     for f in _engine().evaluate(ctx):
         assert f.rule_id and f.evidence and f.summary
+
+
+def test_advertised_packs_are_the_registered_packs() -> None:
+    """`devrepro rules` must list exactly what the engine will run.
+
+    ``PACK_NAMES`` and ``load_builtin_packs`` are two hand-maintained lists,
+    and the CLI prints the former while the engine runs the latter. Nothing
+    checked that they agreed, so a pack could be advertised but never run, or
+    run but never listed.
+    """
+    engine = RuleEngine()
+    load_builtin_packs(engine)
+    registered = set(engine.pack_names())
+    advertised = set(PACK_NAMES)
+    assert advertised == registered, (
+        f"advertised but not registered: {sorted(advertised - registered)}; "
+        f"registered but not advertised: {sorted(registered - advertised)}"
+    )

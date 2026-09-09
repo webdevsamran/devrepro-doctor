@@ -5,6 +5,130 @@ Format based on Keep a Changelog; versioning follows SemVer.
 
 ## [Unreleased]
 
+A correctness pass, in the same spirit as 0.2.0: things the project claimed to
+do, it now actually does. Every item below was found by running the tool, not
+by reading it.
+
+### Fixed - `devrepro ci-diff` crashed in its default mode
+
+- `cli/commands/project.py` mapped the `ci-absent` status to the colour
+  `grey50`, which is a Rich name click does not accept. Any tool installed
+  locally but not pinned in CI -- four of them in this repository -- raised
+  `TypeError: Unknown color 'grey50'` partway through the output. `--json`
+  took a different branch, which is why it was never noticed. Both the mark
+  and colour lookups now use a default, so a status added later degrades
+  instead of crashing.
+
+### Fixed - a mistyped argument reported the machine as BLOCKED
+
+- Click exits with `UsageError.exit_code`, which defaults to `2`, and `2` is
+  BLOCKED in this project's published contract. A CI job that misspelled an
+  argument was told the machine was unusable. `ExitCode.USAGE_ERROR` (4)
+  existed for exactly this and eight call sites already used it, but the
+  argument parser never reached them. `cli/app.py` now retargets the class
+  attribute for both the public `click` package and the copy typer vendors as
+  `typer._click` -- they are different class objects, so patching only the
+  public one had no effect.
+
+### Fixed - `RecordingRunner` raised on every call, so no probe had a test
+
+- `core/runner.py` used `dataclasses.field(default_factory=list)` inside a
+  class that is not a dataclass, leaving `self.calls` as a `Field` object;
+  every `run()` raised `AttributeError`. It is a public SDK export and
+  `docs/PLUGINS.md` tells plugin authors to use it.
+- Consequently `tests/fixtures/recordings/` -- captures for ubuntu, fedora,
+  macos, windows, wsl and docker -- was loaded by nothing, and no test
+  imported a probe class. `tests/test_probes_recorded.py` now drives
+  `PathProbe` and `ContainerProbe` through those recordings, and
+  `tests/conftest.py` exposes `recorded_path()` / `recorded_docker_failures()`.
+- Two `classification` labels in `recordings/docker/failures.json` did not
+  match what `_classify_daemon_error` returns; nothing had ever checked them.
+
+### Fixed - snapshots could not carry container, WSL or GPU state
+
+- `run_scan()` built and validated all three and then dropped them:
+  `ScanReport` had no fields for them, so `snapshot_from_report` hardcoded
+  `None` and the container branch in `diff/engine.py` could never fire. The
+  probes had been collecting the state all along, and
+  `ScanReport.privacy.collected` advertised it.
+- `ScanReport` now carries them, snapshots propagate them, and the diff engine
+  gained Docker CLI, WSL and GPU comparisons. "Docker works there but not
+  here" is answerable for the first time.
+
+### Fixed - the reproducibility score ignored lockfiles below the root
+
+- `_lockfiles()` looked only at the project root, so `devrepro doctor` reported
+  "Lockfiles found: none" for this repository while `devrepro monorepo` found
+  `web/` and its `package-lock.json`. Two commands disagreed about the same
+  tree. Discovery is now depth-bounded and shares `SKIP_DIRS` with the
+  monorepo analyzer; this repo's score moved from 3/9 to 4/9.
+
+### Fixed - `devrepro fix` silently dropped steps it called automatable
+
+- `execute_plan` appended one result per command, so a step flagged automatable
+  that carries no commands produced no result at all: `devrepro plan` listed
+  three steps and `devrepro fix --yes` reported one. Such steps now report
+  `no-commands` with guidance, and `devrepro plan` distinguishes "automatable"
+  from "automatable in principle - no command wired yet".
+
+### Fixed - non-ASCII output crashed the CLI on a default Windows console
+
+- A `U+2192` in one remediation hint was enough to end `devrepro check` in a
+  `UnicodeEncodeError` from inside the codecs module, because the Windows
+  console encoding is a legacy codepage. Windows being first class is one of
+  this project's stated advantages, so the entry point now makes stdout and
+  stderr non-fatal for unencodable characters (encoding preserved, only the
+  error handler changed) and the hint is ASCII.
+
+### Fixed - the README rule-id guard rejected real rule ids
+
+- `emittable_rule_ids()` described itself as an over-approximation and was the
+  opposite. It recognised literal ids and the single spelling
+  `rule_id=f"{rule_prefix}/..."`, missing every id a probe composes from a tool
+  name or ecosystem -- `f"{name}/multiple-installations"` and
+  `f"{ecosystem}/manager-conflict"`. A real scan emits nine of the former.
+  `is_emittable_rule_id()` now accepts any prefix in front of a known composed
+  suffix, and `AGENTS.md` no longer claims `python/multiple-installations` is
+  emitted by nothing.
+
+### Fixed - documentation that did not match the code
+
+- `AGENTS.md` listed a strict subset of the checks CI runs: it omitted
+  `scripts/` from both ruff invocations and left out `generate_schemas.py
+  --check`, `secret_scan.py`, `check_action_pins.py`,
+  `generate_landscape.py --check` and `capture_readme_example.py --check`.
+  Its own rule is that CI wins and the file is the bug.
+- `PRODUCT_GAPS.md` claimed case-sensitivity diagnostics under "Where we are
+  ahead"; no such check exists anywhere. It is now recorded as an open gap.
+- `README.md` and `docs/index.md` opened with `pip install devrepro-doctor`,
+  which returns 404 -- the name is unregistered. They now show the git install
+  and say plainly that PyPI publication is pending.
+- `action/action.yml` defaulted to that same uninstallable package, so every
+  copy-paste of the published Action failed at the install step. It now
+  defaults to installing from this repository.
+
+### Added
+
+- `tests/test_cli_surface.py` -- every registered command is invoked, not just
+  its helpers. `--help` for all 37, a bare invocation for the read-only
+  subset, and the usage-error contract. This is the gap the two crashes above
+  lived in: 28 of 37 commands had no CLI-level test, and `local_vs_ci_diff`
+  had three tests including one producing the exact status that crashed the
+  command, because they called the function and never the command.
+- `.devrepro.toml` -- the project now declares its own policy.
+- A test asserting `PACK_NAMES` matches what `load_builtin_packs` registers;
+  `devrepro rules` prints the former while the engine runs the latter, and
+  nothing checked that they agreed.
+
+### Known gaps recorded rather than papered over
+
+- `devrepro guard` gates on whole-machine state, so adding it to
+  `.pre-commit-config.yaml` blocks every commit while Docker Desktop is
+  stopped -- even with docker marked optional in the policy. The hook is
+  deliberately not wired until `guard` can scope to what a commit changes.
+- The docker classifier has no branch for a client/server API version
+  mismatch; it falls through to the generic `daemon-error`.
+
 ## [0.2.0] - 2026-09-07
 
 The first release. Everything below already existed in the repository; what
