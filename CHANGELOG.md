@@ -107,6 +107,33 @@ by reading it.
   copy-paste of the published Action failed at the install step. It now
   defaults to installing from this repository.
 
+### Added - package sources and per-runtime certificate trust
+
+Two failures that look like network problems and are configuration problems.
+
+A registry override -- `.npmrc` at a proxy, `pip.conf` at an internal mirror --
+means two developers running the same install command fetch from different
+places. The lockfile matches, the versions match, and the bytes need not. Both
+project and user scope are reported, because a user-scoped override is
+invisible to everyone else and is the one that explains a machine-specific
+difference.
+
+A TLS trust store is worse, because every runtime keeps its own: Node reads
+`NODE_EXTRA_CA_CERTS`, Python `REQUESTS_CA_BUNDLE`, Go `SSL_CERT_FILE`, git
+`GIT_SSL_CAINFO`. Behind an intercepting proxy, configuring one means
+`npm install` works and `pip install` fails on the same machine, with an error
+that blames the certificate rather than the missing variable. The half-
+configured state is the finding.
+
+A bundle variable pointing at a file that does not exist is reported as an
+error, because the runtime silently falls back to its default store while
+whoever set it believes the corporate CA is trusted.
+
+Nothing connects to anything -- this is configuration read from disk and
+environment. A registry URL carrying an inline token is reported with the
+credential stripped, since `.npmrc` routinely contains one and a diagnostic
+report exists to be pasted into an issue.
+
 ### Fixed - a scan took 26 seconds; it now takes 4
 
 Sixteen of those seconds were spent resolving PATH, and the cause was

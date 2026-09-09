@@ -347,6 +347,39 @@ _LITERAL: dict[str, tuple[str, str, str, str]] = {
         "Reported as unknown rather than absent.",
         "Run `nvidia-smi` or the equivalent for your vendor by hand.",
     ),
+    "network/registry-override": (
+        "Packages come from somewhere other than the public registry",
+        "An `.npmrc`, `pip.conf`, `.cargo/config.toml` or similar points at a mirror or proxy.",
+        "Normal on its own -- mirrors exist for good reasons. It matters when "
+        "one machine has the override and another does not: the same install "
+        "command then fetches different bytes, the lockfile still matches, and "
+        "nothing reports a difference. A user-scoped override is the harder "
+        "case, because it is invisible to everyone else on the team.",
+        "Confirm the whole team shares the configuration, and prefer a "
+        "project-scoped file over a user-scoped one so it is reviewable.",
+    ),
+    "network/ca-bundle-missing": (
+        "A CA bundle variable points at a file that is not there",
+        "`NODE_EXTRA_CA_CERTS`, `REQUESTS_CA_BUNDLE` or a sibling names a path "
+        "that does not exist.",
+        "The runtime falls back to its default trust store and the override "
+        "does nothing, silently. Whoever set it believes the corporate CA is "
+        "trusted, and it is not.",
+        "Correct the path, or unset the variable so the fallback is deliberate "
+        "rather than accidental.",
+    ),
+    "network/trust-store-partial": (
+        "Some runtimes trust the corporate CA and others do not",
+        "A custom CA bundle is configured for at least one ecosystem and not for others.",
+        "Every runtime keeps its own trust store: Node reads "
+        "`NODE_EXTRA_CA_CERTS`, Python `REQUESTS_CA_BUNDLE`, Go "
+        "`SSL_CERT_FILE`, git `GIT_SSL_CAINFO`. Behind a TLS-intercepting "
+        "proxy, configuring one means `npm install` works and `pip install` "
+        "fails on the same machine, with an error that blames the certificate "
+        "rather than the missing variable.",
+        "Set the corresponding variable for each ecosystem you use. There is no "
+        "single setting that covers them all, which is the whole difficulty.",
+    ),
     "network/clock-skew": (
         "System clock is significantly wrong",
         "The system clock differs from network time by more than the tolerated margin.",

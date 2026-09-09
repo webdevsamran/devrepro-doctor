@@ -5,7 +5,7 @@
 > `devrepro explain <rule-id>` prints any one of these.
 > `devrepro rules --catalog` lists them all.
 
-Every finding carries a rule id. There are **93** documented ids.
+Every finding carries a rule id. There are **96** documented ids.
 
 Two shapes exist. Most are written out in full where they are emitted.
 Some are composed at runtime from a tool or ecosystem name:
@@ -556,6 +556,16 @@ than exhaustive. `devrepro explain` resolves any prefix.
 
 ## `network/`
 
+### `network/ca-bundle-missing`
+
+**A CA bundle variable points at a file that is not there**
+
+*What it means.* `NODE_EXTRA_CA_CERTS`, `REQUESTS_CA_BUNDLE` or a sibling names a path that does not exist.
+
+*Why it matters.* The runtime falls back to its default trust store and the override does nothing, silently. Whoever set it believes the corporate CA is trusted, and it is not.
+
+*How to fix it.* Correct the path, or unset the variable so the fallback is deliberate rather than accidental.
+
 ### `network/clock-skew`
 
 **System clock is significantly wrong**
@@ -585,6 +595,26 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* Reported so a working network path is visible in the report.
 
 *How to fix it.* No action needed.
+
+### `network/registry-override`
+
+**Packages come from somewhere other than the public registry**
+
+*What it means.* An `.npmrc`, `pip.conf`, `.cargo/config.toml` or similar points at a mirror or proxy.
+
+*Why it matters.* Normal on its own -- mirrors exist for good reasons. It matters when one machine has the override and another does not: the same install command then fetches different bytes, the lockfile still matches, and nothing reports a difference. A user-scoped override is the harder case, because it is invisible to everyone else on the team.
+
+*How to fix it.* Confirm the whole team shares the configuration, and prefer a project-scoped file over a user-scoped one so it is reviewable.
+
+### `network/trust-store-partial`
+
+**Some runtimes trust the corporate CA and others do not**
+
+*What it means.* A custom CA bundle is configured for at least one ecosystem and not for others.
+
+*Why it matters.* Every runtime keeps its own trust store: Node reads `NODE_EXTRA_CA_CERTS`, Python `REQUESTS_CA_BUNDLE`, Go `SSL_CERT_FILE`, git `GIT_SSL_CAINFO`. Behind a TLS-intercepting proxy, configuring one means `npm install` works and `pip install` fails on the same machine, with an error that blames the certificate rather than the missing variable.
+
+*How to fix it.* Set the corresponding variable for each ecosystem you use. There is no single setting that covers them all, which is the whole difficulty.
 
 
 ## `node/`
