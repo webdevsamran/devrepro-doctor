@@ -107,6 +107,46 @@ by reading it.
   copy-paste of the published Action failed at the install step. It now
   defaults to installing from this repository.
 
+### Fixed - `generate mise` emitted a file that could not be parsed
+
+Run against this repository it produced:
+
+```toml
+[tools]
+ci:python = ""3.12""
+tomli = "2.0; python_version < '3.11'"
+mkdocs-material = "9.7.7,<9.8"
+```
+
+Four problems in a handful of lines. A CI-derived value already carried its own
+quotes, so the generator's quoting doubled them and the document is not valid
+TOML at all. `ci:` entries record what a workflow declares and are not tools.
+Library dependencies are not things a version manager installs. A PEP 508
+environment marker is not a version.
+
+A generator whose output does not parse is worse than no generator: the reader
+trusts it, commits it, and finds out later. Output is now restricted to runtimes
+mise and asdf actually manage, with versions normalised to something they
+accept, and a test parses the result with a real TOML reader.
+
+Two smaller output bugs fixed alongside it: the preview printed a Python dict
+repr above the content it described, and the footer passed Rich markup to
+`typer.echo`, which does no markup rendering, so `[grey50]` tags printed
+literally.
+
+### Added - deterministic image pinning and devcontainer features
+
+- `generate devcontainer --pin` resolves the base image tag to an immutable
+  `sha256` digest. Without it the file now carries a comment saying the tag is
+  mutable, because a reproducibility artefact that silently changes is worse
+  than one that admits what it cannot promise.
+- Pinning goes through the local docker CLI rather than an HTTP call: the
+  user's registry credentials, mirrors and proxy settings already live there.
+  It is opt-in for the same reason `network --allow-network` is.
+- The generated devcontainer now installs the runtimes the project declares,
+  carrying the declared version through. A devcontainer that installs nothing
+  the project needs is one the reader has to finish by hand.
+
 ### Added - blast-radius briefing in `agent-check`
 
 What could an agent reach from here, answered before it starts: uncommitted

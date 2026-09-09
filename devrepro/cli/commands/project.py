@@ -11,6 +11,7 @@ from devrepro.cli.common import (
     JsonOption,
     emit,
     local_tool_versions,
+    secho,
 )
 from devrepro.core.exit_codes import ExitCode
 
@@ -225,15 +226,29 @@ def register(app: typer.Typer) -> None:
     def generate(
         what: str = typer.Argument(..., help="devrepro-toml | mise | asdf | devcontainer"),
         path: Path = typer.Argument(Path(), help="Project root."),
+        # Keyword-only: these are flags, never positional, and it keeps the
+        # signature honest about how the command is actually called.
+        *,
         write: bool = typer.Option(
             False, "--write", help="Write after review (refuses to overwrite)."
         ),
         force_overwrite: bool = typer.Option(
             False, "--overwrite", help="Explicitly allow overwrite."
         ),
+        pin: bool = typer.Option(
+            False,
+            "--pin",
+            help="OPT-IN: resolve the devcontainer base image to an immutable digest.",
+        ),
         json_out: bool = JsonOption,
     ) -> None:
-        """Generate reviewable environment-config drafts from detected requirements."""
+        """Generate reviewable environment-config drafts from detected requirements.
+
+        `--pin` resolves the devcontainer's base image tag to a sha256 digest.
+        It reaches the registry through the local docker CLI, so it is opt-in
+        for the same reason `network --allow-network` is: a scan does not use
+        the network unless asked.
+        """
         from devrepro.generators import (
             generate_devcontainer,
             generate_devrepro_toml,
@@ -245,11 +260,24 @@ def register(app: typer.Typer) -> None:
         reqs = detect_requirements(path)
         requirements = {r.name: r.spec for r in reqs if r.spec not in ("*", "")}
         env_names = tuple(sorted({r.name for r in reqs if r.kind.value == "env-name"}))
+        digest: str | None = None
+        if pin and what == "devcontainer":
+            from devrepro.generators import DEFAULT_DEVCONTAINER_IMAGE, resolve_image_digest
+
+            digest = resolve_image_digest(DEFAULT_DEVCONTAINER_IMAGE)
+            if digest is None and not json_out:
+                secho(
+                    "could not resolve a digest (docker unavailable, or the image "
+                    "could not be inspected); emitting the mutable tag instead.",
+                    fg="yellow",
+                    err=True,
+                )
+
         builders: dict[str, Callable[[], str]] = {
             "devrepro-toml": lambda: generate_devrepro_toml(requirements, env_names),
             "mise": lambda: generate_tool_versions(requirements, style="mise"),
             "asdf": lambda: generate_tool_versions(requirements, style="asdf"),
-            "devcontainer": generate_devcontainer,
+            "devcontainer": lambda: generate_devcontainer(requirements=requirements, digest=digest),
         }
         builder = builders.get(what)
         if builder is None:
@@ -264,12 +292,18 @@ def register(app: typer.Typer) -> None:
         }
         target = path / filenames[what]
         if not write:
-            emit({"target": str(target), "content": content, "written": False}, json_out)
-            if not json_out:
+            if json_out:
+                emit({"target": str(target), "content": content, "written": False}, True)
+            else:
+                # `emit(..., False)` echoes a Python dict repr, which was
+                # printed above the content it describes. The human path wants
+                # the file, not a description of it.
+                typer.echo(f"# {target}")
                 typer.echo(content)
-                typer.echo(
-                    "[grey50]Preview only. Re-run with --write to create "
-                    "(existing files are never overwritten without --overwrite).[/grey50]"
+                secho(
+                    "Preview only. Re-run with --write to create "
+                    "(existing files are never overwritten without --overwrite).",
+                    fg="bright_black",
                 )
             raise typer.Exit(ExitCode.READY)
         result = write_generated(target, content, allow_overwrite=force_overwrite)
