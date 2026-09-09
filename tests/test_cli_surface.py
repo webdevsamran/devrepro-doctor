@@ -37,6 +37,7 @@ CONTRACT_EXIT_CODES = {
 #: a full scan and are covered elsewhere; ``serve`` blocks; the ``server-*``
 #: pair needs a database.
 SAFE_TO_INVOKE = (
+    "agent-check",
     "check",
     "ci-diff",
     "drift",

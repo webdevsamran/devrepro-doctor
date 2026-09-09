@@ -36,6 +36,7 @@ nav:
   - Product gaps: product-gaps.md
   - Competitive analysis: competitive-analysis.md
   - Guides:
+      - Agent readiness: AGENT-READINESS.md
       - GitHub Actions & SARIF: ci-github-actions.md
       - Self-hosted server: SERVER.md
       - Plugins: PLUGINS.md

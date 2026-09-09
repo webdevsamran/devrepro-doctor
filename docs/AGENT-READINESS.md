@@ -1,0 +1,108 @@
+# Agent readiness
+
+> `devrepro agent-check [PATH]` — can an AI coding agent actually work in this
+> repository, on this machine?
+
+Coding agents read a manifest — `AGENTS.md`, `CLAUDE.md`, `.cursorrules` — and
+follow the commands it declares. Nothing checks those commands against the
+machine the agent runs on, so an agent finds out the expensive way: it runs a
+command, it fails, and it guesses.
+
+This command answers two questions, and it answers them without running
+anything.
+
+## 1. Do the declared commands resolve here?
+
+Each command's program is resolved against PATH, with one distinction that
+matters more than it sounds:
+
+| Status | Meaning |
+|---|---|
+| `ok` | The program resolves. Multiple installations are noted; the first wins. |
+| `not-on-path` | **Installed, but unreachable from this shell.** |
+| `missing` | Not on PATH and not importable. The agent will fail here. |
+| `shell-builtin` | `cd`, `echo` and friends — always available. |
+| `path-absent` | A path-shaped program (`.venv/bin/activate`) that does not exist yet. Usually created by an earlier setup step. |
+
+`not-on-path` is the one an agent cannot work out for itself. If `ruff` is not
+on PATH but `python -m ruff` works, the fix is to activate a virtualenv or fix
+PATH — not `pip install ruff`. Both failures look identical from inside the
+agent, and one of the two "fixes" is a no-op that wastes a whole turn.
+
+## 2. Does the manifest match what CI enforces?
+
+A manifest that lists a subset of the real gates is worse than no manifest. The
+agent runs everything it was told to, sees green, opens a pull request, and is
+failed by checks nobody mentioned.
+
+`agent-check` reads the `run:` steps of every workflow that gates a branch or
+pull request — release workflows are skipped, since a tag-triggered `twine
+upload` is not something an agent should have been told to run — and reports
+commands CI enforces that no manifest declares.
+
+Shell plumbing is filtered out. A `run: |` block is full of `grep`, `sed` and
+variable assignments; none of that is a gate, and listing it would bury the
+findings that matter.
+
+## Exit codes
+
+Follows the [project contract](EXIT-CODES.md):
+
+| Code | When |
+|---|---|
+| `0` READY | Every declared command resolves, and nothing drifts. |
+| `1` READY_WITH_WARNINGS | A program is installed but off PATH, or the manifest omits a CI gate. Work can proceed, just not as documented. |
+| `2` BLOCKED | A declared command names a program that is not there. |
+
+**No manifest at all is `0`, not an error.** Most repositories do not have one,
+and treating their absence as a failure would make this useless as a gate.
+
+## Running the declared commands
+
+Off by default, and deliberately so. A manifest is an untrusted file in someone
+else's repository, and its setup step is typically an installer that writes to
+disk and fetches from the network. Running it by default would make this
+project's read-only promise conditional on what a third-party file happened to
+say.
+
+```bash
+devrepro agent-check . --run          # opt-in, prints each command first
+devrepro agent-check . --run --timeout 300
+```
+
+`--run` executes only commands that resolve and contain no shell
+metacharacters. Anything needing a pipe, redirect, glob or substitution is
+reported as `skipped-needs-shell` rather than handed to a shell — this project
+does not pass an untrusted string to one.
+
+## Machine-readable output
+
+```bash
+devrepro agent-check . --json
+```
+
+```json
+{
+  "root": ".",
+  "manifests": [{"path": "AGENTS.md", "commands": 21}],
+  "checks": [
+    {"command": "ruff check devrepro tests scripts", "program": "ruff",
+     "manifest": "AGENTS.md", "line": 29, "status": "not-on-path",
+     "detail": "'ruff' is installed but not on PATH in this shell...",
+     "resolved": null}
+  ],
+  "undeclared_ci_commands": ["npm audit --audit-level=high"],
+  "verdict": "READY_WITH_WARNINGS"
+}
+```
+
+## Why this exists
+
+Every repository this was tested against had the same defect. Three projects,
+three `AGENTS.md` files, each a strict subset of what its own CI enforced —
+including this one, whose manifest omitted `scripts/` from both ruff
+invocations and left out five gates entirely, while stating in its own text
+that CI wins and the file is the bug when they disagree.
+
+That is not a criticism of those repositories. It is what happens to any
+document that describes a process nothing checks.

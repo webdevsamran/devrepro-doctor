@@ -107,6 +107,32 @@ by reading it.
   copy-paste of the published Action failed at the install step. It now
   defaults to installing from this repository.
 
+### Added - `devrepro agent-check`
+
+Can an AI coding agent actually work in this repository, on this machine?
+
+- Reads `AGENTS.md`, `CLAUDE.md`, `.cursorrules` and the other manifest
+  conventions, and resolves every command they declare. The status that matters
+  is `not-on-path`: a program that is installed but unreachable from this shell
+  needs a PATH fix, not an install, and those two failures are indistinguishable
+  from inside an agent. On this machine `ruff`, `mypy`, `pytest` and `mkdocs`
+  are all in that state.
+- Compares the manifest against what CI actually enforces on a pull request,
+  and reports gates no manifest declares. Release workflows are skipped, and
+  shell plumbing inside `run: |` blocks is filtered out so the findings that
+  matter are not buried.
+- Read-only by default. A manifest is an untrusted file whose setup step is
+  usually an installer, so executing what it declares requires `--run`, which
+  prints each command first and refuses anything needing a shell. A test pins
+  that nothing runs without the flag.
+- Exit codes follow the published contract: BLOCKED when a declared program is
+  absent, READY_WITH_WARNINGS for drift or an off-PATH program, READY when a
+  repository has no manifest at all -- most do not, and that is not a failure.
+- Documented in `docs/AGENT-READINESS.md`.
+
+Every repository this was tested against had the same defect: a manifest
+listing a strict subset of its own CI gates. Three of three, including this one.
+
 ### Added
 
 - `tests/test_cli_surface.py` -- every registered command is invoked, not just

@@ -196,6 +196,7 @@ running `devrepro serve`.
 ```text
 Diagnostics   doctor  check  info  scan  preflight  guard  path  which  platform-depth
 Project       project  monorepo  ci-diff  profile  baseline  generate
+Agents        agent-check
 Environment   env  ports  git-health  network  envmanagers
 Snapshots     snapshot  diff  history  drift  sign-snapshot  verify-snapshot  bundle
 Remediation   plan  fix  rules  plugins

@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 def register_all(app: typer.Typer) -> None:
     """Attach every domain module's commands to the root Typer app."""
     from devrepro.cli.commands import (
+        agents,
         diagnostics,
         environment,
         platform,
@@ -28,6 +29,7 @@ def register_all(app: typer.Typer) -> None:
 
     for module in (
         diagnostics,
+        agents,
         project,
         environment,
         snapshots,
