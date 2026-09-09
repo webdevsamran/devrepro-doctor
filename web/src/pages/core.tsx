@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { MeterRow, ScoreRadial, StackedBar } from '../components/charts'
 import { scorePercent } from '../types'
 import type { EnvironmentDiff, ScanReport } from '../types'
 import { Badge, Card, CopyButton, EmptyState, EvidenceDrawer, SeverityFilter } from '../components/ui'
@@ -33,24 +34,84 @@ devrepro doctor`} label="Copy commands" />
 }
 
 /* ----------------------------------------------- Machine Overview --- */
+/** Severity order and colour, taken from the same tokens the badges use so a
+ *  chart and a badge can never disagree about what WARN looks like. */
+const SEVERITY_ORDER = ['BLOCKED', 'ERROR', 'WARN', 'UNKNOWN', 'INFO', 'PASS'] as const
+const SEVERITY_COLOR: Record<string, string> = {
+  BLOCKED: 'var(--sev-blocked)',
+  ERROR: 'var(--sev-error)',
+  WARN: 'var(--sev-warn)',
+  UNKNOWN: 'var(--sev-unknown)',
+  INFO: 'var(--sev-info)',
+  PASS: 'var(--sev-pass)',
+}
+
 export function OverviewPage({ report }: PageProps) {
   const counts = countByState(report.findings)
+  const blockers = report.findings.filter((f) => f.state === 'BLOCKED' || f.state === 'ERROR')
+  const segments = SEVERITY_ORDER.filter((s) => counts[s]).map((s) => ({
+    key: s,
+    label: s,
+    value: counts[s],
+    color: SEVERITY_COLOR[s],
+  }))
+
   return (
     <>
       <h2>Machine overview</h2>
-      <div className="grid grid-4">
+      <div className="grid grid-4 enter">
         <Stat label="OS" value={`${report.platform.os_name} ${report.platform.os_version}`} />
         <Stat label="Arch" value={report.platform.arch} />
         <Stat label="Tools detected" value={String(report.tools.length)} />
         <Stat label="Findings" value={String(report.findings.length)} />
       </div>
-      <Card title="Finding states">
-        <div className="badge-row">
-          {Object.entries(counts).map(([s, n]) => (
-            <span key={s}><Badge state={s} /> ×{n}</span>
-          ))}
-        </div>
-      </Card>
+
+      <div className="grid grid-2 enter enter-1">
+        {report.score && (
+          <Card title="Reproducibility" hint="How completely this project declares its environment.">
+            <div className="row" style={{ gap: 'var(--sp-5)', alignItems: 'center' }}>
+              <ScoreRadial
+                value={report.score.total}
+                max={report.score.possible}
+                label={`${scorePercent(report.score)}% declared`}
+              />
+              <div className="stack" style={{ flex: 1, minWidth: '10rem' }}>
+                {report.score.points.map((pt) => (
+                  <MeterRow
+                    key={pt.criterion}
+                    label={pt.criterion}
+                    value={pt.earned}
+                    max={pt.possible}
+                    hint={`${pt.earned}/${pt.possible}`}
+                    color={pt.earned === pt.possible ? 'var(--sev-pass)' : 'var(--sev-warn)'}
+                  />
+                ))}
+              </div>
+            </div>
+          </Card>
+        )}
+
+        <Card title="Findings by severity" hint={`${report.findings.length} in this scan.`}>
+          <StackedBar segments={segments} />
+          <div className="mt-4">
+            {blockers.length === 0 ? (
+              <p className="small muted mb-0">Nothing is blocking a build on this machine.</p>
+            ) : (
+              <>
+                <h4>Blocking now</h4>
+                <ul className="stack" style={{ paddingLeft: '1.1rem', gap: 'var(--sp-1)' }}>
+                  {blockers.slice(0, 5).map((f) => (
+                    <li key={f.rule_id} className="small">
+                      <code>{f.rule_id}</code> — {f.summary}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        </Card>
+      </div>
+
       {report.score && <ScoreCard report={report} />}
       {report.probe_errors.length > 0 && (
         <Card title="Probe errors (non-fatal)">
