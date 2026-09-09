@@ -52,7 +52,7 @@ def test_windows_home_variants() -> None:
         "sk-proj-" + "x" * 30,
         "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV",
         "Authorization: Bearer abcdef1234567890abcdef",
-        "-----BEGIN RSA PRIVATE KEY-----",
+        "-----BEGIN RSA PRIVATE KEY-----",  # secret-scan: allow
         "api_key = supersecretvalue123",
         "PASSWORD: hunter2hunter2",
     ],
