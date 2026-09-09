@@ -102,6 +102,9 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
+# Same shared-script situation: the gh endpoint is built from the hardcoded
+# REPOS list above it, not from user input.
+"scripts/fetch_competitor_meta.py" = ["S603", "S607", "RUF100"]
 # Shared verbatim across the four sibling repositories, whose ruff
 # rule sets differ: S310 must be suppressed where it is enabled, and
 # that suppression must not read as unused (RUF100) where it is not.
