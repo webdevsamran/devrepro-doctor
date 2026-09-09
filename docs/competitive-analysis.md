@@ -9,6 +9,25 @@ Absence claims are only made where documented or structurally implied by the
 project's stated scope; otherwise fields are `null`. Re-verify before quoting
 externally. No proprietary code, assets or branding is copied from any project.
 
+
+<!-- landscape:generated -->
+## Landscape snapshot (fetched 2026-09-09)
+
+| Project | License | Stars | Last push | Latest release | Status |
+|---|---|---|---|---|---|
+| [jdx/mise](https://github.com/jdx/mise) | MIT | 33,693 | 2026-09-09 | v2026.9.3 (2026-09-08) | active |
+| [asdf-vm/asdf](https://github.com/asdf-vm/asdf) | MIT | 25,571 | 2026-09-03 | v0.20.0 (2026-07-07) | active |
+| [NixOS/nix](https://github.com/NixOS/nix) | LGPL-2.1 | 17,660 | 2026-09-09 | — | active |
+| [direnv/direnv](https://github.com/direnv/direnv) | MIT | 15,430 | 2026-03-31 | v2.37.1 (2025-07-20) | active |
+| [loft-sh/devpod](https://github.com/loft-sh/devpod) | MPL-2.0 | 15,198 | 2025-11-14 | v0.6.15 (2025-03-10) | active |
+| [coder/coder](https://github.com/coder/coder) | AGPL-3.0 | 14,410 | 2026-09-09 | v2.36.4 (2026-09-01) | active |
+| [jetify-com/devbox](https://github.com/jetify-com/devbox) | Apache-2.0 | 12,344 | 2026-09-04 | 0.18.0 (2026-08-16) | active |
+| [cachix/devenv](https://github.com/cachix/devenv) | Apache-2.0 | 7,618 | 2026-09-07 | v2.3 (2026-09-07) | active |
+| [devcontainers/cli](https://github.com/devcontainers/cli) | MIT | 2,947 | 2026-09-03 | — | active |
+
+Rows are generated from `data/competitor-meta.json` by `scripts/fetch_competitor_meta.py`, which reads the GitHub API. Star counts and dates are facts about the repositories on the fetch date, not judgements. Nothing here claims a project lacks a feature: where a capability was not verified it is absent from this table rather than asserted as missing.
+<!-- /landscape:generated -->
+
 ## Positioning statement
 
 DevRepro Doctor is **not** an environment manager. It is the *project-aware

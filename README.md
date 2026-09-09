@@ -250,6 +250,23 @@ These are independent projects: no shared library, no coupled releases, and each
 
 <!-- /related-projects -->
 
+## How this compares
+
+9 projects are tracked in [`docs/competitive-analysis.md`](docs/competitive-analysis.md),
+fetched from the GitHub API on 2026-09-09 and committed to
+[`data/competitor-meta.json`](data/competitor-meta.json).
+
+Almost all of them — Nix, devenv, Devbox, mise, asdf, direnv, Dev Containers — *prevent*
+environment drift by declaring the environment up front. That is a different shape of
+solution, and usually a better one when you can adopt it. DevRepro Doctor exists for the
+case you cannot: a machine that is already broken, that you did not configure, and that has
+to work today. It diagnoses and explains rather than replacing.
+
+## Citation
+
+If this tool contributed to published work, cite it via
+[`CITATION.cff`](CITATION.cff) — GitHub renders a "Cite this repository" control from it.
+
 ## License
 
 Apache License 2.0 — see [LICENSE](LICENSE). Creator attribution:

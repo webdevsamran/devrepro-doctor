@@ -1,0 +1,108 @@
+{
+  "fetched_utc": "2026-09-09T10:16:42+00:00",
+  "tool": "gh api (authenticated)",
+  "repos": {
+    "NixOS/nix": {
+      "repo": "NixOS/nix",
+      "license_spdx": "LGPL-2.1",
+      "stars": 17660,
+      "pushed_at": "2026-09-09T02:54:11Z",
+      "archived": false,
+      "description": "Nix, the purely functional package manager",
+      "latest_release": null
+    },
+    "cachix/devenv": {
+      "repo": "cachix/devenv",
+      "license_spdx": "Apache-2.0",
+      "stars": 7618,
+      "pushed_at": "2026-09-07T22:15:33Z",
+      "archived": false,
+      "description": "Fast, Declarative, Reproducible, and Composable Developer Environments using Nix",
+      "latest_release": {
+        "tag": "v2.3",
+        "published_at": "2026-09-07T13:08:42Z"
+      }
+    },
+    "jetify-com/devbox": {
+      "repo": "jetify-com/devbox",
+      "license_spdx": "Apache-2.0",
+      "stars": 12344,
+      "pushed_at": "2026-09-04T00:07:25Z",
+      "archived": false,
+      "description": "Instant, easy, and predictable development environments",
+      "latest_release": {
+        "tag": "0.18.0",
+        "published_at": "2026-08-16T19:43:10Z"
+      }
+    },
+    "jdx/mise": {
+      "repo": "jdx/mise",
+      "license_spdx": "MIT",
+      "stars": 33693,
+      "pushed_at": "2026-09-09T00:49:45Z",
+      "archived": false,
+      "description": "dev tools, env vars, task runner",
+      "latest_release": {
+        "tag": "v2026.9.3",
+        "published_at": "2026-09-08T13:55:29Z"
+      }
+    },
+    "asdf-vm/asdf": {
+      "repo": "asdf-vm/asdf",
+      "license_spdx": "MIT",
+      "stars": 25571,
+      "pushed_at": "2026-09-03T13:48:57Z",
+      "archived": false,
+      "description": "Extendable version manager with support for Ruby, Node.js, Elixir, Erlang & more",
+      "latest_release": {
+        "tag": "v0.20.0",
+        "published_at": "2026-07-07T14:05:10Z"
+      }
+    },
+    "direnv/direnv": {
+      "repo": "direnv/direnv",
+      "license_spdx": "MIT",
+      "stars": 15430,
+      "pushed_at": "2026-03-31T18:52:06Z",
+      "archived": false,
+      "description": "unclutter your .profile",
+      "latest_release": {
+        "tag": "v2.37.1",
+        "published_at": "2025-07-20T10:35:29Z"
+      }
+    },
+    "devcontainers/cli": {
+      "repo": "devcontainers/cli",
+      "license_spdx": "MIT",
+      "stars": 2947,
+      "pushed_at": "2026-09-03T07:27:05Z",
+      "archived": false,
+      "description": "A reference implementation for the specification that can create and configure a dev container from a devcontainer.json.",
+      "latest_release": null
+    },
+    "loft-sh/devpod": {
+      "repo": "loft-sh/devpod",
+      "license_spdx": "MPL-2.0",
+      "stars": 15198,
+      "pushed_at": "2025-11-14T06:33:38Z",
+      "archived": false,
+      "description": "Codespaces but open-source, client-only and unopinionated: Works with any IDE and lets you use any cloud, kubernetes or just localhost docker.",
+      "latest_release": {
+        "tag": "v0.6.15",
+        "published_at": "2025-03-10T14:33:39Z"
+      }
+    },
+    "coder/coder": {
+      "repo": "coder/coder",
+      "license_spdx": "AGPL-3.0",
+      "stars": 14410,
+      "pushed_at": "2026-09-09T10:13:57Z",
+      "archived": false,
+      "description": "Secure environments for developers and their agents",
+      "latest_release": {
+        "tag": "v2.36.4",
+        "published_at": "2026-09-01T05:07:25Z"
+      }
+    }
+  }
+}
