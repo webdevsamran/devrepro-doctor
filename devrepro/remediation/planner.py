@@ -143,6 +143,22 @@ def execute_plan(
         if precondition_check is not None and not precondition_check(step):
             results.append({"id": step.id, "status": "skipped-preconditions"})
             continue
+        if not step.commands:
+            # An automatable step with no commands used to fall through the
+            # loop below and append nothing at all, so a step the plan had
+            # advertised as "automatable" simply vanished from the result --
+            # indistinguishable from never having been planned. Say so instead.
+            results.append(
+                {
+                    "id": step.id,
+                    "status": "no-commands",
+                    "detail": (
+                        "Planned as automatable but carries no executable command; "
+                        "apply the documented change manually. See `devrepro plan`."
+                    ),
+                }
+            )
+            continue
         for command in step.commands:
             rc = executor(command)
             results.append(

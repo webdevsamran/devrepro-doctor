@@ -78,3 +78,39 @@ def test_no_destructive_actions_in_catalog() -> None:
     for s in steps:
         blob = (s.title + " ".join(s.changes)).lower()
         assert not any(w in blob for w in forbidden), s.id
+
+
+def test_automatable_step_without_commands_is_reported_not_dropped() -> None:
+    """A planned step must never vanish from the result.
+
+    `execute_plan` looped over `step.commands` and appended one result per
+    command. A step flagged automatable but carrying no commands produced zero
+    results, so `devrepro fix` silently omitted steps that `devrepro plan` had
+    just listed as automatable -- the user saw neither success nor failure.
+    """
+    steps = build_plan([_finding("path/duplicates")])
+    automatable = [s for s in steps if s.automatable and s.risk in AUTOMATABLE_RISKS]
+    assert automatable, "expected at least one automatable step in the catalog"
+    assert not automatable[0].commands, (
+        "this test covers the unwired case; if commands are now populated, "
+        "assert on 'executed' instead"
+    )
+
+    results = execute_plan(steps, confirmed=True, executor=lambda cmd: 0)
+    reported = {r["id"] for r in results}
+    for step in steps:
+        assert step.id in reported, f"step {step.id} was planned but not reported"
+
+    entry = next(r for r in results if r["id"] == automatable[0].id)
+    assert entry["status"] == "no-commands"
+    assert "manually" in entry["detail"]
+
+
+def test_execute_plan_still_refuses_without_confirmation() -> None:
+    """The consent gate is the point of the design and must not regress."""
+    import pytest
+    from devrepro.core.errors import RemediationRefusedError
+
+    steps = build_plan([_finding("path/duplicates")])
+    with pytest.raises(RemediationRefusedError):
+        execute_plan(steps, confirmed=False, executor=lambda cmd: 0)

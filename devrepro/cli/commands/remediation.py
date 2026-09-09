@@ -31,7 +31,16 @@ def register(app: typer.Typer) -> None:
         else:
             typer.echo(f"Remediation plan ({len(steps)} steps) — DRY RUN, nothing executed:")
             for s in steps:
-                auto = "automatable" if s.automatable else "manual guidance only"
+                # "automatable" has to mean "this will actually run something".
+                # A step flagged automatable but carrying no commands was
+                # displayed identically to one that executes, which is the
+                # promise `devrepro fix` could not keep.
+                if s.automatable and s.commands:
+                    auto = "automatable"
+                elif s.automatable:
+                    auto = "automatable in principle - no command wired yet"
+                else:
+                    auto = "manual guidance only"
                 typer.echo(f"  [{s.risk.value:<6}] {s.title} ({auto})")
                 for c in s.changes:
                     typer.echo(f"      change: {c}")
@@ -43,7 +52,13 @@ def register(app: typer.Typer) -> None:
         yes: bool = typer.Option(False, "--yes", help="Explicitly confirm execution."),
         json_out: bool = JsonOption,
     ) -> None:
-        """Execute ONLY SAFE/LOW automatable remediations after confirmation."""
+        """Execute ONLY SAFE/LOW automatable remediations after confirmation.
+
+        Requires an explicit --yes. Steps are reported individually: `executed`,
+        `skipped-manual` (guidance only), `skipped-preconditions`, or
+        `no-commands` for a step planned as automatable that has no command
+        wired to it yet. Run `devrepro plan` first to review every step.
+        """
         from devrepro.cli.pipeline import run_scan
         from devrepro.remediation.planner import build_plan, execute_plan
 
