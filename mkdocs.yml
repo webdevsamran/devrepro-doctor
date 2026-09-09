@@ -41,6 +41,7 @@ nav:
       - Plugins: PLUGINS.md
       - Privacy: PRIVACY.md
       - Exit codes: EXIT-CODES.md
+      - MCP exposure: MCP-EXPOSURE.md
       - Releasing: release.md
   - Project:
       - Contributing: contributing.md
