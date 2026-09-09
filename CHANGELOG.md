@@ -9,6 +9,52 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - lockfiles are a requirement on the machine, not just a checkmark
+
+- Lockfile handling was presence-only: `detectors.py` recorded that one exists
+  and scored a point for it. But a lockfile is written in a *format version*,
+  and a format version is a demand on the machine. npm 6 handed a
+  `lockfileVersion: 3` file does not fail -- it rewrites the entire tree in the
+  old format, and the damage arrives as an unreviewable diff in someone else's
+  pull request. cargo before 1.78 cannot open a `version = 4` `Cargo.lock` at
+  all. yarn 1 cannot install from a Berry lock.
+- `devrepro/project/lockfiles.py` parses thirteen lockfile formats for exactly
+  two things: the format version with the tool floor it implies, and any
+  runtime pin the file records (`requires-python`, `engines.node`,
+  `RUBY VERSION`, composer's `platform.php`). Nothing about the dependency
+  graph: package contents are the project's business, package format is the
+  machine's.
+- A floor is asserted only where one is actually published. `Cargo.lock` v4 →
+  cargo 1.78 is documented and stable, so it is claimed; uv's lock revisions
+  are not, so the version is reported and no requirement inferred. `bun.lockb`
+  is binary and is not decoded -- guessing at offsets is how a diagnostic tool
+  becomes confidently wrong.
+- The new `lockfiles` rule pack turns those facts into findings:
+  `lockfiles/tool-too-old`, `/manager-missing`, `/format-supported`,
+  `/format-unknown`, `/runtime-mismatch`, `/runtime-spec-unparseable` and
+  `/unreadable`, all documented in `devrepro explain` and `docs/RULES.md`.
+- Every parser is tolerant. A truncated or conflict-marked lockfile produces a
+  finding carrying the reason, never a traceback; a test writes an empty file
+  for each of the thirteen formats to hold that.
+
+### Fixed - on Windows the "active" npm was the one that cannot run
+
+- `resolve_all_on_path` tried the bare command name before the PATHEXT
+  variants, and `is_active` is `precedence == 0`. Node ships `npm` -- a shell
+  script Windows never executes -- beside `npm.cmd` in the same directory, so
+  the unrunnable half was reported as the active installation, with no version.
+  Every npm/npx/yarn/pnpm-style pair was affected, and it surfaced only because
+  the new lockfile pack announced that npm 11.17.0 was not installed on a
+  machine where it plainly was.
+- Windows shells resolve a bare command through PATHEXT and never run an
+  extensionless file, so the PATHEXT variants now come first and the bare name
+  last. The shell script is still listed -- it is a genuine duplicate worth
+  reporting -- it just no longer claims precedence 0.
+- `tests/test_rule_catalog.py` matched version-helper names as bare substrings,
+  which classified the new pack as version-checking on the strength of a
+  private function called `_runtime_findings`. It now matches call sites, so
+  the catalogue cannot be made to advertise ids a pack has no way to emit.
+
 ### Added - `guard --scope changed`, and the pre-commit hook it makes possible
 
 - `devrepro guard` described itself as designed for a pre-commit hook and then

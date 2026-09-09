@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from devrepro.core.models import (
     ContainerState,
@@ -22,6 +23,9 @@ from devrepro.core.models import (
 )
 from devrepro.core.versioning import parse_spec, parse_version
 
+if TYPE_CHECKING:
+    from devrepro.project.lockfiles import LockfileFacts
+
 __all__ = ["PACK_NAMES", "RuleContext", "RuleEngine", "check_version_requirement"]
 
 PACK_NAMES: tuple[str, ...] = (
@@ -35,6 +39,7 @@ PACK_NAMES: tuple[str, ...] = (
     "containers",
     "wsl",
     "ai-gpu",
+    "lockfiles",
 )
 
 
@@ -51,6 +56,9 @@ class RuleContext:
     wsl: WslState | None = None
     gpu: GpuStack | None = None
     active_manager: str | None = None
+    #: Parsed lockfile facts. Not a probe result: lockfiles belong to the
+    #: project, not the machine, so they arrive with the requirements.
+    lockfiles: tuple[LockfileFacts, ...] = ()
     extra: dict[str, object] = field(default_factory=dict)
 
     def active_tool(self, name: str) -> ToolInstallation | None:
@@ -215,6 +223,7 @@ def load_builtin_packs(engine: RuleEngine) -> None:
     from devrepro.rules.packs.dotnet import evaluate as dotnet
     from devrepro.rules.packs.go import evaluate as go
     from devrepro.rules.packs.java import evaluate as java
+    from devrepro.rules.packs.lockfiles import evaluate as lockfiles
     from devrepro.rules.packs.node import evaluate as node
     from devrepro.rules.packs.python import evaluate as python
     from devrepro.rules.packs.rust import evaluate as rust
@@ -230,3 +239,4 @@ def load_builtin_packs(engine: RuleEngine) -> None:
     engine.register("containers", containers)
     engine.register("wsl", wsl)
     engine.register("ai-gpu", ai_gpu)
+    engine.register("lockfiles", lockfiles)

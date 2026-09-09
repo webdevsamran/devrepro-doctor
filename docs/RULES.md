@@ -5,7 +5,7 @@
 > `devrepro explain <rule-id>` prints any one of these.
 > `devrepro rules --catalog` lists them all.
 
-Every finding carries a rule id. There are **96** documented ids.
+Every finding carries a rule id. There are **103** documented ids.
 
 Two shapes exist. Most are written out in full where they are emitted.
 Some are composed at runtime from a tool or ecosystem name:
@@ -552,6 +552,79 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* The requirement cannot be checked either way, so this is reported as unknown rather than passing. A silent pass here would be a lie.
 
 *How to fix it.* Run the tool's version command by hand and open an issue with the output, so the parser can learn the shape.
+
+
+## `lockfiles/`
+
+### `lockfiles/format-supported`
+
+**The installed manager can use this lockfile**
+
+*What it means.* The package manager on PATH is at or above the floor this lockfile format requires.
+
+*Why it matters.* Recorded as a PASS because the absence of a finding and a verified match are different states, and a report that only lists problems cannot tell you which of the two it means.
+
+*How to fix it.* Nothing to do.
+
+### `lockfiles/format-unknown`
+
+**The manager is installed but did not report a version**
+
+*What it means.* The package manager resolves on PATH, but asking it for its version produced nothing, so whether it can read the lockfile is unknown.
+
+*Why it matters.* Reported as UNKNOWN rather than folded into 'not installed', because the two have different fixes and conflating them sends you looking for a missing program that is right there. A common cause on Windows is a wrapper script resolving ahead of the real executable.
+
+*How to fix it.* Run the manager's `--version` by hand. If that works, the resolution order on PATH is the problem rather than the installation; `devrepro path` shows what resolves first.
+
+### `lockfiles/manager-missing`
+
+**A lockfile with no package manager to read it**
+
+*What it means.* The repository contains a lockfile for a package manager that does not resolve on PATH.
+
+*Why it matters.* Nothing installs from it. This is a warning rather than a blocker because it is often correct: a project that moved from yarn to pnpm and left the old lockfile behind is untidy, not broken.
+
+*How to fix it.* Install the manager if the lockfile is current, or delete the lockfile if the project has moved on. Leaving both a `yarn.lock` and a `package-lock.json` in one directory means two machines can resolve two different dependency trees from the same commit.
+
+### `lockfiles/runtime-mismatch`
+
+**The active runtime is outside the range this lockfile was solved for**
+
+*What it means.* The lockfile records the runtime range it resolved against -- `requires-python`, `engines.node`, `RUBY VERSION` -- and the runtime on PATH falls outside it.
+
+*Why it matters.* A dependency graph is solved for a specific runtime range. Installing it on a runtime outside that range gives you packages whose own constraints were never checked against what you are running, and the failure appears at import or build time rather than at install time.
+
+*How to fix it.* Switch to a runtime inside the recorded range for this project, or re-resolve the lockfile on the runtime you intend to use and commit the result. Do not install across the boundary and hope.
+
+### `lockfiles/runtime-spec-unparseable`
+
+**The lockfile pins a runtime range this tool cannot parse**
+
+*What it means.* The recorded range uses ecosystem shorthand -- npm's `^20`, pip's `~=3.11` -- that this project's version comparison does not implement.
+
+*Why it matters.* Reported rather than skipped so the gap is visible. A tool that silently ignores a constraint it cannot read is indistinguishable from one that checked and found no problem.
+
+*How to fix it.* Check the range by hand against the runtime you are using. Comparator syntax (`>=20`, `>=3.11,<3.13`) is understood and can be used in `.devrepro.toml` if you want this enforced.
+
+### `lockfiles/tool-too-old`
+
+**The package manager is older than the lockfile format**
+
+*What it means.* This lockfile is written in a format version that the installed package manager predates.
+
+*Why it matters.* The manager does not usually refuse. npm 6 handed a `lockfileVersion: 3` file rewrites the entire tree in the old format, and cargo before 1.78 cannot read a `version = 4` `Cargo.lock` at all. The first outcome is worse than the second: the install appears to succeed and the damage arrives as an unreviewable diff in someone else's pull request.
+
+*How to fix it.* Upgrade the package manager to the version the format requires. Downgrading the lockfile instead means every other machine that already has the newer manager re-upgrades it, and the file thrashes.
+
+### `lockfiles/unreadable`
+
+**The lockfile could not be parsed**
+
+*What it means.* The file exists but is not valid JSON, TOML or the text format its name implies -- usually a merge conflict left in place, or a truncated write.
+
+*Why it matters.* A lockfile that cannot be parsed cannot reproduce anything, and the error a package manager gives for one is rarely about the file.
+
+*How to fix it.* Regenerate it with its package manager rather than hand-editing. If the cause was a merge conflict, resolve the manifest first and then re-lock; resolving conflict markers inside a lockfile by hand produces a file that parses and is still wrong.
 
 
 ## `network/`

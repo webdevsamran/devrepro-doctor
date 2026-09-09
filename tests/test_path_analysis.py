@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
+import pytest
 from devrepro.platforms.base import build_path_analysis
+from devrepro.probes.helpers import resolve_all_on_path
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -56,3 +61,25 @@ def test_windows_store_alias_flagged() -> None:
     )
     a = build_path_analysis(raw, "windows")
     assert a.store_aliases
+
+
+@pytest.mark.skipif(os.name != "nt", reason="PATHEXT resolution only applies on Windows")
+def test_windows_resolves_through_pathext_before_the_bare_name(tmp_path, monkeypatch) -> None:
+    """`is_active` is `precedence == 0`, so candidate order decides the answer.
+
+    Node ships `npm` (a shell script) beside `npm.cmd` in the same directory.
+    Windows resolves a bare command through PATHEXT and never executes an
+    extensionless file, so the shell script is not what runs -- but trying the
+    bare name first made it precedence 0, which made it the "active" npm, which
+    answered no version at all. Every npm/npx/yarn/pnpm-style pair was affected.
+
+    The shell script is still listed: it is a genuine duplicate and worth
+    reporting. It just does not get to claim precedence 0.
+    """
+    (tmp_path / "npm").write_text("#!/bin/sh" + chr(10), encoding="utf-8")
+    (tmp_path / "npm.cmd").write_text("@echo off" + chr(10), encoding="utf-8")
+    monkeypatch.setenv("PATHEXT", ".COM;.EXE;.BAT;.CMD")
+
+    resolved = resolve_all_on_path("npm", path_env=str(tmp_path))
+
+    assert [Path(p).name for p in resolved] == ["npm.cmd", "npm"]

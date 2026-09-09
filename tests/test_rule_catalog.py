@@ -29,6 +29,14 @@ DEVREPRO = Path(__file__).resolve().parent.parent / "devrepro"
 
 _VERSION_HELPERS = ("runtime_findings", "tool_findings", "check_version_requirement")
 
+#: A *call* to one of the helpers, not a mention of its name. `\w` includes the
+#: underscore, so the lookbehind rejects `_runtime_findings(` -- a pack's own
+#: private helper whose name merely ends with one of these. Matching the bare
+#: substring classified the `lockfiles` pack as version-checking on the strength
+#: of a local function name, which would have made the catalogue advertise five
+#: ids that pack cannot emit.
+_HELPER_CALL = re.compile(r"(?<!\w)(?:" + "|".join(_VERSION_HELPERS) + r")\(")
+
 
 def test_version_checking_packs_matches_the_pack_sources() -> None:
     """Every pack that calls a version helper is listed, and no others.
@@ -41,7 +49,7 @@ def test_version_checking_packs_matches_the_pack_sources() -> None:
         if module.stem in {"__init__", "common"}:
             continue
         text = module.read_text(encoding="utf-8")
-        if any(helper in text for helper in _VERSION_HELPERS):
+        if _HELPER_CALL.search(text):
             actual.add(module.stem.replace("_", "-"))
 
     listed = set(VERSION_CHECKING_PACKS)

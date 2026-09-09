@@ -55,7 +55,16 @@ def resolve_all_on_path(name: str, *, path_env: str | None = None) -> list[str]:
             if e.strip()
         ]
         base = name.lower()
-        candidates = [base] + [base + e for e in exts]
+        # PATHEXT variants come first, bare name last. Windows shells resolve a
+        # bare command through PATHEXT and never execute an extensionless file,
+        # so `C:\Program Files\nodejs\npm` -- a shell script sitting beside
+        # `npm.cmd` -- is what `where npm` prints first and what nothing on
+        # Windows actually runs. Trying it first made it precedence 0, and
+        # `is_active` is `precedence == 0`, so every npm/npx/yarn/pnpm-style
+        # pair reported the unrunnable half as the active installation with no
+        # version. The file is still listed: it is a real duplicate worth
+        # reporting, just not the one the shell picks.
+        candidates = [base + e for e in exts] + [base]
     else:
         candidates = [name]
     seen: set[str] = set()

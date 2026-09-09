@@ -16,7 +16,7 @@ Status legend: ✅ shipped · 🚧 in progress · 📋 planned
 - ✅ Project requirement detectors (Python/Node/.NET/Go/Rust/PHP/Ruby/
   Java/C-C++/containers/devcontainers/tool managers/CI)
 - ✅ Rule engine + packs (python, node, dotnet, java, cpp, go, rust,
-  containers, wsl, ai-gpu)
+  containers, wsl, ai-gpu, lockfiles)
 - ✅ Reproducibility completeness score (explained per point)
 - ✅ Snapshots + environment diff (7 classifications, 3 output formats)
 - ✅ Safe remediation planner (risk tiers, dry-run default, rollback)

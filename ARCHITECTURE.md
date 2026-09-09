@@ -39,7 +39,7 @@ React dashboard. Everything is built around a small set of typed contracts.
 | `devrepro/core` | Typed models (`Probe`, `Finding`, `Evidence`, `ToolInstallation`, `ProjectRequirement`, `Snapshot`, `EnvironmentDiff`, `Remediation`, `Policy`, `ScanReport`), exit codes, errors. Zero side effects. |
 | `devrepro/probes` | Probe interface + registry + engine. Each probe declares `id`, `version`, `platforms`, `dependencies`; returns findings/evidence. Engine isolates failures (timeout, exception ⇒ probe-level error finding, never a crashed scan). Probes receive a `CommandRunner` abstraction so tests inject recorded fixture output. |
 | `devrepro/project` | Manifest/lockfile detectors. Infer only declared requirements; never invent exact versions. |
-| `devrepro/rules` | Rule engine comparing machine state ↔ project requirements ↔ policy. States: PASS/INFO/WARN/ERROR/BLOCKED/UNKNOWN. Rule packs: python, node, dotnet, java, cpp, go, rust, containers, wsl, ai-gpu. |
+| `devrepro/rules` | Rule engine comparing machine state ↔ project requirements ↔ policy. States: PASS/INFO/WARN/ERROR/BLOCKED/UNKNOWN. Rule packs: python, node, dotnet, java, cpp, go, rust, containers, wsl, ai-gpu, lockfiles. |
 | `devrepro/snapshots` | Schema-versioned, privacy-sanitized environment manifests; round-trip load/validate. |
 | `devrepro/diff` | Snapshot A/B comparison with classification (same, version-drift, missing, extra, path-precedence, platform-expected, project-critical). |
 | `devrepro/remediation` | Risk-tiered plans (SAFE/LOW/MEDIUM/HIGH) with preconditions, exact intended changes, rollback guidance. Dry-run by default; only SAFE/LOW automatable. |

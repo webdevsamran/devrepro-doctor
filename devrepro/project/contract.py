@@ -213,9 +213,33 @@ def contract_changes(
 #: of what this machine must provide, so changing it re-opens every question.
 RELEVANT_PREFIXES: dict[str, tuple[str, ...]] = {
     "policy": (),  # empty means "no filter": everything is relevant
-    "lockfile": ("python", "node", "go", "rust", "php", "ruby", "java", "dotnet", "path"),
-    "manifest": ("python", "node", "go", "rust", "php", "ruby", "java", "dotnet", "cpp", "path"),
+    "lockfile": (
+        "lockfiles",
+        "python",
+        "node",
+        "go",
+        "rust",
+        "php",
+        "ruby",
+        "java",
+        "dotnet",
+        "path",
+    ),
+    "manifest": (
+        "lockfiles",
+        "python",
+        "node",
+        "go",
+        "rust",
+        "php",
+        "ruby",
+        "java",
+        "dotnet",
+        "cpp",
+        "path",
+    ),
     "toolchain-pin": (
+        "lockfiles",
         "python",
         "node",
         "go",

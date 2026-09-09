@@ -25,6 +25,7 @@ from devrepro.core.models import (
 from devrepro.core.runner import SubprocessRunner
 from devrepro.privacy.gate import PrivacyGate
 from devrepro.project.detectors import detect_requirements
+from devrepro.project.lockfiles import LockfileFacts, collect_lockfile_facts
 from devrepro.rules.base import RuleContext, RuleEngine, load_builtin_packs
 from devrepro.rules.score import compute_score
 
@@ -110,6 +111,12 @@ def run_scan(
     except Exception:
         requirements = []
 
+    lockfile_facts: list[LockfileFacts] = []
+    try:
+        lockfile_facts = collect_lockfile_facts(root)
+    except Exception:
+        lockfile_facts = []
+
     required_env_names: list[str] = []
     if policy is not None:
         required_env_names = list(policy.required_env_names.names)
@@ -138,6 +145,7 @@ def run_scan(
         wsl=wsl,
         gpu=gpu,
         active_manager=str(active_manager) if active_manager else None,
+        lockfiles=tuple(lockfile_facts),
     )
     rule_engine = RuleEngine()
     load_builtin_packs(rule_engine)
