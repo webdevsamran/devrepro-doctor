@@ -47,6 +47,12 @@ test = [
   "hypothesis>=6.100,<7.0",
   "httpx>=0.27,<1.0",
   "flask>=3.0,<4.0",
+  # Test-only. `devrepro init` writes a workflow and a pre-commit config, and
+  # the tests parse them with a real YAML reader rather than trusting a regex.
+  # It is deliberately not a runtime dependency: the agent-manifest reader in
+  # devrepro/agents/ handles the small subset of YAML it needs by hand, so the
+  # installed package still depends only on typer, rich and pydantic.
+  "PyYAML>=6.0,<7.0",
 ]
 lint = [
   "ruff>=0.4,<1.0",

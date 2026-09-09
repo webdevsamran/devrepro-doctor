@@ -6,7 +6,7 @@ from pathlib import Path  # noqa: TC003  (Typer resolves command annotations at 
 
 import typer
 
-from devrepro.cli.common import JsonOption, PolicyOption, emit, load_policy_or_none
+from devrepro.cli.common import JsonOption, PolicyOption, emit, load_policy_or_none, secho
 from devrepro.core.errors import DevReproError
 from devrepro.core.exit_codes import ExitCode
 
@@ -73,11 +73,65 @@ def register(app: typer.Typer) -> None:
         raise typer.Exit(ExitCode.READY)
 
     @app.command()
-    def rules(json_out: bool = JsonOption) -> None:
-        """List available rule packs."""
+    def rules(
+        catalog: bool = typer.Option(
+            False, "--catalog", help="List every documented rule id, not just the packs."
+        ),
+        json_out: bool = JsonOption,
+    ) -> None:
+        """List available rule packs, or the full rule catalogue."""
         from devrepro.rules.base import PACK_NAMES
 
-        emit({"packs": list(PACK_NAMES)}, json_out)
+        if not catalog:
+            emit({"packs": list(PACK_NAMES)}, json_out)
+            raise typer.Exit(ExitCode.READY)
+
+        from devrepro.rules.catalog import all_rule_docs
+
+        docs = all_rule_docs()
+        if json_out:
+            emit({"rules": [d.as_dict() for d in docs]}, True)
+        else:
+            typer.echo(f"{len(docs)} documented rule ids:")
+            for doc in docs:
+                typer.echo(f"  {doc.rule_id:<42} {doc.title}")
+            typer.echo("")
+            typer.echo("`devrepro explain <rule-id>` for the long form.")
+        raise typer.Exit(ExitCode.READY)
+
+    @app.command()
+    def explain(
+        rule_id: str = typer.Argument(..., help="Rule id, e.g. node/version-mismatch."),
+        json_out: bool = JsonOption,
+    ) -> None:
+        """Explain a rule id: what it means, why it matters, how to fix it.
+
+        A finding gives you an id and one line, which is the right amount for a
+        table and not enough to act on. This is the long form.
+
+        Composed ids resolve by their suffix, so `bun/multiple-installations`
+        is explained even though no code writes that exact string -- the prefix
+        is whichever tool was found twice.
+        """
+        from devrepro.rules.catalog import explain_rule
+
+        doc = explain_rule(rule_id)
+        if doc is None:
+            secho(f"No documentation for rule id {rule_id!r}.", fg="yellow", err=True)
+            typer.echo("Run `devrepro rules --catalog` to see every documented id.", err=True)
+            raise typer.Exit(ExitCode.USAGE_ERROR)
+
+        if json_out:
+            emit(doc.as_dict(), True)
+        else:
+            secho(doc.rule_id, fg="cyan")
+            typer.echo(doc.title)
+            typer.echo("")
+            typer.echo(f"What it means   {doc.means}")
+            typer.echo("")
+            typer.echo(f"Why it matters  {doc.matters}")
+            typer.echo("")
+            typer.echo(f"How to fix it   {doc.fix}")
         raise typer.Exit(ExitCode.READY)
 
     @app.command()

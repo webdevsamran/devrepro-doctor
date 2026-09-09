@@ -35,10 +35,13 @@ python scripts/validate_schemas.py
 python scripts/secret_scan.py
 python scripts/check_action_pins.py
 python scripts/generate_landscape.py --check
+python scripts/generate_rule_docs.py --check
 python scripts/capture_readme_example.py --check
 pip-audit --skip-editable
 mkdocs build --strict
+python scripts/check_docs_site.py --site site
 cd web && npm ci && npm run lint && npm run typecheck && npm test && npm run build
+cd web && npm audit --audit-level=high
 ```
 
 Every line above is a required check. The list was previously a subset: it

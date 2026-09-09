@@ -20,6 +20,37 @@ if TYPE_CHECKING:
 
 JsonOption = typer.Option(False, "--json", help="Emit machine-readable JSON.")
 PolicyOption = typer.Option(None, "--policy", help="Path to .devrepro.toml policy.")
+QuietOption = typer.Option(
+    False,
+    "--quiet",
+    "-q",
+    help="Suppress output; communicate only through the exit code.",
+)
+
+
+def color_enabled() -> bool:
+    """Whether ANSI colour should be written to stdout.
+
+    Honours the `NO_COLOR` convention (https://no-color.org): any value,
+    including an empty one, disables colour. `FORCE_COLOR` wins over it, which
+    is what CI systems that render ANSI in their log viewers set.
+
+    Colour is also dropped when stdout is not a terminal, so a redirected
+    report does not arrive full of escape sequences.
+    """
+    import os
+    import sys
+
+    if os.environ.get("FORCE_COLOR"):
+        return True
+    if "NO_COLOR" in os.environ:
+        return False
+    return sys.stdout.isatty()
+
+
+def secho(message: str, *, fg: str | None = None, err: bool = False) -> None:
+    """`typer.secho` that respects NO_COLOR and non-TTY output."""
+    typer.secho(message, fg=fg if color_enabled() else None, err=err)
 
 
 def load_policy_or_none(path: Path | None) -> Policy | None:
@@ -31,8 +62,15 @@ def load_policy_or_none(path: Path | None) -> Policy | None:
     return load_policy(path)
 
 
-def emit(data: object, as_json: bool) -> None:
-    """Echo payload as pretty JSON or plain text."""
+def emit(data: object, as_json: bool, *, quiet: bool = False) -> None:
+    """Echo payload as pretty JSON or plain text.
+
+    `quiet` suppresses the payload entirely. The exit code is the whole
+    interface in that mode, which is what a shell script or a pre-commit hook
+    wants: a gate that prints nothing when it passes and still fails loudly.
+    """
+    if quiet:
+        return
     if as_json:
         typer.echo(json.dumps(data, indent=2, default=str))
     else:
