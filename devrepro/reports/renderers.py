@@ -11,22 +11,36 @@ import html as _html
 import json
 import xml.etree.ElementTree as ET
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from rich.table import Table
 
-from devrepro.core.models import EnvironmentDiff, FindingState, ScanReport, Snapshot
+from devrepro.core.models import EnvironmentDiff, Finding, FindingState, ScanReport, Snapshot
 from devrepro.privacy.gate import PrivacyGate, assert_no_secrets
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from devrepro.project.contract import ContractChange
+
 __all__ = [
+    "GUARD_COMMENT_MARKER",
     "render_diff_html",
     "render_diff_json",
     "render_diff_markdown",
+    "render_guard_comment",
     "render_html",
     "render_json",
     "render_junit",
     "render_markdown",
     "render_terminal_table",
 ]
+
+#: An invisible anchor a CI job can grep for to find its own previous comment
+#: and edit it. Without one, a bot appends on every push and a busy pull
+#: request ends up with fifteen near-identical comments, which is how a useful
+#: signal turns into something people collapse and stop reading.
+GUARD_COMMENT_MARKER = "<!-- devrepro-doctor: environment-contract guard -->"
 
 _STATE_ORDER = (
     FindingState.BLOCKED,
@@ -151,6 +165,91 @@ def render_markdown(report: ScanReport) -> str:
     text = gate.redact(text)
     assert_no_secrets(text)
     return text
+
+
+def render_guard_comment(
+    *,
+    scope: str,
+    changes: Sequence[ContractChange],
+    blocking: Sequence[Finding],
+    scanned: bool,
+) -> str:
+    """A pull-request comment for `devrepro guard`.
+
+    Deliberately short. A comment that opens with a wall of passing checks
+    trains people to collapse it, and then the one time it matters they do not
+    read it either. The shape is: a verdict line, what changed about the
+    environment contract, and only the findings that block -- with the
+    remediation hint, because "python/version-mismatch" alone sends the reader
+    somewhere else to find out what to do.
+
+    Nothing here reaches the network. The caller decides whether to post it,
+    which keeps the no-telemetry invariant intact: this function returns a
+    string.
+    """
+    lines: list[str] = [GUARD_COMMENT_MARKER, ""]
+
+    if blocking:
+        lines.append(f"### Environment contract: blocked by {len(blocking)} finding(s)")
+    elif not scanned:
+        lines.append("### Environment contract: unchanged")
+    else:
+        lines.append("### Environment contract: ok")
+    lines.append("")
+
+    if not scanned:
+        lines.append(
+            "No lockfile, manifest, toolchain pin, CI workflow, container definition or "
+            "policy changed, so the machine was not re-checked."
+        )
+        lines.append("")
+        lines.append(_guard_footer(scope))
+        return "\n".join(lines) + "\n"
+
+    if changes:
+        lines.append("<details><summary>")
+        lines.append(f"{len(changes)} contract file(s) changed")
+        lines.append("</summary>")
+        lines.append("")
+        lines.append("| File | Kind |")
+        lines.append("|---|---|")
+        for change in changes:
+            lines.append(f"| `{change.path}` | {change.kind} |")
+        lines.append("")
+        lines.append("</details>")
+        lines.append("")
+
+    if blocking:
+        lines.append("| Rule | What it means | Fix |")
+        lines.append("|---|---|---|")
+        for finding in blocking:
+            hint = finding.remediation_hint or "See `devrepro explain " + finding.rule_id + "`."
+            lines.append(f"| `{finding.rule_id}` | {_cell(finding.summary)} | {_cell(hint)} |")
+        lines.append("")
+    else:
+        lines.append("Every rule the changed files could affect passes on this machine.")
+        lines.append("")
+
+    lines.append(_guard_footer(scope))
+    return "\n".join(lines) + "\n"
+
+
+def _guard_footer(scope: str) -> str:
+    return (
+        f"<sub>`devrepro guard --scope {scope}` — read-only scan, no data left this machine. "
+        "Run `devrepro doctor` locally for the full report.</sub>"
+    )
+
+
+def _cell(text: str) -> str:
+    """Make a string safe inside a Markdown table cell.
+
+    A remediation hint can contain a pipe (a shell pipeline, a PATH on Windows)
+    and a summary can contain a newline. Either one silently breaks the table
+    into something unreadable, which is worse than the finding being absent
+    because it looks like the tool is broken.
+    """
+    return text.replace("|", r"\|").replace("\n", " ").strip()
 
 
 def render_junit(report: ScanReport) -> str:

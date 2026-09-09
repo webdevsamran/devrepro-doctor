@@ -196,6 +196,12 @@ def register(app: typer.Typer) -> None:
             help="Compare against this ref instead of the working tree, e.g. origin/main.",
         ),
         path: Path = typer.Option(Path(), "--path", help="Repository root."),
+        output_format: str = typer.Option(
+            "text",
+            "--format",
+            help="text (default) | json | markdown. markdown is written for a "
+            "pull-request comment.",
+        ),
     ) -> None:
         """Pre-commit/CI gate: exit 2 when the machine has blockers, else 0.
 
@@ -215,16 +221,35 @@ def register(app: typer.Typer) -> None:
         asked to provide. When nothing in the contract moved, the gate exits 0
         without scanning at all, which is also what makes it fast enough for a
         hook.
+
+        `--format markdown` renders the same verdict as a pull-request comment,
+        carrying a stable HTML marker so a CI job can edit its own previous
+        comment instead of appending a new one on every push. It prints to
+        stdout and posts nothing: what to do with the text is the workflow's
+        decision, not this tool's.
         """
         from devrepro.cli.pipeline import run_scan
         from devrepro.project.contract import contract_changes
+        from devrepro.reports.renderers import render_guard_comment
+
+        # `--json` predates `--format` and stays a shorthand for it rather than
+        # a competing flag: scripts already pass it, and two ways to ask for
+        # the same thing is better than breaking them.
+        resolved = "json" if json_out else output_format
+        if resolved not in {"text", "json", "markdown"}:
+            secho(
+                f"unknown format {output_format!r}; expected 'text', 'json' or 'markdown'.",
+                fg="red",
+                err=True,
+            )
+            raise typer.Exit(ExitCode.USAGE_ERROR)
 
         changes = []
         if scope == "changed":
             changes = contract_changes(path, base=base)
             if not changes:
                 if not quiet:
-                    if json_out:
+                    if resolved == "json":
                         emit(
                             {
                                 "verdict": "READY",
@@ -235,6 +260,13 @@ def register(app: typer.Typer) -> None:
                                 "nothing to re-check.",
                             },
                             True,
+                        )
+                    elif resolved == "markdown":
+                        typer.echo(
+                            render_guard_comment(
+                                scope=scope, changes=[], blocking=[], scanned=False
+                            ),
+                            nl=False,
                         )
                     else:
                         typer.echo("GUARD: ok (no environment-contract change)")
@@ -261,7 +293,12 @@ def register(app: typer.Typer) -> None:
         blockers = [f.rule_id for f in blocking]
         if quiet:
             pass
-        elif json_out:
+        elif resolved == "markdown":
+            typer.echo(
+                render_guard_comment(scope=scope, changes=changes, blocking=blocking, scanned=True),
+                nl=False,
+            )
+        elif resolved == "json":
             emit(
                 {
                     "verdict": "BLOCKED" if blockers else "READY",

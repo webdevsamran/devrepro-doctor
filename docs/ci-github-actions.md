@@ -84,6 +84,66 @@ INFO/PASS → `note`. Findings carry stable rule IDs (`node/version-mismatch`,
 when available. Run `devrepro rules` for the packs, and see
 `scripts/capture_readme_example.py` for the id shapes the docs guard accepts.
 
+## Pull-request comment
+
+`devrepro guard --format markdown` renders the verdict as a comment body and
+prints it to stdout. It posts nothing itself: the workflow decides what happens
+to the text, which is what keeps the no-telemetry guarantee something you can
+check by reading the command rather than something you have to trust.
+
+```yaml
+name: Environment contract
+on: pull_request
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0        # `--base` needs the target branch present
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install git+https://github.com/webdevsamran/devrepro-doctor@main
+
+      - id: guard
+        run: |
+          devrepro guard --scope changed             --base "origin/${{ github.base_ref }}"             --format markdown > comment.md
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+
+      - uses: peter-evans/create-or-update-comment@v4
+        # ... or any equivalent. The body carries a stable marker,
+        # `<!-- devrepro-doctor: environment-contract guard -->`, so a job can
+        # find its own previous comment and edit it. A bot that appends on
+        # every push turns a useful signal into fifteen near-identical comments
+        # that people collapse and stop reading.
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-path: comment.md
+
+      - name: Fail on blockers
+        if: steps.guard.outputs.code == '2'
+        run: exit 1
+```
+
+Pin third-party actions by SHA in a real workflow; the tags above are for
+readability. This repository's own
+[`scripts/check_action_pins.py`](https://github.com/webdevsamran/devrepro-doctor/blob/main/scripts/check_action_pins.py)
+enforces that, and also checks that the `# vX.Y.Z` comment beside each SHA is
+true — a comment that lies about the version is worse than no comment, because
+it is what a reviewer actually reads.
+
+## Other CI platforms
+
+GitLab CI, Jenkins, Azure Pipelines and Bitbucket examples are on
+[their own page](ci-other-platforms.md).
+
 ## Notes
 
 - The composite action pins every third-party action by commit SHA.

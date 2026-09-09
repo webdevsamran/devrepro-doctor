@@ -9,6 +9,31 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - `guard --format markdown`, and CI templates beyond GitHub
+
+- `devrepro guard --format markdown` renders the same verdict as a
+  pull-request comment and prints it to stdout. It posts nothing: what happens
+  to the text is the workflow's decision, which keeps the no-telemetry
+  guarantee something you can check by reading the command rather than
+  something you have to trust.
+- The body opens with a stable marker,
+  `<!-- devrepro-doctor: environment-contract guard -->`, so a job can find its
+  own previous comment and edit it. A bot that appends on every push turns a
+  useful signal into fifteen near-identical comments people collapse and stop
+  reading.
+- Table cells are escaped. A remediation hint can contain a shell pipeline and
+  a PATH contains pipes on Windows; an unescaped one splits the row into extra
+  columns, and a reader who sees a mangled table concludes the tool is broken
+  rather than that their machine is.
+- `--json` becomes a shorthand for `--format json` rather than a competing
+  flag, because scripts already pass it.
+- `docs/ci-other-platforms.md` covers GitLab CI, Jenkins, Azure Pipelines and
+  Bitbucket, plus the merge-request comment recipe for GitLab's Notes API. Each
+  example distinguishes exit `1` from `2` and from `3`: a pipeline that treats
+  "non-zero" as "blocked" reports a mistyped flag as an unusable runner.
+- `docs/ci-github-actions.md` gains the equivalent GitHub workflow and a
+  pointer to the new page.
+
 ### Added - browser-driven coverage of every route, and the faults it found
 
 - `PRODUCT_GAPS.md` recorded the absence of this as gap 5, and an earlier

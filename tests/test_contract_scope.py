@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 import pytest
 from devrepro.cli.app import app
 from devrepro.core.exit_codes import ExitCode
+from devrepro.core.models import Evidence, Finding, FindingState
 from devrepro.core.runner import CommandResult, RecordingRunner
 from devrepro.project.contract import (
     ContractChange,
@@ -27,6 +28,7 @@ from devrepro.project.contract import (
     contract_changes,
     relevant_rule_prefixes,
 )
+from devrepro.reports.renderers import GUARD_COMMENT_MARKER, render_guard_comment
 from typer.testing import CliRunner
 
 if TYPE_CHECKING:
@@ -227,3 +229,93 @@ def test_machine_scope_is_still_the_default(tmp_path: Path) -> None:
     result = runner.invoke(app, ["guard", "--json"])
     payload = json.loads(result.output)
     assert payload["scope"] == "machine"
+
+
+# ----------------------------------------------------------- comment output
+
+
+def test_markdown_output_carries_a_stable_marker(tmp_path: Path) -> None:
+    """A CI job needs to find its own previous comment to edit it.
+
+    Without an anchor a bot appends on every push, and a busy pull request ends
+    up with fifteen near-identical comments -- which is how a useful signal
+    becomes something people collapse and stop reading.
+    """
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+
+    result = runner.invoke(
+        app,
+        ["guard", "--scope", "changed", "--format", "markdown", "--path", str(tmp_path)],
+    )
+
+    assert result.exit_code == ExitCode.READY
+    assert GUARD_COMMENT_MARKER in result.output
+    assert "not re-checked" in result.output
+
+
+def test_an_unknown_format_is_a_usage_error() -> None:
+    result = runner.invoke(app, ["guard", "--format", "yaml"])
+    assert result.exit_code == ExitCode.USAGE_ERROR
+
+
+def test_json_remains_a_shorthand_for_the_format_flag(tmp_path: Path) -> None:
+    """`--json` predates `--format` and scripts already pass it."""
+    subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    result = runner.invoke(app, ["guard", "--scope", "changed", "--json", "--path", str(tmp_path)])
+    assert result.exit_code == ExitCode.READY
+    assert json.loads(result.output)["contract_changes"] == []
+
+
+def test_a_comment_lists_blocking_findings_with_their_fix() -> None:
+    """A rule id alone sends the reader somewhere else to learn what to do."""
+    finding = Finding(
+        rule_id="node/version-mismatch",
+        state=FindingState.ERROR,
+        summary="node 20.11.0 does not satisfy >=22",
+        evidence=(Evidence(source="command", excerpt="node --version"),),
+        remediation_hint="Install node 22 and re-open the shell.",
+    )
+    body = render_guard_comment(
+        scope="changed",
+        changes=[ContractChange("web/package-lock.json", "lockfile")],
+        blocking=[finding],
+        scanned=True,
+    )
+
+    assert "blocked by 1 finding(s)" in body
+    assert "`node/version-mismatch`" in body
+    assert "Install node 22 and re-open the shell." in body
+    assert "web/package-lock.json" in body
+
+
+def test_a_pipe_in_a_hint_cannot_break_the_comment_table() -> None:
+    """A remediation hint can hold a shell pipeline; a PATH holds pipes too.
+
+    An unescaped one splits the row into extra columns, and the reader sees a
+    mangled table and concludes the tool is broken rather than that their
+    machine is.
+    """
+    finding = Finding(
+        rule_id="path/duplicates",
+        state=FindingState.ERROR,
+        summary="two entries | one directory",
+        evidence=(Evidence(source="env", excerpt="PATH"),),
+        remediation_hint="Run `echo $PATH | tr : NL` and remove the duplicate.",
+    )
+    body = render_guard_comment(scope="machine", changes=[], blocking=[finding], scanned=True)
+
+    row = next(line for line in body.splitlines() if "path/duplicates" in line)
+    # Four pipes delimit three cells; any unescaped pipe inside would add more.
+    assert row.count("|") - row.count(chr(92) + "|") == 4
+
+
+def test_a_clean_scan_says_so_rather_than_printing_nothing() -> None:
+    """An empty comment reads as a broken job, not as a passing one."""
+    body = render_guard_comment(
+        scope="changed",
+        changes=[ContractChange("pyproject.toml", "manifest")],
+        blocking=[],
+        scanned=True,
+    )
+    assert "ok" in body
+    assert "Every rule the changed files could affect passes" in body

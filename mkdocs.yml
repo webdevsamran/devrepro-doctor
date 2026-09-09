@@ -39,6 +39,7 @@ nav:
       - Agent readiness: AGENT-READINESS.md
       - Rule catalogue: RULES.md
       - GitHub Actions & SARIF: ci-github-actions.md
+      - GitLab, Jenkins, Azure: ci-other-platforms.md
       - Self-hosted server: SERVER.md
       - Plugins: PLUGINS.md
       - Privacy: PRIVACY.md
