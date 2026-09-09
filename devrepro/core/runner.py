@@ -9,7 +9,7 @@ timeout, and captures stdout/stderr without echoing secrets.
 from __future__ import annotations
 
 import subprocess
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
@@ -108,7 +108,7 @@ class RecordingRunner:
             else:
                 self._responses[key] = list(value)
         self._default = default
-        self.calls: list[tuple[str, ...]] = field(default_factory=list)
+        self.calls: list[tuple[str, ...]] = []
 
     def run(
         self,

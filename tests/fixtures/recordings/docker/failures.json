@@ -24,7 +24,7 @@
     ],
     "returncode": 1,
     "stderr": "permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock",
-    "classification": "permissions"
+    "classification": "daemon-permission"
   },
   "client_server_mismatch": {
     "command": [
@@ -33,6 +33,7 @@
     ],
     "returncode": 1,
     "stderr": "Error response from daemon: client version 1.44 is too new. Maximum supported API version is 1.41",
-    "classification": "version-mismatch"
+    "classification": "daemon-error",
+    "note": "The classifier has no branch for a client/server API version mismatch, so this falls through to the generic 'daemon-error'. It is also raised by `docker version`, while the probe only classifies `docker info` stderr. Distinguishing it would add the rule id containers/docker-version-mismatch."
   }
 }
