@@ -5,7 +5,7 @@
 > `devrepro explain <rule-id>` prints any one of these.
 > `devrepro rules --catalog` lists them all.
 
-Every finding carries a rule id. There are **129** documented ids.
+Every finding carries a rule id. There are **135** documented ids.
 
 Two shapes exist. Most are written out in full where they are emitted.
 Some are composed at runtime from a tool or ecosystem name:
@@ -75,6 +75,69 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* Nothing fails, which is the problem. Every package installed from here is the x86_64 build -- wheels, native addons, compiled extensions -- and they stay x86_64 for anything that loads them later. Builds take roughly ten times as long, and an extension compiled here will not load in a colleague's native arm64 process. The machine reports itself as arm64 throughout.
 
 *How to fix it.* Install an arm64 build of the runtime and re-create the virtualenv or `node_modules` from scratch. Reinstalling packages into the existing one keeps the x86_64 artefacts that are already there.
+
+
+## `caches/`
+
+### `caches/compiler-cache-effective`
+
+**The compiler cache is earning its place**
+
+*What it means.* The reported hit rate is high enough that the cache is saving more work than it costs.
+
+*Why it matters.* Recorded as a PASS because the absence of a finding and a verified measurement are different states, and a report that only lists problems cannot tell you which of the two it means.
+
+*How to fix it.* Nothing to do.
+
+### `caches/compiler-cache-full`
+
+**The compiler cache is at its configured size limit**
+
+*What it means.* Reported size has reached the maximum the cache was given.
+
+*Why it matters.* A cache at its ceiling evicts what it is about to need again, which is usually the *cause* of a low hit rate rather than a separate problem. It is reported alongside the rate because the rate is the symptom and this is the thing to change.
+
+*How to fix it.* Raise `max_size` (ccache) or `SCCACHE_CACHE_SIZE`. Both default to values chosen when repositories were smaller.
+
+### `caches/compiler-cache-ineffective`
+
+**The compiler cache is costing more than it saves**
+
+*What it means.* `ccache` or `sccache` reports a hit rate low enough that the cache is adding work rather than removing it.
+
+*Why it matters.* Every miss pays a lookup, a write and an eviction on top of the compile it did not avoid. The usual cause is a cache smaller than the working set, so it evicts what it is about to need again. The symptom people report is "builds got slower after we turned caching on", which nobody attributes to the cache, and the numbers that would explain it are published by the cache itself and read by nothing.
+
+*How to fix it.* Raise the size limit -- `ccache --max-size` or `SCCACHE_CACHE_SIZE`. If the cache is not full, look for something that varies on every run: an absolute path, a timestamp or a build id in the compiler command line defeats caching entirely.
+
+### `caches/disk-critical`
+
+**Free disk space is nearly exhausted**
+
+*What it means.* So little space remains that ordinary operations will fail.
+
+*Why it matters.* A container build, a dependency install or even a git checkout will stop partway through, and the error will name whichever step happened to be running rather than the disk.
+
+*How to fix it.* Reclaim space before doing anything else. `docker system df` and the cache inventory in this report both name candidates; neither is pruned automatically, because which data is expendable is not something a diagnostic can know.
+
+### `caches/disk-low`
+
+**Free disk space is low**
+
+*What it means.* Less space remains than a cold dependency install or a container image pull typically needs.
+
+*Why it matters.* Enough for now, and not for the next `npm ci` or `docker pull`. The failure arrives mid-build as "no space left on device", from a step that has nothing to do with the cause.
+
+*How to fix it.* Build caches are usually the largest reclaimable thing on a developer machine. This scan lists the ones present rather than sizing them -- walking a Gradle cache costs more than the whole scan -- and each finding carries the command that measures it.
+
+### `caches/relocated`
+
+**A build cache has been moved by an environment variable**
+
+*What it means.* One or more caches are not in their default location, because a variable such as `PIP_CACHE_DIR` or `GRADLE_USER_HOME` points elsewhere.
+
+*Why it matters.* Usually deliberate and reported for one reason: a cache redirected onto a network share, an external volume, or a directory a cleanup job empties overnight is a common cause of "builds are slow on this machine only", with nothing in the build output that would explain it.
+
+*How to fix it.* Nothing, if the redirection was intended. If it was not, unset the variable; the default location is on the fastest disk the machine has, which is normally the point.
 
 
 ## `containers/`

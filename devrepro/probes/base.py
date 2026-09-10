@@ -154,9 +154,19 @@ class Probe(ABC):
 class ProbeEngine:
     """Runs probes with isolation: exceptions/timeouts become findings."""
 
-    def __init__(self, probes: list[Probe], *, max_workers: int = 8) -> None:
+    def __init__(self, probes: list[Probe], *, max_workers: int | None = None) -> None:
         self._probes = list(probes)
-        self._max_workers = max_workers
+        # One worker per probe, within reason. The pool was fixed at 8, and the
+        # probe count grew past it -- so the last ten queued behind the first
+        # eight and a scan that had been 4.2s became 8.3s while every
+        # individual probe stayed exactly as fast as before. `devrepro bench`
+        # found it in one command, which is what it is for.
+        #
+        # These wait on subprocesses, so they are I/O-bound and the GIL is
+        # released around each one; the ceiling exists to stop a plugin
+        # registering two hundred probes from opening two hundred processes at
+        # once, not because the work is CPU-bound.
+        self._max_workers = max_workers or max(4, min(len(probes) or 1, 24))
 
     def run_all(self) -> dict[str, ProbeResult]:
         results: dict[str, ProbeResult] = {}

@@ -64,6 +64,22 @@ def repo(tmp_path: Path) -> Path:
     return tmp_path
 
 
+def config(**settings: str) -> str:
+    """Render `git config --list --show-scope` output.
+
+    Keys are given as `scope__key_with_dots_as_underscores`, because a keyword
+    argument cannot contain a dot. The probe reads every setting in one call
+    now -- it used to issue a `git config --get` per key, twelve processes on a
+    probe `devrepro bench` measured at 2.4 seconds -- so the fixture builds the
+    whole listing rather than answering each key separately.
+    """
+    lines = []
+    for name, value in settings.items():
+        scope, _, key = name.partition("__")
+        lines.append(scope + chr(9) + key.replace("_", ".") + "=" + value)
+    return NL.join(lines) + NL
+
+
 def probe(root: Path, runner: GitRunner) -> GitCheckoutProbe:
     ctx = ProbeContext(
         runner=runner,
@@ -151,7 +167,7 @@ def test_a_sparse_checkout_is_reported_with_its_pattern_count(tmp_path: Path) ->
     info = root / ".git" / "info"
     info.mkdir()
     (info / "sparse-checkout").write_text("/*" + NL + "!/docs/" + NL + "# comment" + NL)
-    runner = GitRunner({"--get core.sparseCheckout": "true"})
+    runner = GitRunner({"config --list": config(local__core_sparseCheckout="true")})
 
     findings = probe(root, runner).run().findings
     match = next(f for f in findings if f.rule_id == "git/sparse-checkout-active")
@@ -173,7 +189,9 @@ def test_a_shallow_clone_is_a_warning(tmp_path: Path) -> None:
 
 def test_a_partial_clone_names_its_filter(tmp_path: Path) -> None:
     root = repo(tmp_path)
-    runner = GitRunner({"remote.origin.partialclonefilter": "blob:none"})
+    runner = GitRunner(
+        {"config --list": config(local__remote_origin_partialclonefilter="blob:none")}
+    )
 
     findings = probe(root, runner).run().findings
     match = next(f for f in findings if f.rule_id == "git/partial-clone")
@@ -197,7 +215,7 @@ def test_a_directory_that_is_not_a_repository_is_not_an_error(tmp_path: Path) ->
 def test_a_configured_helper_that_does_not_exist_is_reported(tmp_path: Path) -> None:
     """In CI this is a hang and a timeout, with nothing naming the helper."""
     root = repo(tmp_path)
-    runner = GitRunner({"--global --get-all credential.helper": "no-such-helper"})
+    runner = GitRunner({"config --list": config(global__credential_helper="no-such-helper")})
 
     findings = probe(root, runner).run().findings
     match = next(f for f in findings if f.rule_id == "git/credential-helper-missing")
@@ -211,13 +229,13 @@ def test_a_configured_helper_that_does_not_exist_is_reported(tmp_path: Path) -> 
 def test_helpers_git_ships_are_not_reported_missing(tmp_path: Path, name: str) -> None:
     """These live in git's exec directory, not on PATH."""
     root = repo(tmp_path)
-    runner = GitRunner({"--global --get-all credential.helper": name})
+    runner = GitRunner({"config --list": config(global__credential_helper=name)})
     assert "git/credential-helper-missing" not in ids(root, runner)
 
 
 def test_the_store_helper_is_flagged_as_plaintext(tmp_path: Path) -> None:
     root = repo(tmp_path)
-    runner = GitRunner({"--global --get-all credential.helper": "store"})
+    runner = GitRunner({"config --list": config(global__credential_helper="store")})
 
     findings = probe(root, runner).run().findings
     match = next(f for f in findings if f.rule_id == "git/credential-store-plaintext")
@@ -230,7 +248,7 @@ def test_a_shell_fragment_helper_is_recorded_as_custom_not_verbatim(tmp_path: Pa
     """The fragment is the user's text and may name internal hosts or paths."""
     root = repo(tmp_path)
     fragment = "!f() { echo password=$INTERNAL_TOKEN; }; f"
-    runner = GitRunner({"--local --get-all credential.helper": fragment})
+    runner = GitRunner({"config --list": config(local__credential_helper=fragment)})
 
     helpers = git_health(root, runner=runner).credential_helpers
 
@@ -242,7 +260,7 @@ def test_no_helper_value_ever_reaches_the_probe_data(tmp_path: Path) -> None:
     """The credential-safety claim, checked against what a report would carry."""
     root = repo(tmp_path)
     runner = GitRunner(
-        {"--global --get-all credential.helper": "manager --secret hunter2-do-not-leak"}
+        {"config --list": config(global__credential_helper="manager --secret hunter2-do-not-leak")}
     )
 
     serialized = repr(probe(root, runner).run().data)
@@ -255,8 +273,9 @@ def test_helpers_are_read_from_every_scope(tmp_path: Path) -> None:
     root = repo(tmp_path)
     runner = GitRunner(
         {
-            "--local --get-all credential.helper": "store",
-            "--system --get-all credential.helper": "manager",
+            "config --list": config(
+                local__credential_helper="store", system__credential_helper="manager"
+            )
         }
     )
 
@@ -281,7 +300,7 @@ def test_show_origin_is_never_used(tmp_path: Path) -> None:
 def test_the_probe_never_runs_a_credential_helper(tmp_path: Path) -> None:
     """Several block on stdin; a diagnostic that hangs is worse than a silent one."""
     root = repo(tmp_path)
-    runner = GitRunner({"--global --get-all credential.helper": "manager"})
+    runner = GitRunner({"config --list": config(global__credential_helper="manager")})
     probe(root, runner).run()
 
     for call in runner.calls:
@@ -299,7 +318,7 @@ def test_every_finding_carries_evidence_and_a_remediation(tmp_path: Path) -> Non
     runner = GitRunner(
         {
             "--is-shallow-repository": "true",
-            "--global --get-all credential.helper": "store",
+            "config --list": config(global__credential_helper="store"),
         }
     )
 

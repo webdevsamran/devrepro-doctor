@@ -9,6 +9,54 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - whether the build caches are earning their place
+
+- A compiler cache with a 15% hit rate is not saving time, it is spending it:
+  every miss pays a lookup, a write and an eviction on top of the compile it
+  did not avoid. The usual cause is a cache smaller than the working set, so it
+  evicts what it is about to need again -- and the symptom people report is
+  "builds got slower after we turned caching on", which nobody attributes to
+  the cache. `ccache` and `sccache` both publish the numbers; nothing read
+  them.
+- The new `caches/health` probe reads both, in both `ccache` layouts -- version
+  3 prints separate counters with no totals and version 4 prints totals with
+  percentages, and a parser written against one returns nothing on the other,
+  which reads as "this cache is fine". A cache at its size ceiling is reported
+  alongside the rate, because the ceiling is the cause and the rate the
+  symptom.
+- A cache with fewer than fifty calls gets no verdict. A fresh cache is 0% by
+  arithmetic, and reporting that would train people to ignore the finding that
+  matters.
+- Disk headroom joins it: below 5 GB is a warning, below 1 GB a blocker. "No
+  space left on device" arrives mid-build from a step unrelated to the cause.
+- **Nothing walks a cache directory.** A Gradle cache is routinely tens of
+  gigabytes and sizing one per scan would undo the performance work outright,
+  so the inventory is presence-only and each entry carries the command that
+  measures it. A test asserts the module contains no directory walk at all.
+- Only *relocated* caches produce a finding. A cache where it belongs is not
+  news; one redirected by an environment variable onto a network share or a
+  nightly-cleaned directory is a common cause of "builds are slow on this
+  machine only", with nothing in the build output to explain it.
+
+### Fixed - the probe pool was sized 8 while the probe count reached 18
+
+- Ten probes queued behind the first eight, so a scan that had been 4.2s became
+  8.3s while every individual probe stayed exactly as fast as before.
+  `devrepro bench --parallel` found it in one command, which is what it is for.
+  The pool is now sized to the probe count, bounded at 24.
+- `git/checkout` issued a `git config --get` per key -- twelve subprocesses,
+  each costing more in startup than the read itself, on a probe measured at
+  2.4s. One `git config --list --show-scope` answers all of them: 17 calls
+  became 4, and 2.4s became 1.75s.
+- `--show-scope` rather than `--show-origin`, which would name the path of the
+  user's global config and therefore their username. `--null` would have been
+  the robust separator, but `SubprocessRunner` strips NUL bytes deliberately --
+  Windows tools emitting UTF-16LE leave NUL padding that would otherwise land
+  in evidence excerpts -- so the line format is parsed instead, with
+  continuation lines folded into the value they belong to.
+- A scan is 5.6s again, against 4.7s before four probes were added this
+  session.
+
 ### Added - which SDKs are installed, not just which one answers first
 
 - `dotnet --version` and `java -version` report the one the shell resolves,

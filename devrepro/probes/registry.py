@@ -13,6 +13,7 @@ __all__ = ["build_default_probes", "load_plugin_probes"]
 def build_default_probes(ctx: ProbeContext) -> list[Probe]:
     """Instantiate every built-in probe applicable to this platform."""
     from devrepro.probes.abi import AbiProbe
+    from devrepro.probes.caches import CacheProbe
     from devrepro.probes.containers import ContainerProbe
     from devrepro.probes.env_probe import EnvAuditProbe
     from devrepro.probes.git_checkout import GitCheckoutProbe
@@ -38,6 +39,7 @@ def build_default_probes(ctx: ProbeContext) -> list[Probe]:
         ShellProfileProbe,
         NetworkTlsProbe,
         AbiProbe,
+        CacheProbe,
         ContainerProbe,
         GitCheckoutProbe,
         SdkProbe,

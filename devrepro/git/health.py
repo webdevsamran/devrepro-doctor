@@ -116,6 +116,65 @@ def _git(runner: CommandRunner, repo: Path, *args: str) -> str | None:
     return (res.stdout or "").strip() or None
 
 
+@dataclass(frozen=True)
+class _ConfigEntry:
+    scope: str
+    key: str
+    value: str
+
+
+def _read_config(runner: CommandRunner, repo: Path) -> tuple[_ConfigEntry, ...]:
+    """Every config setting, with its scope, in one subprocess.
+
+    This used to be a `git config --get` per key -- eight for the config table,
+    three more for credential helpers across scopes, and several one-offs.
+    Twelve processes, each costing more in startup than the read itself, on a
+    probe that `devrepro bench` measured at 2.4 seconds.
+
+    `--show-scope` rather than `--show-origin`: the scope is the part with
+    diagnostic value, and the origin is a file path -- which for the global
+    config contains the username, and this data reaches a report.
+
+    `--show-scope` arrived in git 2.26. On anything older the flag makes the
+    whole command fail, so the caller falls back to individual reads rather
+    than concluding the repository has no configuration at all.
+    """
+    raw = _git(runner, repo, "config", "--list", "--show-scope")
+    if raw is None:
+        return ()
+
+    # `scope TAB key=value`, one per line. `--null` would be the robust form --
+    # a value may contain a newline -- but `SubprocessRunner` strips NUL bytes
+    # on purpose, because Windows tools that emit UTF-16LE leave NUL padding
+    # that would otherwise land in evidence excerpts. So the separators are
+    # gone by the time this sees them, and the line format is what is left.
+    #
+    # A value that does contain a newline continues on a line with no tab, so
+    # those are appended to the entry before them rather than dropped: a
+    # credential helper written as a shell fragment is exactly that shape.
+    entries: list[_ConfigEntry] = []
+    for line in raw.splitlines():
+        if chr(9) in line:
+            scope, _, rest = line.partition(chr(9))
+            key, _, value = rest.partition("=")
+            if key:
+                entries.append(_ConfigEntry(scope.strip(), key.strip(), value))
+        elif entries:
+            previous = entries[-1]
+            entries[-1] = _ConfigEntry(
+                previous.scope, previous.key, previous.value + chr(10) + line
+            )
+    return tuple(entries)
+
+
+def _config_value(entries: tuple[_ConfigEntry, ...], key: str) -> str | None:
+    """The winning value for a key: git resolves last-wins across scopes."""
+    for entry in reversed(entries):
+        if entry.key == key:
+            return entry.value or None
+    return None
+
+
 #: How far to look for a `.gitattributes` declaring LFS-tracked paths. A
 #: monorepo keeps them beside each package; going deeper costs a walk on every
 #: scan for diminishing returns.
@@ -145,7 +204,7 @@ def _lfs_required(repo: Path) -> bool:
 
 
 def _credential_helpers(
-    runner: CommandRunner, repo: Path, exec_path: Path | None
+    entries: tuple[_ConfigEntry, ...], exec_path: Path | None
 ) -> tuple[CredentialHelper, ...]:
     """Configured helpers per scope, with whether each one actually exists.
 
@@ -156,11 +215,11 @@ def _credential_helpers(
     """
     found: list[CredentialHelper] = []
     seen: set[tuple[str, str]] = set()
-    for scope in ("local", "global", "system"):
-        raw = _git(runner, repo, "config", f"--{scope}", "--get-all", "credential.helper")
-        if not raw:
+    for entry in entries:
+        if entry.key != "credential.helper":
             continue
-        for line in raw.splitlines():
+        scope = entry.scope or "local"
+        for line in entry.value.splitlines():
             value = line.strip()
             if not value:
                 continue
@@ -258,21 +317,32 @@ def git_health(root: Path | str, *, runner: CommandRunner | None = None) -> GitH
     # a FILE named .git means a linked worktree, not a broken clone
     is_linked_worktree = dot_git.is_file()
 
-    config: dict[str, str | None] = {}
-    for key in _GIT_CONFIG_KEYS:
-        config[key] = _git(runner, root, "config", "--get", key) if is_repo else None
+    entries = _read_config(runner, root) if is_repo else ()
+    if is_repo and not entries:
+        # `--show-scope` needs git 2.26; on anything older the whole command
+        # fails, and treating that as "no configuration" would silently report
+        # a well-configured machine as having nothing set.
+        entries = tuple(
+            _ConfigEntry("unknown", key, value)
+            for key in (*_GIT_CONFIG_KEYS, "credential.helper", "filter.lfs.smudge")
+            if (value := _git(runner, root, "config", "--get", key)) is not None
+        )
+
+    config: dict[str, str | None] = {
+        key: (_config_value(entries, key) if is_repo else None) for key in _GIT_CONFIG_KEYS
+    }
 
     signing = any(config.get(k) for k in ("commit.gpgsign", "tag.gpgsign", "user.signingkey"))
 
     exec_path_raw = _git(runner, root, "--exec-path") if is_repo else None
     exec_path = Path(exec_path_raw) if exec_path_raw else None
-    helpers = _credential_helpers(runner, root, exec_path) if is_repo else ()
+    helpers = _credential_helpers(entries, exec_path) if is_repo else ()
 
     lfs_version = _git(runner, root, "lfs", "version")
-    lfs_initialised = bool(_git(runner, root, "config", "--get", "filter.lfs.smudge"))
+    lfs_initialised = bool(_config_value(entries, "filter.lfs.smudge"))
 
-    sparse = (_git(runner, root, "config", "--get", "core.sparseCheckout") or "").lower() == "true"
-    cone_raw = _git(runner, root, "config", "--get", "core.sparseCheckoutCone") if sparse else None
+    sparse = (_config_value(entries, "core.sparseCheckout") or "").lower() == "true"
+    cone_raw = _config_value(entries, "core.sparseCheckoutCone") if sparse else None
     pattern_count: int | None = None
     if sparse:
         sparse_file = dot_git / "info" / "sparse-checkout"
@@ -283,7 +353,7 @@ def git_health(root: Path | str, *, runner: CommandRunner | None = None) -> GitH
             pattern_count = None
 
     shallow = (_git(runner, root, "rev-parse", "--is-shallow-repository") or "").lower() == "true"
-    partial = _git(runner, root, "config", "--get", "remote.origin.partialclonefilter")
+    partial = _config_value(entries, "remote.origin.partialclonefilter")
 
     notes: list[str] = []
     if is_repo and not is_linked_worktree and not (dot_git / "HEAD").exists():

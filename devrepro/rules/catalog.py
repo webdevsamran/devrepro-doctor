@@ -288,6 +288,76 @@ _LITERAL: dict[str, tuple[str, str, str, str]] = {
         "Nothing, unless a build behaves unexpectedly. `java -version` and "
         "`echo $JAVA_HOME` together tell you which two of the three agree.",
     ),
+    "caches/compiler-cache-ineffective": (
+        "The compiler cache is costing more than it saves",
+        "`ccache` or `sccache` reports a hit rate low enough that the cache is "
+        "adding work rather than removing it.",
+        "Every miss pays a lookup, a write and an eviction on top of the "
+        "compile it did not avoid. The usual cause is a cache smaller than the "
+        "working set, so it evicts what it is about to need again. The symptom "
+        'people report is "builds got slower after we turned caching on", '
+        "which nobody attributes to the cache, and the numbers that would "
+        "explain it are published by the cache itself and read by nothing.",
+        "Raise the size limit -- `ccache --max-size` or `SCCACHE_CACHE_SIZE`. "
+        "If the cache is not full, look for something that varies on every "
+        "run: an absolute path, a timestamp or a build id in the compiler "
+        "command line defeats caching entirely.",
+    ),
+    "caches/compiler-cache-effective": (
+        "The compiler cache is earning its place",
+        "The reported hit rate is high enough that the cache is saving more work than it costs.",
+        "Recorded as a PASS because the absence of a finding and a verified "
+        "measurement are different states, and a report that only lists "
+        "problems cannot tell you which of the two it means.",
+        "Nothing to do.",
+    ),
+    "caches/compiler-cache-full": (
+        "The compiler cache is at its configured size limit",
+        "Reported size has reached the maximum the cache was given.",
+        "A cache at its ceiling evicts what it is about to need again, which "
+        "is usually the *cause* of a low hit rate rather than a separate "
+        "problem. It is reported alongside the rate because the rate is the "
+        "symptom and this is the thing to change.",
+        "Raise `max_size` (ccache) or `SCCACHE_CACHE_SIZE`. Both default to "
+        "values chosen when repositories were smaller.",
+    ),
+    "caches/disk-low": (
+        "Free disk space is low",
+        "Less space remains than a cold dependency install or a container "
+        "image pull typically needs.",
+        "Enough for now, and not for the next `npm ci` or `docker pull`. The "
+        'failure arrives mid-build as "no space left on device", from a step '
+        "that has nothing to do with the cause.",
+        "Build caches are usually the largest reclaimable thing on a "
+        "developer machine. This scan lists the ones present rather than "
+        "sizing them -- walking a Gradle cache costs more than the whole scan "
+        "-- and each finding carries the command that measures it.",
+    ),
+    "caches/disk-critical": (
+        "Free disk space is nearly exhausted",
+        "So little space remains that ordinary operations will fail.",
+        "A container build, a dependency install or even a git checkout will "
+        "stop partway through, and the error will name whichever step "
+        "happened to be running rather than the disk.",
+        "Reclaim space before doing anything else. `docker system df` and the "
+        "cache inventory in this report both name candidates; neither is "
+        "pruned automatically, because which data is expendable is not "
+        "something a diagnostic can know.",
+    ),
+    "caches/relocated": (
+        "A build cache has been moved by an environment variable",
+        "One or more caches are not in their default location, because a "
+        "variable such as `PIP_CACHE_DIR` or `GRADLE_USER_HOME` points "
+        "elsewhere.",
+        "Usually deliberate and reported for one reason: a cache redirected "
+        "onto a network share, an external volume, or a directory a cleanup "
+        'job empties overnight is a common cause of "builds are slow on this '
+        'machine only", with nothing in the build output that would explain '
+        "it.",
+        "Nothing, if the redirection was intended. If it was not, unset the "
+        "variable; the default location is on the fastest disk the machine "
+        "has, which is normally the point.",
+    ),
     "abi/translated-process": (
         "This process runs under Rosetta translation",
         "The interpreter is an x86_64 build running on Apple silicon, with "
