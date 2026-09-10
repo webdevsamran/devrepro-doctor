@@ -180,6 +180,32 @@ names = ["DATABASE_URL", "API_TOKEN"]
 devrepro check --policy .devrepro.toml
 ```
 
+### Inheriting a paved road
+
+A platform team's rules and a repository's own needs do not belong in the same
+file: restate the org's rules and they drift the moment the org changes one;
+omit them and the paved road exists only in a wiki page.
+
+```toml
+extends = "../platform/paved-road.toml"   # or a list, nearest wins
+
+[required_runtimes]
+node = ">=20"                             # deliberately below the org's >=22
+```
+
+`check` reports which layer each requirement came from and what the repository
+overrode, because "node >=22" is not actionable and "node >=22, required by the
+org paved road" tells you whose rule you are failing.
+
+The nearest layer wins outright — ranges are never intersected, since that
+would produce a requirement neither file contains and nobody could explain.
+Required environment *names* are the exception and accumulate, because a list
+of names is additive by nature and silently dropping the org's entry is not
+something a repository's file says it is doing.
+
+`extends` takes local paths only. A URL would make loading a policy a network
+operation, and this tool does not use the network unless a flag says so.
+
 ## UI
 
 A production-quality React + TypeScript frontend ships under [`web/`](web/)

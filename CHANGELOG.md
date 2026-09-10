@@ -9,6 +9,41 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - policy inheritance, and which layer said what
+
+- A platform team publishes a paved road; a repository has its own needs. In
+  one file, the repository either restates the org's rules -- and they drift
+  the moment the org changes one -- or ignores them, and the paved road exists
+  only in a wiki page.
+- `extends = "../platform/paved-road.toml"` composes them, nearest layer
+  winning. `devrepro check` reports which layer each requirement came from and
+  what this repository overrode, because "node >=22" is not actionable and
+  "node >=22, required by the org paved road" tells you whose rule you are
+  failing and who to argue with.
+- Ranges are never intersected. Merging `>=22` and `>=20` into something
+  cleverer would produce a requirement neither file contains, which nobody
+  could then explain to the developer it blocks. Required environment *names*
+  are the one exception and accumulate, because a list of names is additive by
+  nature and silently dropping the org's entry is not something a repository's
+  file says it is doing.
+- `extends` takes local paths only, resolved relative to the file rather than
+  the working directory. A URL would make loading a policy a network operation,
+  and a chain resolved against the cwd works from the repository root and
+  breaks one directory down. Cycles and over-deep chains are errors, not hangs.
+- Attribution is restricted to findings the policy actually caused.
+  `python/version-mismatch` is the paved road's rule;
+  `python/multiple-installations` is a fact about PATH that would be reported
+  with no policy at all, and telling someone their platform team forbade having
+  two Pythons is the kind of wrong that stops people reading a report.
+
+### Fixed - `devrepro check` printed a Python dict to a human
+
+- The human path handed `emit` the payload dictionary, which echoes a repr:
+  the entire report, quoted, on one line. The identical fault was fixed in
+  `generate` earlier for the identical reason -- someone who did not ask for
+  `--json` wants to read the answer, not parse it. `check` now prints the
+  policy layers, the findings that are actionable, and a verdict.
+
 ### Added - a CycloneDX bill of materials for the environment
 
 - `devrepro scan --format cyclonedx` (and `report --format cyclonedx`) emits a

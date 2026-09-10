@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 
@@ -20,6 +21,30 @@ from devrepro.core.errors import DevReproError
 from devrepro.core.exit_codes import ExitCode
 from devrepro.core.models import FindingState
 
+if TYPE_CHECKING:
+    from devrepro.core.models import Finding
+    from devrepro.project.compose import ComposedPolicy
+
+#: Rule suffixes produced by a policy requirement. A finding is attributable to
+#: a policy layer only when the policy is what caused it: `python/version-mismatch`
+#: is the paved road's rule, `python/multiple-installations` is a fact about
+#: PATH that would be reported with no policy at all. Attributing the second to
+#: the org tells someone their platform team forbade having two Pythons, which
+#: it did not, and that is the kind of wrong that stops people reading a report.
+_POLICY_RULE_SUFFIXES = frozenset(
+    {"missing", "version-mismatch", "version-ok", "known-bad-version", "version-unparseable"}
+)
+
+
+def _policy_source_for(composed: ComposedPolicy, finding: Finding) -> str | None:
+    """Which policy layer required the thing this finding is about."""
+    _, _, suffix = finding.rule_id.partition("/")
+    if suffix not in _POLICY_RULE_SUFFIXES or not finding.component:
+        return None
+    return composed.source_of(f"required_runtimes.{finding.component}") or composed.source_of(
+        f"required_tools.{finding.component}"
+    )
+
 
 def register(app: typer.Typer) -> None:
     """Attach diagnostic commands to the root app."""
@@ -34,14 +59,24 @@ def register(app: typer.Typer) -> None:
     ) -> None:
         """Validate a .devrepro.toml policy and check the machine against it.
 
+        A policy may `extends` another -- an org paved road, a team layer --
+        and the nearest one wins. The report says which layer each requirement
+        came from, because "node >=22" is not actionable and "node >=22,
+        required by the org paved road and not overridden here" tells you whose
+        rule you are failing and who to argue with.
+
+        `extends` takes local paths only. A URL would make loading a policy a
+        network operation, and this tool does not use the network unless a flag
+        says to.
+
         Stable exit codes: 0 READY, 1 READY_WITH_WARNINGS, 2 BLOCKED,
         4 invalid policy (see devrepro.core.exit_codes).
         """
         from devrepro.cli.pipeline import run_scan
-        from devrepro.project.policy import load_policy
+        from devrepro.project.compose import load_composed_policy
 
         try:
-            policy = load_policy(policy_path)
+            composed = load_composed_policy(policy_path)
         except Exception as exc:
             if json_out:
                 typer.echo(json.dumps({"error": f"invalid policy: {exc}"}, indent=2))
@@ -49,7 +84,7 @@ def register(app: typer.Typer) -> None:
                 typer.secho(f"Invalid policy {policy_path}: {exc}", fg="red")
             raise SystemExit(ExitCode.USAGE_ERROR) from exc
 
-        report = run_scan(project_dir=project_dir, policy=policy)
+        report = run_scan(project_dir=project_dir, policy=composed.policy)
         findings = list(report.findings)
         states = {f.state.value for f in findings}
         payload = {
@@ -61,10 +96,58 @@ def register(app: typer.Typer) -> None:
                 if (states - {"PASS", "INFO"})
                 else "READY"
             ),
+            "policy_layers": [
+                {"label": layer.label, "path": layer.path, "depth": layer.depth}
+                for layer in composed.layers
+            ],
+            "requirement_sources": [
+                {
+                    "key": entry.key,
+                    "value": entry.value,
+                    "from": entry.layer,
+                    "overrides": list(entry.overrides),
+                }
+                for entry in composed.provenance
+            ],
             "findings": [f.model_dump(mode="json") for f in findings],
             "privacy": report.privacy,
         }
-        emit(payload, json_out)
+
+        if json_out:
+            emit(payload, True)
+            raise SystemExit(exit_for(states))
+
+        # The human path used to hand `emit` the payload dict, which echoes a
+        # Python repr -- the whole report, quoted, on one line. The same fault
+        # was fixed in `generate` for the same reason: someone who did not ask
+        # for `--json` wants to read the answer, not parse it.
+        if len(composed.layers) > 1:
+            # Only worth printing when there is a chain. On a single-layer
+            # policy every requirement comes from the file just named, and
+            # saying so on every line is noise.
+            typer.echo("Policy layers, nearest first:")
+            for layer in composed.layers:
+                typer.echo(f"  {layer.depth}. {layer.label}")
+            for entry in composed.overrides:
+                typer.echo(
+                    f"  {entry.key} = {entry.value} "
+                    f"({composed.layers[0].label} overrides {', '.join(entry.overrides)})"
+                )
+            typer.echo("")
+
+        actionable = [f for f in findings if f.state.value not in {"PASS", "INFO"}]
+        if actionable:
+            typer.echo(f"{len(actionable)} finding(s) against this policy:")
+            for finding in actionable:
+                typer.echo(f"  [{finding.state.value}] {finding.rule_id}: {finding.summary}")
+                source = _policy_source_for(composed, finding)
+                if source and len(composed.layers) > 1:
+                    # The point of composing policies: knowing whose rule you
+                    # are failing is what makes the finding arguable.
+                    typer.echo(f"          required by: {source}")
+            typer.echo("")
+
+        typer.echo(f"CHECK: {payload['verdict']}")
         raise SystemExit(exit_for(states))
 
     @app.command()
