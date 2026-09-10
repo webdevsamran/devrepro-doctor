@@ -87,11 +87,35 @@ def register(app: typer.Typer) -> None:
     @app.command()
     def history(
         json_out: bool = JsonOption,
+        verify: bool = typer.Option(
+            False,
+            "--verify",
+            help="Check the hash chain over stored snapshots instead of showing drift.",
+        ),
     ) -> None:
         """Show local sanitized history and drift since the previous snapshot."""
         from devrepro.snapshots.history import HistoryStore, compute_drift
 
         store = HistoryStore()
+
+        if verify:
+            result = store.verify()
+            if json_out:
+                emit(result.as_dict(), True)
+            else:
+                typer.echo(f"Checked {result.checked} chained snapshot(s).")
+                typer.echo(f"Chain head: {result.head}")
+                typer.echo(
+                    "Record that head outside this directory (a commit message, a "
+                    "ticket) and everything up to it becomes fixed."
+                )
+                for problem in result.problems:
+                    where = "" if problem.seq is None else f" (entry {problem.seq})"
+                    typer.echo(f"  [{problem.kind}]{where} {problem.detail}")
+                if result.ok:
+                    typer.echo("No problems found.")
+            raise typer.Exit(ExitCode.READY if result.ok else ExitCode.READY_WITH_WARNINGS)
+
         snaps = store.latest(2)
         if len(snaps) < 2:
             emit(

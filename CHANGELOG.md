@@ -9,6 +9,52 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - evidence somebody outside the team can actually use
+
+Three commands, `docs/COMPLIANCE.md`, and one rule pack. All offline.
+
+- **`devrepro attest`** emits an in-toto Statement v1 about an environment --
+  the shape cosign, Sigstore and the SLSA verifiers already read. `sign-snapshot`
+  signs with an HMAC, which proves to *you* that *your own* file did not change
+  and is worth nothing to anybody else, because verifying the signature requires
+  holding the key that could have forged it. Three kinds: `environment`,
+  `reproduction` (binding an artefact to the environment attestation it came out
+  of) and SLSA `provenance`, declared as level 1 rather than claimed as more.
+  It **prints the cosign command instead of running it** -- Sigstore signing
+  opens an OIDC flow and writes a permanent public transparency-log entry, and
+  there is no honest way to ask for that from inside a diagnostic command.
+- **`devrepro evidence`** maps a scan onto CRA, NIST SSDF and SLSA control
+  names. Most controls come back `out-of-scope` **with the reason in the
+  exported file**, because a compliance export that reports green across a whole
+  framework hands somebody a document that is wrong. `evidenced` means the facts
+  an assessor asked for are present -- not that the control is satisfied, which
+  needs a person who knows what the product is.
+- **`devrepro evidence --licenses`** inventories the *toolchain's* licenses,
+  which no SBOM tool does because the compiler is in no lockfile. Every row
+  carries an obligation beside the SPDX identifier: compiling with GCC does not
+  put your output under the GPL, and a table that shows the identifier without
+  the Runtime Library Exception has told a legal team something false.
+- **`devrepro advisories`** checks installed tool versions against an offline
+  advisory set, and the `advisories` rule pack runs it in every scan. `fixed` is
+  a list because backports are how these actually ship: a fix released as 2.45.1,
+  2.44.1 and 2.43.4 means 2.44.0 is affected and 2.44.1 is not, which comparing
+  against the highest number gets exactly backwards. The bundled set is a seed,
+  not a feed -- small, every entry carrying a URL you can open. An external
+  bundle must be signed (`DEVREPRO_ADVISORY_KEY`), because the interesting attack
+  on that file is not adding a false entry but quietly removing a true one.
+  Warnings only, never a block.
+- **`devrepro history --verify`** checks a hash chain over stored snapshots:
+  each entry commits to its snapshot's digest and to the entry before it, so an
+  edit, a deletion or a reordering is visible. It says plainly what it cannot do
+  -- there is no secret, so anybody with write access can rebuild the chain --
+  and prints the one digest worth recording somewhere else.
+
+### Fixed
+
+- `devrepro rules` printed a Python dict to a human. The same fault was fixed in
+  `check` and `generate` earlier; it survived here because a one-key dict reads
+  almost like a sentence.
+
 ### Added - an MCP server, with the three prerequisites its own design doc set
 
 - `devrepro mcp --root <path>` speaks newline-delimited JSON-RPC 2.0 on stdin

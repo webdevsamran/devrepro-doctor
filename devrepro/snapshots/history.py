@@ -7,11 +7,18 @@ Drift is computed between the newest stored snapshot and the previous one.
 from __future__ import annotations
 
 import json
+from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
 
 from devrepro.core.models import DiffClassification, Snapshot
 from devrepro.diff.engine import diff_snapshots
+from devrepro.snapshots.chain import (
+    ChainError,
+    ChainVerification,
+    append_entry,
+    verify_chain,
+)
 from devrepro.snapshots.store import SNAPSHOT_SUFFIX, load_snapshot
 
 __all__ = ["DriftItem", "HistoryStore", "compute_drift"]
@@ -30,7 +37,22 @@ class HistoryStore:
         path = self.dir / f"{stamp}-{snapshot.snapshot_id}{SNAPSHOT_SUFFIX}"
         from devrepro.snapshots.store import save_snapshot
 
-        return save_snapshot(snapshot, path)
+        saved = save_snapshot(snapshot, path)
+        # A chain that cannot be appended to must not cost the user their
+        # snapshot. The break is reported by `devrepro history --verify`, which
+        # is where somebody is actually asking about integrity.
+        with suppress(ChainError):
+            append_entry(self.dir, saved, recorded_at=stamp)
+        return saved
+
+    def verify(self) -> ChainVerification:
+        """Whether the stored history is internally consistent.
+
+        See `devrepro.snapshots.chain` for what this does and does not prove:
+        it detects edits, deletions and reordering, and it does not stop
+        somebody with write access from rebuilding the chain around them.
+        """
+        return verify_chain(self.dir, snapshot_suffix=SNAPSHOT_SUFFIX)
 
     def latest(self, n: int = 2) -> list[Snapshot]:
         out: list[Snapshot] = []

@@ -5,7 +5,7 @@
 > `devrepro explain <rule-id>` prints any one of these.
 > `devrepro rules --catalog` lists them all.
 
-Every finding carries a rule id. There are **135** documented ids.
+Every finding carries a rule id. There are **139** documented ids.
 
 Two shapes exist. Most are written out in full where they are emitted.
 Some are composed at runtime from a tool or ecosystem name:
@@ -75,6 +75,19 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* Nothing fails, which is the problem. Every package installed from here is the x86_64 build -- wheels, native addons, compiled extensions -- and they stay x86_64 for anything that loads them later. Builds take roughly ten times as long, and an extension compiled here will not load in a colleague's native arm64 process. The machine reports itself as arm64 throughout.
 
 *How to fix it.* Install an arm64 build of the runtime and re-create the virtualenv or `node_modules` from scratch. Reinstalling packages into the existing one keeps the x86_64 artefacts that are already there.
+
+
+## `advisories/`
+
+### `advisories/coverage`
+
+**What the advisory set covers, and when it was reviewed**
+
+*What it means.* Names the advisory data in use, the date it was last reviewed, and the tools it has any data for at all.
+
+*Why it matters.* An offline advisory set that is silent about a tool has given no answer, and silence reads as a clean result. Reporting coverage explicitly is the only thing that keeps those two apart. The date matters for the same reason: an old bundle is not a clean machine.
+
+*How to fix it.* Nothing to fix. To use a different or newer set, run `devrepro advisories --db <bundle.json>`; an external bundle needs a signature beside it and `DEVREPRO_ADVISORY_KEY` set.
 
 
 ## `caches/`
@@ -546,6 +559,16 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* Reported as information rather than a problem: on a single-user machine it is a considered choice, and it is the only helper that works everywhere. It is worth knowing because the file is readable by anything running as you -- including any package postinstall script -- and because backups and sync tools copy it without asking.
 
 *How to fix it.* An OS keychain helper (`osxkeychain`, `wincred`, `libsecret`) or Git Credential Manager stores the same tokens encrypted. devrepro reports the setting and never reads the file.
+
+### `git/known-advisory`
+
+**The installed tool version is covered by a published advisory**
+
+*What it means.* The version of this build tool matches an entry in the offline advisory set that ships with devrepro, or in the bundle you supplied with `--db`.
+
+*Why it matters.* Dependency scanners never look at the compiler, the interpreter or git, because none of them appear in a lockfile. A toolchain can therefore sit years out of date behind a perfectly clean audit.
+
+*How to fix it.* Upgrade the tool to the fix on its own release branch -- backported fixes mean the highest version number is not always the answer. This comparison is offline and does not know whether your distribution backported the fix into the version string you have, which many do; check your distribution's changelog before treating it as urgent.
 
 ### `git/lfs-not-initialised`
 
@@ -1112,6 +1135,19 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *How to fix it.* Run `devrepro which <tool>` to see every candidate and which one wins. Keep the installation you intend to use and remove or de-prefer the rest; `devrepro plan` proposes the PATH edit.
 
 
+## `openssl/`
+
+### `openssl/known-advisory`
+
+**The installed tool version is covered by a published advisory**
+
+*What it means.* The version of this build tool matches an entry in the offline advisory set that ships with devrepro, or in the bundle you supplied with `--db`.
+
+*Why it matters.* Dependency scanners never look at the compiler, the interpreter or git, because none of them appear in a lockfile. A toolchain can therefore sit years out of date behind a perfectly clean audit.
+
+*How to fix it.* Upgrade the tool to the fix on its own release branch -- backported fixes mean the highest version number is not always the answer. This comparison is offline and does not know whether your distribution backported the fix into the version string you have, which many do; check your distribution's changelog before treating it as urgent.
+
+
 ## `path/`
 
 ### `path/dead-entries`
@@ -1172,6 +1208,16 @@ than exhaustive. `devrepro explain` resolves any prefix.
 
 
 ## `python/`
+
+### `python/known-advisory`
+
+**The installed tool version is covered by a published advisory**
+
+*What it means.* The version of this build tool matches an entry in the offline advisory set that ships with devrepro, or in the bundle you supplied with `--db`.
+
+*Why it matters.* Dependency scanners never look at the compiler, the interpreter or git, because none of them appear in a lockfile. A toolchain can therefore sit years out of date behind a perfectly clean audit.
+
+*How to fix it.* Upgrade the tool to the fix on its own release branch -- backported fixes mean the highest version number is not always the answer. This comparison is offline and does not know whether your distribution backported the fix into the version string you have, which many do; check your distribution's changelog before treating it as urgent.
 
 ### `python/known-bad-version`
 

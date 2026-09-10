@@ -83,7 +83,17 @@ def register(app: typer.Typer) -> None:
         from devrepro.rules.base import PACK_NAMES
 
         if not catalog:
-            emit({"packs": list(PACK_NAMES)}, json_out)
+            if json_out:
+                emit({"packs": list(PACK_NAMES)}, True)
+            else:
+                # A Python dict repr is not a human interface. The same fault
+                # was fixed in `check` and `generate`; it survived here because
+                # a one-key dict reads almost like a sentence.
+                typer.echo(f"{len(PACK_NAMES)} rule packs:")
+                for name in PACK_NAMES:
+                    typer.echo(f"  {name}")
+                typer.echo("")
+                typer.echo("`devrepro rules --catalog` for every documented rule id.")
             raise typer.Exit(ExitCode.READY)
 
         from devrepro.rules.catalog import all_rule_docs

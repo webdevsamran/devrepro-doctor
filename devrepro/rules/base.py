@@ -40,6 +40,7 @@ PACK_NAMES: tuple[str, ...] = (
     "wsl",
     "ai-gpu",
     "lockfiles",
+    "advisories",
 )
 
 
@@ -217,6 +218,7 @@ class RuleEngine:
 
 
 def load_builtin_packs(engine: RuleEngine) -> None:
+    from devrepro.rules.packs.advisories import evaluate as advisories
     from devrepro.rules.packs.ai_gpu import evaluate as ai_gpu
     from devrepro.rules.packs.containers import evaluate as containers
     from devrepro.rules.packs.cpp import evaluate as cpp
@@ -240,3 +242,4 @@ def load_builtin_packs(engine: RuleEngine) -> None:
     engine.register("wsl", wsl)
     engine.register("ai-gpu", ai_gpu)
     engine.register("lockfiles", lockfiles)
+    engine.register("advisories", advisories)

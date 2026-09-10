@@ -61,7 +61,7 @@ SAFE_TO_INVOKE = (
 
 #: Commands whose first parameter is required, used to pin the usage-error
 #: contract: a missing argument must be USAGE_ERROR (4), never BLOCKED (2).
-REQUIRES_AN_ARGUMENT = ("which", "baseline", "diff", "report", "generate")
+REQUIRES_AN_ARGUMENT = ("which", "baseline", "diff", "report", "generate", "attest")
 
 
 def _command_names() -> list[str]:

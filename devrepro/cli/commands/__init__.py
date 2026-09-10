@@ -17,6 +17,7 @@ def register_all(app: typer.Typer) -> None:
     """Attach every domain module's commands to the root Typer app."""
     from devrepro.cli.commands import (
         agents,
+        compliance,
         diagnostics,
         environment,
         platform,
@@ -37,6 +38,7 @@ def register_all(app: typer.Typer) -> None:
         reports,
         platform,
         service,
+        compliance,
     ):
         module.register(app)
 

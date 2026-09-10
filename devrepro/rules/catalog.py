@@ -57,6 +57,20 @@ _COMPOSED: dict[str, tuple[str, str, str, str]] = {
         "longer real. Check `devrepro which <tool>` first -- the tool may be "
         "installed but shadowed or off PATH in this shell.",
     ),
+    "known-advisory": (
+        "The installed tool version is covered by a published advisory",
+        "The version of this build tool matches an entry in the offline "
+        "advisory set that ships with devrepro, or in the bundle you supplied "
+        "with `--db`.",
+        "Dependency scanners never look at the compiler, the interpreter or "
+        "git, because none of them appear in a lockfile. A toolchain can "
+        "therefore sit years out of date behind a perfectly clean audit.",
+        "Upgrade the tool to the fix on its own release branch -- backported "
+        "fixes mean the highest version number is not always the answer. This "
+        "comparison is offline and does not know whether your distribution "
+        "backported the fix into the version string you have, which many do; "
+        "check your distribution's changelog before treating it as urgent.",
+    ),
     "version-ok": (
         "Version satisfies the requirement",
         "The installed version falls inside the range the project declares.",
@@ -929,6 +943,18 @@ _LITERAL: dict[str, tuple[str, str, str, str]] = {
         "`wsl <command>` fails, and tools that shell into WSL fail with it.",
         "`wsl --set-default <distro>`.",
     ),
+    "advisories/coverage": (
+        "What the advisory set covers, and when it was reviewed",
+        "Names the advisory data in use, the date it was last reviewed, and "
+        "the tools it has any data for at all.",
+        "An offline advisory set that is silent about a tool has given no "
+        "answer, and silence reads as a clean result. Reporting coverage "
+        "explicitly is the only thing that keeps those two apart. The date "
+        "matters for the same reason: an old bundle is not a clean machine.",
+        "Nothing to fix. To use a different or newer set, run `devrepro "
+        "advisories --db <bundle.json>`; an external bundle needs a signature "
+        "beside it and `DEVREPRO_ADVISORY_KEY` set.",
+    ),
     "wsl/interop-disabled": (
         "WSL interop is disabled",
         "Windows/Linux interop is turned off in this WSL installation.",
@@ -995,6 +1021,12 @@ MANAGER_CONFLICT_ECOSYSTEMS = ("python", "node")
 #: domain as multiple-installations.
 SHIM_BYPASS_EXAMPLES = ("python", "node", "ruby", "java")
 
+#: `f"{name}/known-advisory"` in rules/packs/advisories.py. The prefix is
+#: whichever tool the advisory set names, so the domain is exactly the set of
+#: tools the bundled data covers -- narrow and enumerable, unlike the families
+#: above. `tests/test_rule_catalog.py` holds it against the bundled data.
+ADVISORY_TOOLS = ("git", "openssl", "python")
+
 MULTIPLE_INSTALL_EXAMPLES = (
     "python",
     "node",
@@ -1020,6 +1052,7 @@ def known_rule_ids() -> list[str]:
     ids |= {f"{eco}/manager-conflict" for eco in MANAGER_CONFLICT_ECOSYSTEMS}
     ids |= {f"{tool}/multiple-installations" for tool in MULTIPLE_INSTALL_EXAMPLES}
     ids |= {f"{tool}/shim-bypassed" for tool in SHIM_BYPASS_EXAMPLES}
+    ids |= {f"{tool}/known-advisory" for tool in ADVISORY_TOOLS}
     return sorted(ids)
 
 

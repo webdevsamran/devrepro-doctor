@@ -110,6 +110,7 @@ def test_literal_ids_appear_in_the_source() -> None:
         "manager-conflict",
         "multiple-installations",
         "shim-bypassed",
+        "known-advisory",
     }
     for rule_id in known_rule_ids():
         _, _, suffix = rule_id.partition("/")
@@ -156,3 +157,18 @@ def test_every_doc_is_actually_written(doc: RuleDoc) -> None:
         # inside the backticks.
         first = value[:1]
         assert first.isupper() or first == "`", f"{doc.rule_id}: {field} should read as a sentence"
+
+
+def test_the_advisory_prefix_domain_matches_the_bundled_data() -> None:
+    """The catalogue's list of advisory-carrying tools is not maintained by hand.
+
+    `ADVISORY_TOOLS` exists so `devrepro rules --catalog` can enumerate
+    `<tool>/known-advisory`. It is a second copy of what the bundled advisory
+    set covers, and a second copy that nothing checks is a second copy that
+    drifts -- which here means an emittable rule id vanishing from the
+    catalogue the moment somebody adds an advisory for a new tool.
+    """
+    from devrepro.compliance.advisories import bundled_bundle
+    from devrepro.rules.catalog import ADVISORY_TOOLS
+
+    assert set(ADVISORY_TOOLS) == set(bundled_bundle().covers)

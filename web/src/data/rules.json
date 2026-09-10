@@ -1,6 +1,6 @@
 {
   "_generated_by": "scripts/generate_rule_docs.py -- edit devrepro/rules/catalog.py",
-  "count": 135,
+  "count": 139,
   "manager_conflict_ecosystems": [
     "node",
     "python"
@@ -64,6 +64,16 @@
       "means": "The interpreter is an x86_64 build running on Apple silicon, with macOS translating every instruction.",
       "matters": "Nothing fails, which is the problem. Every package installed from here is the x86_64 build -- wheels, native addons, compiled extensions -- and they stay x86_64 for anything that loads them later. Builds take roughly ten times as long, and an extension compiled here will not load in a colleague's native arm64 process. The machine reports itself as arm64 throughout.",
       "fix": "Install an arm64 build of the runtime and re-create the virtualenv or `node_modules` from scratch. Reinstalling packages into the existing one keeps the x86_64 artefacts that are already there.",
+      "composed": false
+    },
+    {
+      "rule_id": "advisories/coverage",
+      "prefix": "advisories",
+      "suffix": "coverage",
+      "title": "What the advisory set covers, and when it was reviewed",
+      "means": "Names the advisory data in use, the date it was last reviewed, and the tools it has any data for at all.",
+      "matters": "An offline advisory set that is silent about a tool has given no answer, and silence reads as a clean result. Reporting coverage explicitly is the only thing that keeps those two apart. The date matters for the same reason: an old bundle is not a clean machine.",
+      "fix": "Nothing to fix. To use a different or newer set, run `devrepro advisories --db <bundle.json>`; an external bundle needs a signature beside it and `DEVREPRO_ADVISORY_KEY` set.",
       "composed": false
     },
     {
@@ -514,6 +524,16 @@
       "means": "`credential.helper=store` writes credentials to `~/.git-credentials` unencrypted.",
       "matters": "Reported as information rather than a problem: on a single-user machine it is a considered choice, and it is the only helper that works everywhere. It is worth knowing because the file is readable by anything running as you -- including any package postinstall script -- and because backups and sync tools copy it without asking.",
       "fix": "An OS keychain helper (`osxkeychain`, `wincred`, `libsecret`) or Git Credential Manager stores the same tokens encrypted. devrepro reports the setting and never reads the file.",
+      "composed": false
+    },
+    {
+      "rule_id": "git/known-advisory",
+      "prefix": "git",
+      "suffix": "known-advisory",
+      "title": "The installed tool version is covered by a published advisory",
+      "means": "The version of this build tool matches an entry in the offline advisory set that ships with devrepro, or in the bundle you supplied with `--db`.",
+      "matters": "Dependency scanners never look at the compiler, the interpreter or git, because none of them appear in a lockfile. A toolchain can therefore sit years out of date behind a perfectly clean audit.",
+      "fix": "Upgrade the tool to the fix on its own release branch -- backported fixes mean the highest version number is not always the answer. This comparison is offline and does not know whether your distribution backported the fix into the version string you have, which many do; check your distribution's changelog before treating it as urgent.",
       "composed": false
     },
     {
@@ -1057,6 +1077,16 @@
       "composed": true
     },
     {
+      "rule_id": "openssl/known-advisory",
+      "prefix": "openssl",
+      "suffix": "known-advisory",
+      "title": "The installed tool version is covered by a published advisory",
+      "means": "The version of this build tool matches an entry in the offline advisory set that ships with devrepro, or in the bundle you supplied with `--db`.",
+      "matters": "Dependency scanners never look at the compiler, the interpreter or git, because none of them appear in a lockfile. A toolchain can therefore sit years out of date behind a perfectly clean audit.",
+      "fix": "Upgrade the tool to the fix on its own release branch -- backported fixes mean the highest version number is not always the answer. This comparison is offline and does not know whether your distribution backported the fix into the version string you have, which many do; check your distribution's changelog before treating it as urgent.",
+      "composed": false
+    },
+    {
       "rule_id": "path/dead-entries",
       "prefix": "path",
       "suffix": "dead-entries",
@@ -1104,6 +1134,16 @@
       "means": "A port the project declares is in use by another process.",
       "matters": "The service will fail to start, usually with an 'address already in use' that does not say what is holding it.",
       "fix": "Stop the process holding the port, or change the port the project declares.",
+      "composed": false
+    },
+    {
+      "rule_id": "python/known-advisory",
+      "prefix": "python",
+      "suffix": "known-advisory",
+      "title": "The installed tool version is covered by a published advisory",
+      "means": "The version of this build tool matches an entry in the offline advisory set that ships with devrepro, or in the bundle you supplied with `--db`.",
+      "matters": "Dependency scanners never look at the compiler, the interpreter or git, because none of them appear in a lockfile. A toolchain can therefore sit years out of date behind a perfectly clean audit.",
+      "fix": "Upgrade the tool to the fix on its own release branch -- backported fixes mean the highest version number is not always the answer. This comparison is offline and does not know whether your distribution backported the fix into the version string you have, which many do; check your distribution's changelog before treating it as urgent.",
       "composed": false
     },
     {
