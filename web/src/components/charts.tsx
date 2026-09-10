@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { useEffect, useRef, useState } from 'react'
 
 /**
@@ -263,5 +264,74 @@ export function Sparkline({
         vectorEffect="non-scaling-stroke"
       />
     </svg>
+  )
+}
+
+/**
+ * A version heatmap the eye can actually read.
+ *
+ * The fleet API has returned this data since the server shipped, and the page
+ * rendered it as `3.11 ×4 · 3.12 ×2` — a sentence, which means reading every
+ * row to find the one that matters. The whole value of a fleet view is seeing
+ * divergence at a glance, and a list of counts is the one presentation that
+ * cannot do that.
+ *
+ * Colour encodes *share of that tool's machines*, not absolute count. A team of
+ * four and a team of four hundred should look the same when they are equally
+ * divided; scaling by count would make every small team look healthy and every
+ * large one look broken.
+ *
+ * Never colour alone. Each cell carries its count as text and a title
+ * attribute, because a heatmap read by somebody with a colour vision deficiency
+ * is otherwise a grid of grey squares — and this is the view people screenshot.
+ */
+export function VersionHeatmap({
+  heatmap,
+}: {
+  heatmap: Record<string, Record<string, number>>
+}) {
+  const tools = Object.keys(heatmap).sort()
+  if (tools.length === 0) return null
+
+  return (
+    <div className="heatmap" role="table" aria-label="Tool versions across the fleet">
+      {tools.map((tool) => {
+        const versions = heatmap[tool] ?? {}
+        const total = Object.values(versions).reduce((a, b) => a + b, 0) || 1
+        const entries = Object.entries(versions).sort((a, b) => b[1] - a[1])
+        // One version everywhere is the good case and should read as calm
+        // rather than as a full-intensity block.
+        const converged = entries.length === 1
+        return (
+          <div className="heatmap-row" role="row" key={tool}>
+            <div className="heatmap-label" role="rowheader">
+              <span>{tool}</span>
+              {!converged && (
+                <span className="heatmap-count" title={`${entries.length} distinct versions`}>
+                  {entries.length} versions
+                </span>
+              )}
+            </div>
+            <div className="heatmap-cells">
+              {entries.map(([version, count]) => {
+                const share = count / total
+                return (
+                  <div
+                    className={converged ? 'heatmap-cell is-converged' : 'heatmap-cell'}
+                    role="cell"
+                    key={version}
+                    style={{ '--share': share } as CSSProperties}
+                    title={`${tool} ${version}: ${count} of ${total} machines (${Math.round(share * 100)}%)`}
+                  >
+                    <span className="heatmap-version">{version}</span>
+                    <span className="heatmap-n">{count}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+    </div>
   )
 }

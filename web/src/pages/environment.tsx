@@ -9,6 +9,7 @@ import {
   type BaselineDiffEntry, type EnvReport, type FleetDashboard,
   type GitHealth, type NetworkReport, type PortsReport, type ProfilePayload,
 } from '../api/capabilities'
+import { VersionHeatmap } from '../components/charts'
 import { Card, EmptyState } from '../components/ui'
 
 function Page({ title, children }: { title: string; children: React.ReactNode }) {
@@ -274,12 +275,11 @@ export function FleetDashboardPage() {
         </table>
       </Card>
       <Card title="Tool-version heatmap">
-        <table className="table">
-          <thead><tr><th>Tool</th><th>Versions observed</th></tr></thead>
-          <tbody>{Object.entries(dash.heatmap).map(([tool, versions]) => (
-            <tr key={tool}><td>{tool}</td><td>{Object.entries(versions).map(([v, n]) => `${v} ×${n}`).join(' · ')}</td></tr>
-          ))}</tbody>
-        </table>
+        <p className="muted">
+          Share of each tool's machines per version. A single wide band is a fleet that agrees;
+          several narrow ones are where "works on my machine" comes from.
+        </p>
+        <VersionHeatmap heatmap={dash.heatmap} />
       </Card>
       {dash.compliance && dash.compliance.length > 0 && (
         <Card title="Baseline compliance">

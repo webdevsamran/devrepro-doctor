@@ -227,7 +227,7 @@ Environment   env  ports  git-health  network  envmanagers
 Snapshots     snapshot  diff  history  drift  sign-snapshot  verify-snapshot  bundle
 Reproduce     reproduce  bisect  repro-rate
 Compliance    attest  evidence  advisories
-Integration   contract  pins  watch  onboard
+Integration   contract  pins  watch  onboard  monitor  notify
 Remediation   plan  fix  rules  explain  plugins
 Reports       report  export
 Services      serve  self-test  bench  mcp  server-backup  server-restore

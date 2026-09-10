@@ -1210,3 +1210,37 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------------------------------------------------------------- heatmap --
+ * Share, not count. A team of four and a team of four hundred look the same
+ * when they are equally divided, which is the comparison a fleet view is for.
+ *
+ * Colour is never the only signal: every cell carries its count as text and a
+ * title, because this is the view people screenshot and a grid of grey squares
+ * is what it becomes for a reader with a colour vision deficiency.
+ */
+.heatmap { display: flex; flex-direction: column; gap: 6px; }
+.heatmap-row { display: grid; grid-template-columns: minmax(7rem, 12rem) 1fr; gap: 10px; align-items: center; }
+.heatmap-label { display: flex; flex-direction: column; gap: 2px; font-variant-numeric: tabular-nums; }
+.heatmap-count { font-size: 0.75rem; color: var(--fg-muted); }
+.heatmap-cells { display: flex; gap: 2px; min-width: 0; border-radius: var(--radius-sm); overflow: hidden; }
+.heatmap-cell {
+  flex: calc(var(--share) * 100) 1 0;
+  min-width: 3.5rem;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  /* Intensity tracks share. `color-mix` keeps it on the theme's own accent, so
+   * this follows light/dark without a second palette to maintain. */
+  background: color-mix(in srgb, var(--accent) calc(var(--share) * 70%), var(--surface-2));
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+.heatmap-cell.is-converged { background: color-mix(in srgb, var(--sev-pass) 22%, var(--surface-2)); }
+.heatmap-version { font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.heatmap-n { font-size: 0.72rem; color: var(--fg-muted); }
+
+@media (max-width: 640px) {
+  .heatmap-row { grid-template-columns: 1fr; }
+}

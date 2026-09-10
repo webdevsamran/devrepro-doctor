@@ -100,6 +100,14 @@ CREATE TABLE IF NOT EXISTS baselines (
     created_at TEXT NOT NULL,
     UNIQUE(project_id, baseline_id)
 );
+CREATE TABLE IF NOT EXISTS project_members (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id),
+    user_email TEXT NOT NULL,
+    role TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE(project_id, user_email)
+);
 CREATE TABLE IF NOT EXISTS policies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     org_id INTEGER NOT NULL REFERENCES organizations(id),
@@ -333,6 +341,107 @@ class ServerDB:
         ).fetchall()
         return [dict(r) for r in rows]
 
+    # ---- rows for fleet analytics ------------------------------------------
+
+    def enrolment_rows(self, org_id: int) -> list[dict[str, object]]:
+        """`(id, created_at)` per machine, for the onboarding distribution.
+
+        Named `created_at` rather than `enrolled_at` because that is what the
+        analytics module reads, and translating at the boundary keeps the
+        analytics testable without a database.
+        """
+        rows = self._conn.execute(
+            "SELECT id, enrolled_at FROM machines WHERE org_id=?",
+            (org_id,),
+        ).fetchall()
+        return [{"id": r["id"], "created_at": r["enrolled_at"]} for r in rows]
+
+    def snapshot_facts(self, org_id: int, limit: int = 5000) -> list[dict[str, object]]:
+        """Each snapshot's machine, time, verdict and active tool versions.
+
+        The payload is parsed here rather than in the analytics, so the
+        analytics take plain rows and can be tested without a database at all.
+        A payload that will not parse is skipped: a snapshot this server cannot
+        read is not evidence about the machine that sent it.
+
+        Newest first, so a caller taking the first row per machine gets the
+        latest state -- which is what a policy simulation must be run against.
+        """
+        rows = self._conn.execute(
+            "SELECT s.machine_id, s.received_at, s.payload FROM snapshots s"
+            " JOIN machines m ON m.id=s.machine_id"
+            " WHERE m.org_id=? ORDER BY s.received_at DESC LIMIT ?",
+            (org_id, limit),
+        ).fetchall()
+
+        facts: list[dict[str, object]] = []
+        for row in rows:
+            try:
+                payload = json.loads(row["payload"])
+            except (ValueError, TypeError):
+                continue
+            if not isinstance(payload, dict):
+                continue
+
+            tools: dict[str, str] = {}
+            for tool in payload.get("tools") or []:
+                if not isinstance(tool, dict) or not tool.get("is_active"):
+                    continue
+                name, version = tool.get("name"), tool.get("version")
+                # A readable version wins over an unreadable duplicate, the
+                # same resolution `ScanReport.active_versions` makes and for the
+                # same reason: a machine reports some tools more than once.
+                if isinstance(name, str) and version and not tools.get(name):
+                    tools[name] = str(version)
+
+            facts.append(
+                {
+                    "machine_id": row["machine_id"],
+                    "created_at": payload.get("created_at") or row["received_at"],
+                    "verdict": _verdict_from_payload(payload),
+                    "tools": tools,
+                }
+            )
+        return facts
+
+    # ---- team scoping ------------------------------------------------------
+
+    def add_project_member(self, project_id: int, email: str, role: str) -> None:
+        """Give one person a role on one project."""
+        with self.tx() as c:
+            c.execute(
+                "INSERT OR REPLACE INTO project_members(project_id,user_email,role,created_at) "
+                "VALUES(?,?,?,?)",
+                (project_id, email, role, _now()),
+            )
+
+    def project_members(self, project_id: int) -> list[dict[str, object]]:
+        rows = self._conn.execute(
+            "SELECT user_email, role FROM project_members WHERE project_id=? ORDER BY user_email",
+            (project_id,),
+        ).fetchall()
+        return [{"email": r["user_email"], "role": r["role"]} for r in rows]
+
+    def may_administer_project(self, project_id: int, email: str, org_role: str) -> bool:
+        """Whether this identity may change what a project's machines must look like.
+
+        `admin` crosses team boundaries, because somebody has to be able to fix a
+        team whose maintainer left, and every crossing is written to the audit
+        log where it can be seen.
+
+        A project with **no** members is open to any org maintainer. Deliberate:
+        the alternative is that introducing this table locks every existing
+        deployment out of its own baselines on upgrade, and a security
+        improvement that arrives as an outage is one that gets reverted rather
+        than adopted.
+        """
+        if org_role == "admin":
+            return True
+        members = self.project_members(project_id)
+        if not members:
+            return True
+        return any(m["email"] == email and m["role"] in {"admin", "maintainer"} for m in members)
+
     # ---- baselines ---------------------------------------------------------
 
     def approve_baseline(self, project_id: int, baseline: dict[str, object], approver: str) -> str:
@@ -509,3 +618,23 @@ class ServerDB:
 
     def close(self) -> None:
         self._conn.close()
+
+
+def _verdict_from_payload(payload: dict[str, object]) -> str:
+    """The verdict a stored snapshot implies.
+
+    A snapshot carries state rather than a verdict, so this derives one from the
+    worst finding present. An absent `findings` list means the snapshot was
+    taken by a version that did not store them, which is reported as UNKNOWN
+    rather than as READY -- an onboarding metric that counts unreadable
+    snapshots as successes measures the wrong thing in the flattering direction.
+    """
+    findings = payload.get("findings")
+    if not isinstance(findings, list):
+        return "UNKNOWN"
+    states = {str(f.get("state", "")).upper() for f in findings if isinstance(f, dict)}
+    if states & {"BLOCKED", "ERROR"}:
+        return "BLOCKED"
+    if states & {"WARN", "UNKNOWN"}:
+        return "READY_WITH_WARNINGS"
+    return "READY"

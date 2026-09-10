@@ -158,6 +158,14 @@ def create_app(db: ServerDB) -> Flask:
         approver = str(g.identity["name"])
         if not project_id or not isinstance(baseline, dict):
             return _err(400, "project_id and baseline required")
+        # Org-wide `maintainer` is not enough. A baseline defines what a team's
+        # machines must look like, and letting any maintainer edit any team's is
+        # a control that reads as present and is not.
+        if not db.may_administer_project(project_id, approver, str(g.identity["role"])):
+            db.audit(
+                int(g.identity["org_id"]), approver, "baseline.approve.denied", str(project_id)
+            )
+            return _err(403, "not a maintainer of this project")
         bid = db.approve_baseline(project_id, baseline, approver)
         db.audit(int(g.identity["org_id"]), approver, "baseline.approve", bid)
         return jsonify({"baseline_id": bid})
@@ -167,6 +175,64 @@ def create_app(db: ServerDB) -> Flask:
     def get_baseline(project_id: int) -> Response | tuple[Response, int]:
         b = db.latest_baseline(project_id)
         return (jsonify(b), 200) if b else _err(404, "no baseline")
+
+    @app.post("/api/v1/projects/<int:project_id>/members")
+    @require_role("admin")
+    def add_member(project_id: int) -> Response | tuple[Response, int]:
+        body = request.get_json(silent=True) or {}
+        email = str(body.get("email", "")).strip()
+        role = str(body.get("role", "")).strip()
+        if not email or role not in {"admin", "maintainer", "member", "viewer"}:
+            return _err(400, "email and a known role required")
+        db.add_project_member(project_id, email, role)
+        db.audit(
+            int(g.identity["org_id"]),
+            str(g.identity["name"]),
+            "project.member.add",
+            str(project_id),
+        )
+        return jsonify({"project_id": project_id, "members": db.project_members(project_id)})
+
+    @app.get("/api/v1/projects/<int:project_id>/members")
+    @require_role("viewer")
+    def list_members(project_id: int) -> Response:
+        return jsonify({"project_id": project_id, "members": db.project_members(project_id)})
+
+    # ---- fleet analytics ------------------------------------------------------------
+
+    @app.get("/api/v1/fleet/onboarding")
+    @require_role("viewer")
+    def onboarding() -> Response:
+        """Aggregate onboarding times. No machine, user or label is returned."""
+        from devrepro.server.analytics import onboarding_stats
+
+        org = int(g.identity["org_id"])
+        return jsonify(onboarding_stats(db.enrolment_rows(org), db.snapshot_facts(org)).as_dict())
+
+    @app.post("/api/v1/fleet/simulate-policy")
+    @require_role("maintainer")
+    def simulate() -> Response | tuple[Response, int]:
+        """Who would a proposed policy break? Answered before the rollout."""
+        from devrepro.core.models import Policy
+        from devrepro.server.analytics import simulate_policy
+
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict):
+            return _err(400, "policy document must be a JSON object")
+        try:
+            policy = Policy.model_validate(body)
+        except Exception:
+            return _err(400, "policy document failed validation")
+
+        org = int(g.identity["org_id"])
+        # `snapshot_facts` is newest-first, so the first row per machine is its
+        # latest state -- which is the only state a rollout will meet.
+        latest: dict[object, dict[str, object]] = {}
+        for snapshot in db.snapshot_facts(org):
+            machine = snapshot.get("machine_id")
+            if machine is not None and machine not in latest:
+                latest[machine] = snapshot
+        return jsonify(simulate_policy(policy, list(latest.values())).as_dict())
 
     # ---- policy-as-code -------------------------------------------------------------
 

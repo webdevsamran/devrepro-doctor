@@ -9,6 +9,75 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - fleet governance, and the line each feature stops at
+
+Five of these are one step from something a person could reasonably object to,
+so most of the work is where each stops.
+
+- **Onboarding analytics** (`GET /api/v1/fleet/onboarding`). Time from
+  enrolment to the first READY snapshot. **Aggregate only, with a floor**: a
+  per-person onboarding time is a performance metric whatever the dashboard
+  calls it, it is wrong for obvious reasons -- somebody spent their first week in
+  orientation -- and once it exists somebody asks for it broken down by name.
+  Nothing is reported below a cohort of five, and no machine, user or label
+  appears in the payload. Machines that **never** became ready are counted
+  separately: a metric computed only over successes hides the population it
+  exists to find.
+- **Policy simulation** (`POST /api/v1/fleet/simulate-policy`). A paved road is
+  normally rolled out by editing a policy and finding out. This applies the
+  proposed policy to each machine's last stored snapshot and reports who newly
+  fails and **which requirement did it** -- the count says how bad, the cause
+  says which line to soften. Snapshots with no tool data count as unevaluated
+  rather than passing, because a simulation that quietly narrows its own
+  denominator under-reports the blast radius.
+- **Team-scoped baselines.** RBAC shipped org-wide, so any maintainer could
+  approve any project's baseline -- a control that reads as present and is not.
+  `project_members` scopes it; `admin` still crosses boundaries, because
+  somebody has to fix a team whose maintainer left, and every crossing is
+  audited. A project with no members stays open to any maintainer, so this
+  arrives as a tightening rather than as an outage on upgrade.
+- **`devrepro notify`** renders a Slack Block Kit or Teams Adaptive Card
+  payload and posts nothing. A bot would need a token this project would have
+  to hold, refresh and be trusted with, plus a workspace administrator's
+  approval; a webhook URL is already the thing every CI system has a secret
+  slot for. Native formats, because Markdown posted into either renders as
+  something that looks broken.
+- **`devrepro notify --mdm jamf|intune|kandji`** emits an extension-attribute
+  or compliance script. Each reports **a verdict and a blocker count and
+  nothing else**: your MDM already knows the machine, and putting a developer's
+  local software inventory in front of that audience is the scope creep that
+  gets a tool banned. An absent devrepro reports UNKNOWN, never compliant.
+- **`devrepro monitor`** takes a snapshot when nothing is wrong, because nobody
+  takes one on a Tuesday and the first snapshot anybody has is the one after the
+  build broke -- exactly one, and one snapshot diffs against nothing. No daemon,
+  no network. `--schedule` prints a scheduler entry with its removal
+  instructions rather than installing one. A clock that moved backwards takes a
+  snapshot instead of stalling until it catches up.
+- **A real fleet heatmap** replaces `3.11 ×4 · 3.12 ×2`, which was a sentence --
+  so finding the diverged tool meant reading every row, and seeing divergence at
+  a glance is the entire value of a fleet view. Colour encodes **share**, not
+  count, so a team of four and a team of four hundred look the same when equally
+  divided. Never colour alone: every cell carries its count as text and a full
+  comparison in its title.
+- **Release artefacts are signed**, and build provenance is attested from the
+  job that produced them. SHA256SUMS proves the files match a list published by
+  whoever published the files; a keyless Sigstore signature answers who built
+  them, with no key to rotate. Every signature lands in a public transparency
+  log -- for public artefacts that is not a cost, and it is the same trade
+  `devrepro attest` refuses to make on a *user's* behalf.
+
+### Fixed - the p90 excluded the tail
+
+`_percentile` used `round` where nearest-rank needs `ceil`. With six values
+`round(0.9 * 6) - 1` lands on index four -- the fifth of six -- so the one
+machine that took three weeks never reached the p90 at all. A tail metric that
+systematically excludes the tail is quietly wrong in the flattering direction
+and reads as a healthy fleet forever.
+
+`scripts/check_action_pins.py` also stopped conflating two answers: GitHub being
+unreachable and no tag pointing at a SHA both produced an empty list, so an
+offline run reported every claim as checked and unconfirmed.
+
 ### Added - reproduction: a container somebody else can run, and the search tools
 
 `docs/REPRODUCTION.md`. The README opens by promising to answer "Docker works

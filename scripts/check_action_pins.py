@@ -52,11 +52,18 @@ FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 #: Local composite actions (`./.github/actions/...`) have no upstream to pin.
 LOCAL = re.compile(r"^\s*-?\s*uses:\s*\.")
 
-_cache: dict[tuple[str, str], list[str]] = {}
+_cache: dict[tuple[str, str], list[str] | None] = {}
 
 
-def tags_at(action: str, sha: str) -> list[str]:
-    """Tag names pointing at `sha` in `action`'s repository."""
+def tags_at(action: str, sha: str) -> list[str] | None:
+    """Tag names pointing at `sha`, or `None` when the question was not answered.
+
+    The distinction matters. An empty list means GitHub answered and no tag
+    points at that SHA -- the pin claims a version nothing confirms. `None`
+    means the API could not be reached, which says nothing about the pin at
+    all. Collapsing both into an empty list reported an offline run as though
+    every claim had been checked and found wanting.
+    """
     key = (action, sha)
     if key in _cache:
         return _cache[key]
@@ -78,8 +85,8 @@ def tags_at(action: str, sha: str) -> list[str]:
             payload = json.load(response)
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
         print(f"warning: could not resolve tags for {action}: {exc}", file=sys.stderr)
-        _cache[key] = []
-        return []
+        _cache[key] = None
+        return None
 
     tags = [t["name"] for t in payload if t.get("commit", {}).get("sha") == sha]
     _cache[key] = tags
@@ -94,6 +101,7 @@ def main() -> int:
     unpinned: list[str] = []
     mislabelled: list[str] = []
     unresolved: list[str] = []
+    unchecked: list[str] = []
     checked = 0
 
     for workflow in sorted(WORKFLOWS.glob("*.yml")) + sorted(WORKFLOWS.glob("*.yaml")):
@@ -119,7 +127,9 @@ def main() -> int:
             checked += 1
             want = "v" + claimed.group(1)
             tags = tags_at(action, ref)
-            if not tags:
+            if tags is None:
+                unchecked.append(f"{where}  {action}@{ref[:12]} claims {want}; API unreachable")
+            elif not tags:
                 unresolved.append(
                     f"{where}  {action}@{ref[:12]} claims {want}; no tag points at that SHA"
                 )
@@ -132,6 +142,7 @@ def main() -> int:
         ("actions that are not SHA-pinned", unpinned),
         ("pins whose version comment is wrong", mislabelled),
         ("pins naming a version no tag confirms", unresolved),
+        ("pins nobody could check (GitHub unreachable)", unchecked),
     ):
         if rows:
             print(f"{label}:", file=sys.stderr)
@@ -146,10 +157,18 @@ def main() -> int:
         )
         return 1
 
-    if unresolved:
-        # A tag can legitimately disappear or move; that is worth printing but
-        # is not grounds to fail a build on someone else's repository state.
-        print(f"ok (with {len(unresolved)} unresolved) - {checked} pins checked")
+    if unresolved or unchecked:
+        # Neither is grounds to fail. A tag can legitimately disappear or move,
+        # and an unreachable API is this script's problem rather than the
+        # repository's. But the summary says which happened, because "we
+        # checked and could not confirm" and "we never got to ask" lead
+        # somewhere different and used to print the same line.
+        parts = []
+        if unresolved:
+            parts.append(f"{len(unresolved)} unconfirmed")
+        if unchecked:
+            parts.append(f"{len(unchecked)} unchecked (offline)")
+        print(f"ok (with {', '.join(parts)}) - {checked} pins seen")
         return 0
 
     print(f"ok     {checked} pinned actions, every version comment verified")

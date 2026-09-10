@@ -249,3 +249,122 @@ def register(app: typer.Typer) -> None:
         else:
             typer.echo(script if output is None else f"wrote {output}")
         raise typer.Exit(ExitCode.READY)
+
+    @app.command()
+    def monitor(
+        snapshot: bool = typer.Option(
+            False,
+            "--snapshot",
+            help="Take a snapshot if the interval has elapsed. Without it, only report.",
+        ),
+        interval_hours: float = typer.Option(
+            24.0, "--interval-hours", help="How stale the newest snapshot must be."
+        ),
+        schedule: str | None = typer.Option(
+            None, "--schedule", help="Print a scheduler entry: cron | windows | macos."
+        ),
+        json_out: bool = JsonOption,
+    ) -> None:
+        """Take a snapshot when nothing is wrong, so later drift has a baseline.
+
+        Nobody takes a snapshot on a Tuesday, because nothing is wrong on a
+        Tuesday. So the first snapshot anybody has is the one taken after the
+        build broke -- exactly one, and one snapshot diffs against nothing.
+
+        No daemon: this runs when invoked and exits. No network: snapshots go to
+        the same local history `devrepro history` reads, and there is nowhere to
+        send them. `--schedule` prints a scheduler entry rather than installing
+        one, because a persistent change to somebody's machine is not something
+        a diagnostic makes on their behalf.
+        """
+        import time
+
+        from devrepro.drift.monitor import render_schedule, should_snapshot
+        from devrepro.snapshots.store import default_history_dir
+
+        if schedule is not None:
+            if schedule not in {"cron", "windows", "macos"}:
+                secho(f"unknown --schedule {schedule!r}: cron | windows | macos", fg="red")
+                raise typer.Exit(ExitCode.USAGE_ERROR)
+            typer.echo(render_schedule(platform=schedule, interval_hours=interval_hours))
+            raise typer.Exit(ExitCode.READY)
+
+        directory = default_history_dir()
+        decision = should_snapshot(directory, interval_hours=interval_hours, now=time.time())
+
+        took = False
+        if decision.snapshot and snapshot:
+            from devrepro.cli.pipeline import run_scan
+            from devrepro.snapshots.history import HistoryStore
+            from devrepro.snapshots.store import snapshot_from_report
+
+            HistoryStore(directory).save(snapshot_from_report(run_scan()))
+            took = True
+
+        payload = {**decision.as_dict(), "taken": took}
+        if json_out:
+            emit(payload, True)
+        else:
+            typer.echo(decision.reason)
+            if decision.snapshot and not snapshot:
+                typer.echo("Pass --snapshot to take one. Nothing was written.")
+            elif took:
+                typer.echo("Snapshot stored.")
+        raise typer.Exit(ExitCode.READY)
+
+    @app.command()
+    def notify(  # noqa: PLR0917 -- CLI options, not a call signature
+        platform: str = typer.Option("slack", "--platform", help="slack | teams"),
+        context: str = typer.Option("", "--context", help="Repository, branch or machine label."),
+        link: str | None = typer.Option(None, "--link", help="Where to read the detail."),
+        mdm: str | None = typer.Option(
+            None, "--mdm", help="Emit an MDM script instead: jamf | intune | kandji."
+        ),
+        json_out: bool = JsonOption,
+        policy_path: Path | None = PolicyOption,
+    ) -> None:
+        """Render the verdict for a chat webhook or an MDM script. Sends nothing.
+
+        A bot would need a token this project would have to hold, refresh and be
+        trusted with, plus an install a workspace administrator has to approve.
+        A webhook URL is already the thing every CI system has a secret slot
+        for, so the payload is built and `curl` posts it.
+
+        `--mdm` emits an extension-attribute or compliance script for Jamf,
+        Intune or Kandji. Each reports a verdict and a blocker count and nothing
+        else: your MDM already knows the machine, and putting a developer's
+        local software inventory in front of that audience is scope creep that
+        gets a tool banned.
+        """
+        from devrepro.platforms.mdm import MDM_PLATFORMS, render_mdm_script
+
+        if mdm is not None:
+            try:
+                filename, script = render_mdm_script(mdm)
+            except ValueError as exc:
+                secho(str(exc), fg="red")
+                raise typer.Exit(ExitCode.USAGE_ERROR) from exc
+            if json_out:
+                emit({"filename": filename, "script": script}, True)
+            else:
+                typer.echo(f"--- {filename} ---")
+                typer.echo(script)
+                typer.echo(MDM_PLATFORMS[mdm][1])
+            raise typer.Exit(ExitCode.READY)
+
+        from devrepro.cli.pipeline import run_scan
+        from devrepro.exporters.chat import render_chat_payload
+
+        try:
+            payload = render_chat_payload(
+                run_scan(policy=load_policy_or_none(policy_path)),
+                platform=platform,
+                context=context,
+                link=link,
+            )
+        except ValueError as exc:
+            secho(str(exc), fg="red")
+            raise typer.Exit(ExitCode.USAGE_ERROR) from exc
+
+        emit(payload, True)
+        raise typer.Exit(ExitCode.READY)
