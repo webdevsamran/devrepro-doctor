@@ -1,17 +1,25 @@
-"""Render `docs/RULES.md` from the rule catalogue.
+"""Render the rule catalogue: `docs/RULES.md` and `web/src/data/rules.json`.
 
-The catalogue is the source; the page is a rendering of it. Committing a
-generated file without a drift check is how documentation starts lying, so
-`--check` fails when the committed page no longer matches what the catalogue
-would produce -- the same contract `generate_schemas.py`,
-`generate_landscape.py` and `capture_readme_example.py` already hold.
+The catalogue in `devrepro/rules/catalog.py` is the source; both outputs are
+renderings of it. Committing a generated file without a drift check is how
+documentation starts lying, so `--check` fails when either committed file no
+longer matches what the catalogue would produce -- the same contract
+`generate_schemas.py`, `generate_landscape.py` and `capture_readme_example.py`
+already hold.
 
-    python scripts/generate_rule_docs.py            # write
+The JSON exists because the console cannot import Python. Without it the Rules
+view could only list the packs that happened to appear in the current report,
+which is a fraction of what the tool can say and tells a reader nothing about
+the rule they are actually looking at. Generating it from the same source is
+what keeps a searchable catalogue from becoming a second, stale one.
+
+    python scripts/generate_rule_docs.py            # write both
     python scripts/generate_rule_docs.py --check    # verify, for CI
 """
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -19,6 +27,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 TARGET = ROOT / "docs" / "RULES.md"
+JSON_TARGET = ROOT / "web" / "src" / "data" / "rules.json"
 NL = chr(10)
 
 
@@ -65,24 +74,82 @@ def render() -> str:
     return NL.join(lines).rstrip() + NL
 
 
+def render_json() -> str:
+    """The same catalogue, for the console.
+
+    `composed` marks the ids whose prefix is a runtime value -- the tool that
+    was found twice, the ecosystem whose managers conflict. The entry is
+    representative rather than exhaustive, and a reader who does not know that
+    will search for `uv/multiple-installations`, fail to find it, and conclude
+    the catalogue is incomplete.
+    """
+    from devrepro.rules.catalog import (
+        MANAGER_CONFLICT_ECOSYSTEMS,
+        VERSION_SUFFIXES,
+        all_rule_docs,
+    )
+
+    composed_suffixes = {
+        *VERSION_SUFFIXES,
+        "manager-conflict",
+        "multiple-installations",
+        "shim-bypassed",
+    }
+
+    rules = []
+    for doc in all_rule_docs():
+        prefix, _, suffix = doc.rule_id.partition("/")
+        rules.append(
+            {
+                "rule_id": doc.rule_id,
+                "prefix": prefix,
+                "suffix": suffix,
+                "title": doc.title,
+                "means": doc.means,
+                "matters": doc.matters,
+                "fix": doc.fix,
+                "composed": suffix in composed_suffixes,
+            }
+        )
+
+    payload = {
+        "_generated_by": "scripts/generate_rule_docs.py -- edit devrepro/rules/catalog.py",
+        "count": len(rules),
+        "manager_conflict_ecosystems": sorted(MANAGER_CONFLICT_ECOSYSTEMS),
+        "rules": rules,
+    }
+    return json.dumps(payload, indent=2, ensure_ascii=False) + NL
+
+
 def main() -> int:
     rendered = render()
+    rendered_json = render_json()
     check = "--check" in sys.argv
-    existing = TARGET.read_text(encoding="utf-8") if TARGET.exists() else None
+
+    outputs = [
+        (TARGET, rendered, "docs/RULES.md"),
+        (JSON_TARGET, rendered_json, "web/src/data/rules.json"),
+    ]
 
     if check:
-        if existing == rendered:
-            print("ok     docs/RULES.md matches the rule catalogue")
+        stale = [
+            label
+            for target, expected, label in outputs
+            if (target.read_text(encoding="utf-8") if target.exists() else None) != expected
+        ]
+        if not stale:
+            print("ok     docs/RULES.md and web/src/data/rules.json match the rule catalogue")
             return 0
         print(
-            "drift  docs/RULES.md is stale; run: python scripts/generate_rule_docs.py",
+            f"drift  {', '.join(stale)} stale; run: python scripts/generate_rule_docs.py",
             file=sys.stderr,
         )
         return 1
 
-    TARGET.parent.mkdir(parents=True, exist_ok=True)
-    TARGET.write_text(rendered, encoding="utf-8")
-    print(f"wrote  docs/RULES.md ({rendered.count('### `')} rules)")
+    for target, content, _label in outputs:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+    print(f"wrote  docs/RULES.md and web/src/data/rules.json ({rendered.count('### `')} rules)")
     return 0
 
 

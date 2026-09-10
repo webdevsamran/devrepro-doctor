@@ -449,23 +449,6 @@ export function SnapshotsPage({ report }: PageProps) {
 }
 
 /* ----------------------------------------------------------- Rules --- */
-export function RulesPage({ report }: PageProps) {
-  const packs = useMemo(() => {
-    const m = new Map<string, number>()
-    for (const f of report.findings) m.set(f.rule_id.split('/')[0], (m.get(f.rule_id.split('/')[0]) ?? 0) + 1)
-    return [...m.entries()].sort()
-  }, [report])
-  return (
-    <>
-      <h2>Rules</h2>
-      <p className="muted">Rule packs observed in this report. Full catalog: <code>devrepro rules</code>.</p>
-      <div className="grid grid-3">
-        {packs.map(([pack, n]) => <Card key={pack} title={pack}><p>{n} finding(s)</p></Card>)}
-      </div>
-    </>
-  )
-}
-
 /* ------------------------------------------------- Remediation Plan --- */
 export function RemediationPage({ report }: PageProps) {
   const actionable = report.findings.filter((f) => f.remediation_hint && f.state !== 'PASS')

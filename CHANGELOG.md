@@ -9,6 +9,37 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Changed - the Rules view is a searchable catalogue, not a pack tally
+
+- It listed the rule *packs* that appeared in the current report -- a handful
+  of cards with a count on each. That answers "what did this scan touch", which
+  the Findings page answers better, and it cannot answer the question someone
+  arrives with: what does `containers/cgroup-v1` mean and what do I do about it.
+- All 118 documented ids are now searchable by id, meaning, consequence and
+  fix, filterable by pack, and linkable -- `#/rules?rule=git/shallow-clone`
+  opens that rule. Each detail panel offers the matching `devrepro explain`
+  command for a terminal.
+- The catalogue is generated from `devrepro/rules/catalog.py` by
+  `scripts/generate_rule_docs.py`, which already wrote `docs/RULES.md` and
+  already had a `--check` gate in CI. One source, two renderings, one gate --
+  the alternative is a second catalogue that quietly stops being true.
+- Composed ids are marked. Their prefix is a runtime value, so
+  `uv/multiple-installations` is documented under a representative prefix, and
+  a reader who does not know that searches for the exact string, fails, and
+  concludes the catalogue is incomplete. Findings from the current report are
+  counted against the representative entry for the same reason.
+
+### Fixed - a failed report load blanked every route, including the ones that do not need one
+
+- The shell replaced the entire console with "Could not load report" -- the
+  docs, the contributors list, the rule catalogue, the diff viewer that reads a
+  file you hand it. Someone whose first action is to open the tool before
+  running a scan was told the whole thing was unavailable.
+- The error now belongs to the routes that actually depend on a report. The
+  catalogue renders without one and labels its cross-reference column "No scan
+  loaded" rather than showing zeroes, because "this rule did not fire" and "no
+  scan has run" are different facts.
+
 ### Added - `devrepro bench`: where a scan spends its time
 
 - This project lost the speed argument once already. A scan took 26 seconds, of

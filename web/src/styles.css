@@ -744,6 +744,39 @@
   .table tbody tr:last-child :is(td, th) { border-bottom: none; }
   .row-critical { background: var(--sev-error-soft); }
 
+  /* --- catalogue table --- */
+  /*
+     A button styled as a link, not a link. It changes a query parameter rather
+     than navigating anywhere, and an <a> whose href goes nowhere is a broken
+     promise to anyone middle-clicking or reading it with a screen reader.
+  */
+  .link-inline {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: var(--accent);
+    cursor: pointer;
+    text-align: left;
+  }
+  .link-inline:hover { text-decoration: underline; }
+
+  .pill-muted {
+    background: var(--surface-3);
+    color: var(--fg-muted);
+  }
+
+  /* Selection is announced by `aria-expanded` on the trigger; this is the
+     visual half of the same fact, and deliberately not the only one. */
+  .row-selected { background: var(--accent-soft); }
+  .row-selected > th { box-shadow: inset 2px 0 0 var(--accent); }
+
+  .lead {
+    font-size: 1.0625rem;
+    color: var(--fg);
+    margin-top: var(--sp-2);
+  }
+
   /* --- key/value lists --- */
   /*
      A `dl` rather than a two-column table. These are labelled facts about one

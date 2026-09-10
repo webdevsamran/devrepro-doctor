@@ -1,0 +1,1190 @@
+{
+  "_generated_by": "scripts/generate_rule_docs.py -- edit devrepro/rules/catalog.py",
+  "count": 118,
+  "manager_conflict_ecosystems": [
+    "node",
+    "python"
+  ],
+  "rules": [
+    {
+      "rule_id": "containers/arch-emulated",
+      "prefix": "containers",
+      "suffix": "arch-emulated",
+      "title": "The container engine is emulating another architecture",
+      "means": "The daemon reports a different CPU architecture from the host, so every build and every container runs through qemu.",
+      "matters": "It works, which is why nobody notices. It is also roughly ten times slower, and the usual cause is a base image with no manifest for the host architecture -- so one line in a Dockerfile silently turns a one-minute build into a twenty-minute one.",
+      "fix": "Use a base image that publishes your architecture, or pass `--platform` explicitly so the emulation is a decision rather than a surprise. If the target really is the other architecture, nothing here is wrong.",
+      "composed": false
+    },
+    {
+      "rule_id": "containers/buildkit-unavailable",
+      "prefix": "containers",
+      "suffix": "buildkit-unavailable",
+      "title": "docker buildx is not available",
+      "means": "The daemon answers, but the buildx plugin is absent, so builds fall back to the legacy builder.",
+      "matters": "Multi-platform builds, build secrets, cache mounts and `--mount=type=cache` all require BuildKit. A Dockerfile using any of them fails with a syntax error rather than a message about the builder, which sends people looking in the wrong file.",
+      "fix": "Install the buildx plugin from your package manager, or use a Docker distribution that bundles it. Nothing needs changing if no Dockerfile here uses BuildKit features.",
+      "composed": false
+    },
+    {
+      "rule_id": "containers/cgroup-v1",
+      "prefix": "containers",
+      "suffix": "cgroup-v1",
+      "title": "The container engine is using cgroup v1",
+      "means": "Resource limits are enforced through the first-generation cgroup interface rather than the unified hierarchy.",
+      "matters": "Memory accounting differs between the two, so a container that is OOM-killed on a v2 CI runner can pass locally on v1 and the other way round. Swap accounting is often absent entirely under v1, which makes `--memory` mean something different from what the docs say.",
+      "fix": "Enable unified cgroups on the host, or switch it on in Docker Desktop's settings. On a distribution still defaulting to v1, `systemd.unified_cgroup_hierarchy=1` on the kernel command line does it.",
+      "composed": false
+    },
+    {
+      "rule_id": "containers/devcontainer-required",
+      "prefix": "containers",
+      "suffix": "devcontainer-required",
+      "title": "Policy requires a devcontainer definition",
+      "means": "The policy sets `require_devcontainer`, and no `.devcontainer/devcontainer.json` was found.",
+      "matters": "The team decided one-command reproducible environments are the standard here, and this repository does not meet it.",
+      "fix": "Run `devrepro generate devcontainer` for a reviewable draft, then adjust and commit it.",
+      "composed": false
+    },
+    {
+      "rule_id": "containers/disk-reclaimable",
+      "prefix": "containers",
+      "suffix": "disk-reclaimable",
+      "title": "Container storage holds a large amount of reclaimable space",
+      "means": "The daemon's own accounting says a substantial share of its images, volumes and build cache is unreferenced.",
+      "matters": "Running out of space mid-build produces one of the least informative errors in the ecosystem -- `no space left on device`, from a step that has nothing to do with the cause -- and it usually arrives with tens of gigabytes of dangling layers sitting behind it. Reporting it before it becomes that error is the only useful moment.",
+      "fix": "`docker system prune -a --volumes` reclaims it. This tool does not run it and will not offer to: pruning deletes data, and which data is expendable is not something a diagnostic can know.",
+      "composed": false
+    },
+    {
+      "rule_id": "containers/docker-daemon-error",
+      "prefix": "containers",
+      "suffix": "docker-daemon-error",
+      "title": "Docker daemon returned an error this project does not classify",
+      "means": "`docker info` failed with a message that matched none of the known patterns.",
+      "matters": "Reported verbatim rather than guessed at. A specific wrong diagnosis would send you further from the cause than an honest unknown.",
+      "fix": "Read the evidence excerpt in the finding; it carries the daemon's own message. If the shape is common, it is worth a classifier branch.",
+      "composed": false
+    },
+    {
+      "rule_id": "containers/docker-daemon-permission",
+      "prefix": "containers",
+      "suffix": "docker-daemon-permission",
+      "title": "Docker daemon refused this user",
+      "means": "The daemon is running, but this user is not permitted to talk to its socket.",
+      "matters": "Every container command fails with a permission error that looks like the daemon is down. It is not: the daemon is fine and the user is not in the right group.",
+      "fix": "On Linux, add your user to the `docker` group and start a new login session. Prefer that to running the CLI with sudo, which leaves root-owned files in your build outputs.",
+      "composed": false
+    },
+    {
+      "rule_id": "containers/docker-daemon-pipe-missing",
+      "prefix": "containers",
+      "suffix": "docker-daemon-pipe-missing",
+      "title": "Docker Desktop's named pipe is absent",
+      "means": "The CLI tried to reach the daemon over its Windows named pipe and the pipe does not exist.",
+      "matters": "This is what a stopped Docker Desktop looks like from the CLI's side. The message names the pipe rather than the application, so it reads like a configuration fault when it is simply not running.",
+      "fix": "Start Docker Desktop and wait for it to report running, then re-run `devrepro doctor`.",
+      "composed": false
+    },
+    {
+      "rule_id": "containers/docker-daemon-unreachable",
+      "prefix": "containers",
+      "suffix": "docker-daemon-unreachable",
+      "title": "Docker CLI present, daemon not answering",
+      "means": "The `docker` command exists, but `docker info` cannot reach a daemon.",
+      "matters": "Every container-based build, test and devcontainer fails until the daemon is running. The CLI being installed makes this look like a working setup when it is not.",
+      "fix": "Start Docker Desktop, or `systemctl start docker` on Linux. On Windows check that the WSL backend is healthy.",
+      "composed": false
+    },
+    {
+      "rule_id": "containers/docker-docker-wsl-backend-error",
+      "prefix": "containers",
+      "suffix": "docker-docker-wsl-backend-error",
+      "title": "Docker's WSL backend is unhealthy",
+      "means": "The daemon could not be reached and the error names WSL.",
+      "matters": "Docker Desktop on Windows runs its engine inside WSL2. When that distribution is stopped, corrupt, or was updated underneath Docker, the CLI reports a connection failure that is really a WSL failure.",
+      "fix": "Check `wsl --list --verbose` and `wsl --status`. Restarting WSL (`wsl --shutdown`, then start Docker Desktop) resolves most of these.",
+      "composed": false
+    },
+    {
+      "rule_id": "containers/docker-missing",
+      "prefix": "containers",
+      "suffix": "docker-missing",
+      "title": "Docker CLI not installed",
+      "means": "No `docker` executable resolves on PATH.",
+      "matters": "Reported as INFO, not an error: plenty of projects never need it. It matters only when the project declares a container requirement.",
+      "fix": "Install Docker only if this project needs it. `devrepro project` shows what is actually declared.",
+      "composed": false
+    },
+    {
+      "rule_id": "containers/healthy",
+      "prefix": "containers",
+      "suffix": "healthy",
+      "title": "Container tooling is healthy",
+      "means": "The container runtime responded normally.",
+      "matters": "Reported so a working container stack is visible in the report rather than inferred from the absence of an error.",
+      "fix": "No action needed.",
+      "composed": false
+    },
+    {
+      "rule_id": "containers/known-bad-version",
+      "prefix": "containers",
+      "suffix": "known-bad-version",
+      "title": "Version explicitly forbidden by policy",
+      "means": "The installed version matches a range listed under `[known_bad_versions]` in the project's `.devrepro.toml`.",
+      "matters": "Someone recorded that this exact version breaks the project. That is more specific than a range check and usually earned the hard way.",
+      "fix": "Move off the forbidden version. The policy file should say why; if it does not, add the reason for whoever hits it next.",
+      "composed": true
+    },
+    {
+      "rule_id": "containers/missing",
+      "prefix": "containers",
+      "suffix": "missing",
+      "title": "Required tool not found",
+      "means": "The project declares this tool as a requirement and it does not resolve on PATH.",
+      "matters": "Any command that needs it fails immediately, usually with a confusing 'not recognized' or 'command not found' rather than a note about the declared requirement.",
+      "fix": "Install it, or remove the requirement from the manifest if it is no longer real. Check `devrepro which <tool>` first -- the tool may be installed but shadowed or off PATH in this shell.",
+      "composed": true
+    },
+    {
+      "rule_id": "containers/multiple-runtimes",
+      "prefix": "containers",
+      "suffix": "multiple-runtimes",
+      "title": "More than one container engine is installed",
+      "means": "Two or more of Docker Desktop, Colima, Rancher Desktop, OrbStack, Podman, Lima and minikube resolve on PATH.",
+      "matters": "This is not a fault -- plenty of people keep Colima beside Docker Desktop deliberately. It is worth knowing because it makes `docker context` load-bearing: a context pointing at a stopped VM produces exactly the error you would get with no daemon at all, and the obvious fix (start Docker Desktop) then changes nothing.",
+      "fix": "`docker context ls` shows which engine `docker` currently talks to, and `docker context use <name>` switches it.",
+      "composed": false
+    },
+    {
+      "rule_id": "containers/state-unknown",
+      "prefix": "containers",
+      "suffix": "state-unknown",
+      "title": "Container state could not be determined",
+      "means": "The probe could not establish whether container tooling works.",
+      "matters": "Reported as unknown rather than healthy. A diagnostic that guesses is worse than one that admits the gap.",
+      "fix": "Run `docker info` by hand to see what it says.",
+      "composed": false
+    },
+    {
+      "rule_id": "containers/storage-driver-legacy",
+      "prefix": "containers",
+      "suffix": "storage-driver-legacy",
+      "title": "The storage driver is deprecated, removed, or has no copy-on-write",
+      "means": "The daemon is using a storage driver that current engines no longer recommend or no longer ship.",
+      "matters": "`aufs` and `devicemapper` are removed in recent Docker releases, so an upgrade will stop the daemon starting. `vfs` is the one that surprises people: it is correct, it is what you get when nothing else is available, and it copies the entire filesystem for every layer.",
+      "fix": "Move to overlay2. Changing the storage driver discards existing images and containers, so do it when you can afford to rebuild rather than in the middle of something.",
+      "composed": false
+    },
+    {
+      "rule_id": "containers/version-mismatch",
+      "prefix": "containers",
+      "suffix": "version-mismatch",
+      "title": "Version outside the declared range",
+      "means": "The tool is installed, but its version does not satisfy what the project's manifest requires.",
+      "matters": "This is the most common cause of a build that works for one person and not another. Lockfiles, syntax features and native modules are all version-sensitive, and the failure usually surfaces far from the cause.",
+      "fix": "Install a version inside the declared range, or widen the range if the declaration is stale. A version manager (mise, asdf, nvm, pyenv) makes this per-project rather than global.",
+      "composed": true
+    },
+    {
+      "rule_id": "containers/version-ok",
+      "prefix": "containers",
+      "suffix": "version-ok",
+      "title": "Version satisfies the requirement",
+      "means": "The installed version falls inside the range the project declares.",
+      "matters": "Nothing to do. It is reported so a passing check is visible rather than inferred from silence.",
+      "fix": "No action needed.",
+      "composed": true
+    },
+    {
+      "rule_id": "containers/version-unparseable",
+      "prefix": "containers",
+      "suffix": "version-unparseable",
+      "title": "Version string could not be read",
+      "means": "The tool responded, but its version output did not match any pattern this project knows how to parse.",
+      "matters": "The requirement cannot be checked either way, so this is reported as unknown rather than passing. A silent pass here would be a lie.",
+      "fix": "Run the tool's version command by hand and open an issue with the output, so the parser can learn the shape.",
+      "composed": true
+    },
+    {
+      "rule_id": "cpp/known-bad-version",
+      "prefix": "cpp",
+      "suffix": "known-bad-version",
+      "title": "Version explicitly forbidden by policy",
+      "means": "The installed version matches a range listed under `[known_bad_versions]` in the project's `.devrepro.toml`.",
+      "matters": "Someone recorded that this exact version breaks the project. That is more specific than a range check and usually earned the hard way.",
+      "fix": "Move off the forbidden version. The policy file should say why; if it does not, add the reason for whoever hits it next.",
+      "composed": true
+    },
+    {
+      "rule_id": "cpp/missing",
+      "prefix": "cpp",
+      "suffix": "missing",
+      "title": "Required tool not found",
+      "means": "The project declares this tool as a requirement and it does not resolve on PATH.",
+      "matters": "Any command that needs it fails immediately, usually with a confusing 'not recognized' or 'command not found' rather than a note about the declared requirement.",
+      "fix": "Install it, or remove the requirement from the manifest if it is no longer real. Check `devrepro which <tool>` first -- the tool may be installed but shadowed or off PATH in this shell.",
+      "composed": true
+    },
+    {
+      "rule_id": "cpp/no-compiler",
+      "prefix": "cpp",
+      "suffix": "no-compiler",
+      "title": "No C/C++ compiler found",
+      "means": "No MSVC, gcc or clang resolves on PATH.",
+      "matters": "Native extensions cannot build. This surfaces late and confusingly: `pip install` or `npm install` fails deep inside a build log rather than saying a compiler is missing.",
+      "fix": "Install build tools for your platform -- Visual Studio Build Tools, Xcode Command Line Tools, or your distribution's build-essential.",
+      "composed": false
+    },
+    {
+      "rule_id": "cpp/version-mismatch",
+      "prefix": "cpp",
+      "suffix": "version-mismatch",
+      "title": "Version outside the declared range",
+      "means": "The tool is installed, but its version does not satisfy what the project's manifest requires.",
+      "matters": "This is the most common cause of a build that works for one person and not another. Lockfiles, syntax features and native modules are all version-sensitive, and the failure usually surfaces far from the cause.",
+      "fix": "Install a version inside the declared range, or widen the range if the declaration is stale. A version manager (mise, asdf, nvm, pyenv) makes this per-project rather than global.",
+      "composed": true
+    },
+    {
+      "rule_id": "cpp/version-ok",
+      "prefix": "cpp",
+      "suffix": "version-ok",
+      "title": "Version satisfies the requirement",
+      "means": "The installed version falls inside the range the project declares.",
+      "matters": "Nothing to do. It is reported so a passing check is visible rather than inferred from silence.",
+      "fix": "No action needed.",
+      "composed": true
+    },
+    {
+      "rule_id": "cpp/version-unparseable",
+      "prefix": "cpp",
+      "suffix": "version-unparseable",
+      "title": "Version string could not be read",
+      "means": "The tool responded, but its version output did not match any pattern this project knows how to parse.",
+      "matters": "The requirement cannot be checked either way, so this is reported as unknown rather than passing. A silent pass here would be a lie.",
+      "fix": "Run the tool's version command by hand and open an issue with the output, so the parser can learn the shape.",
+      "composed": true
+    },
+    {
+      "rule_id": "docker/multiple-installations",
+      "prefix": "docker",
+      "suffix": "multiple-installations",
+      "title": "Several copies of the same tool on PATH",
+      "means": "More than one executable with this name resolves on PATH. The first wins, and the others are reachable only by full path.",
+      "matters": "The one that wins depends on PATH order, which differs between your shell, your editor's terminal, and CI. That is how the same command produces different versions in different windows on one machine.",
+      "fix": "Run `devrepro which <tool>` to see every candidate and which one wins. Keep the installation you intend to use and remove or de-prefer the rest; `devrepro plan` proposes the PATH edit.",
+      "composed": true
+    },
+    {
+      "rule_id": "dotnet/known-bad-version",
+      "prefix": "dotnet",
+      "suffix": "known-bad-version",
+      "title": "Version explicitly forbidden by policy",
+      "means": "The installed version matches a range listed under `[known_bad_versions]` in the project's `.devrepro.toml`.",
+      "matters": "Someone recorded that this exact version breaks the project. That is more specific than a range check and usually earned the hard way.",
+      "fix": "Move off the forbidden version. The policy file should say why; if it does not, add the reason for whoever hits it next.",
+      "composed": true
+    },
+    {
+      "rule_id": "dotnet/missing",
+      "prefix": "dotnet",
+      "suffix": "missing",
+      "title": "Required tool not found",
+      "means": "The project declares this tool as a requirement and it does not resolve on PATH.",
+      "matters": "Any command that needs it fails immediately, usually with a confusing 'not recognized' or 'command not found' rather than a note about the declared requirement.",
+      "fix": "Install it, or remove the requirement from the manifest if it is no longer real. Check `devrepro which <tool>` first -- the tool may be installed but shadowed or off PATH in this shell.",
+      "composed": true
+    },
+    {
+      "rule_id": "dotnet/version-mismatch",
+      "prefix": "dotnet",
+      "suffix": "version-mismatch",
+      "title": "Version outside the declared range",
+      "means": "The tool is installed, but its version does not satisfy what the project's manifest requires.",
+      "matters": "This is the most common cause of a build that works for one person and not another. Lockfiles, syntax features and native modules are all version-sensitive, and the failure usually surfaces far from the cause.",
+      "fix": "Install a version inside the declared range, or widen the range if the declaration is stale. A version manager (mise, asdf, nvm, pyenv) makes this per-project rather than global.",
+      "composed": true
+    },
+    {
+      "rule_id": "dotnet/version-ok",
+      "prefix": "dotnet",
+      "suffix": "version-ok",
+      "title": "Version satisfies the requirement",
+      "means": "The installed version falls inside the range the project declares.",
+      "matters": "Nothing to do. It is reported so a passing check is visible rather than inferred from silence.",
+      "fix": "No action needed.",
+      "composed": true
+    },
+    {
+      "rule_id": "dotnet/version-unparseable",
+      "prefix": "dotnet",
+      "suffix": "version-unparseable",
+      "title": "Version string could not be read",
+      "means": "The tool responded, but its version output did not match any pattern this project knows how to parse.",
+      "matters": "The requirement cannot be checked either way, so this is reported as unknown rather than passing. A silent pass here would be a lie.",
+      "fix": "Run the tool's version command by hand and open an issue with the output, so the parser can learn the shape.",
+      "composed": true
+    },
+    {
+      "rule_id": "env/credential-names-present",
+      "prefix": "env",
+      "suffix": "credential-names-present",
+      "title": "Credential-shaped variable names in this session",
+      "means": "Variables whose NAMES look like credentials exist in the environment. Their values are never read.",
+      "matters": "Informational, and deliberately name-only: it tells you secrets are present in this shell without ever handling them.",
+      "fix": "No action needed. It is context for anyone reading the report.",
+      "composed": false
+    },
+    {
+      "rule_id": "env/required-names-present",
+      "prefix": "env",
+      "suffix": "required-names-present",
+      "title": "Required environment variable names",
+      "means": "Whether the variable NAMES the policy requires are set. Values are never read, printed or stored.",
+      "matters": "Missing configuration surfaces as a runtime failure far from the cause. Checking names catches it before the process starts.",
+      "fix": "Set the missing variables in your shell profile or .env loader.",
+      "composed": false
+    },
+    {
+      "rule_id": "git/credential-helper-missing",
+      "prefix": "git",
+      "suffix": "credential-helper-missing",
+      "title": "A credential helper is configured but not installed",
+      "means": "`credential.helper` names a helper that resolves to no program in git's exec directory or on PATH.",
+      "matters": "Every authenticated fetch, clone and push falls back to prompting. Interactively that is a confusing password request for a repository you thought was public; in CI it is a hang followed by a timeout, and nothing in the output names the helper. The setting usually survives a machine migration or an OS change that the helper did not.",
+      "fix": "Install the helper, or clear the setting with `git config --global --unset credential.helper`. devrepro reads the helper's name and never runs it -- several of them block on stdin.",
+      "composed": false
+    },
+    {
+      "rule_id": "git/credential-store-plaintext",
+      "prefix": "git",
+      "suffix": "credential-store-plaintext",
+      "title": "The `store` credential helper keeps tokens in plain text",
+      "means": "`credential.helper=store` writes credentials to `~/.git-credentials` unencrypted.",
+      "matters": "Reported as information rather than a problem: on a single-user machine it is a considered choice, and it is the only helper that works everywhere. It is worth knowing because the file is readable by anything running as you -- including any package postinstall script -- and because backups and sync tools copy it without asking.",
+      "fix": "An OS keychain helper (`osxkeychain`, `wincred`, `libsecret`) or Git Credential Manager stores the same tokens encrypted. devrepro reports the setting and never reads the file.",
+      "composed": false
+    },
+    {
+      "rule_id": "git/lfs-not-initialised",
+      "prefix": "git",
+      "suffix": "lfs-not-initialised",
+      "title": "Git LFS is installed but its filters are not configured",
+      "means": "`git lfs` exists, but `filter.lfs.smudge` is unset for this user and repository, so the clean/smudge filters never run.",
+      "matters": "Same symptom as not having LFS at all -- pointer files in the working tree, a clean `git status` -- and a different fix, which is why the two are separate findings rather than one. Being told to install something already installed is how a person concludes the tool is wrong and stops reading it.",
+      "fix": "`git lfs install` configures the filters; `git lfs pull` fetches what the current checkout missed.",
+      "composed": false
+    },
+    {
+      "rule_id": "git/lfs-ready",
+      "prefix": "git",
+      "suffix": "lfs-ready",
+      "title": "Git LFS is installed and configured for this checkout",
+      "means": "The repository declares LFS-tracked paths and the filters are in place.",
+      "matters": "Recorded as a PASS because the absence of a finding and a verified match are different states, and a report that only lists problems cannot tell you which of the two it means.",
+      "fix": "Nothing to do.",
+      "composed": false
+    },
+    {
+      "rule_id": "git/lfs-required-not-installed",
+      "prefix": "git",
+      "suffix": "lfs-required-not-installed",
+      "title": "This repository needs Git LFS and it is not installed",
+      "means": "A `.gitattributes` here routes files through `filter=lfs`, and `git lfs` does not resolve on this machine.",
+      "matters": "Git does not fail. It writes the pointer files -- a few lines of text where a binary should be -- reports the working tree as clean, and leaves the failure for whatever opens those files later. The error you get says the image is corrupt or the archive ended unexpectedly, and names a file rather than a missing tool.",
+      "fix": "Install git-lfs, run `git lfs install`, then `git lfs pull` to replace the pointers already in your working tree. Cloning again without installing LFS first produces the same pointers.",
+      "composed": false
+    },
+    {
+      "rule_id": "git/multiple-installations",
+      "prefix": "git",
+      "suffix": "multiple-installations",
+      "title": "Several copies of the same tool on PATH",
+      "means": "More than one executable with this name resolves on PATH. The first wins, and the others are reachable only by full path.",
+      "matters": "The one that wins depends on PATH order, which differs between your shell, your editor's terminal, and CI. That is how the same command produces different versions in different windows on one machine.",
+      "fix": "Run `devrepro which <tool>` to see every candidate and which one wins. Keep the installation you intend to use and remove or de-prefer the rest; `devrepro plan` proposes the PATH edit.",
+      "composed": true
+    },
+    {
+      "rule_id": "git/partial-clone",
+      "prefix": "git",
+      "suffix": "partial-clone",
+      "title": "This is a partial clone; some objects are fetched on demand",
+      "means": "A filter such as `blob:none` or `tree:0` is configured on the remote, so objects arrive lazily rather than at clone time.",
+      "matters": "It is a deliberate and usually good trade. It matters here because an operation needing a missing blob reaches the network, and on an air-gapped or simply offline machine that failure reads as repository corruption rather than as a fetch that could not happen.",
+      "fix": "Nothing, unless you work offline: `git fetch --refetch` with no filter materialises what is missing.",
+      "composed": false
+    },
+    {
+      "rule_id": "git/shallow-clone",
+      "prefix": "git",
+      "suffix": "shallow-clone",
+      "title": "This is a shallow clone",
+      "means": "History before the graft point is absent, usually from a `--depth` clone or a CI checkout that defaults to depth 1.",
+      "matters": "`git describe` produces the wrong version or fails, `git blame` stops at the graft, and any diff against a base ref -- including the one `devrepro guard --scope changed` uses -- cannot resolve the base. None of those errors mention shallowness.",
+      "fix": "`git fetch --unshallow`. In GitHub Actions, `fetch-depth: 0` on the checkout step; most CI systems have an equivalent.",
+      "composed": false
+    },
+    {
+      "rule_id": "git/sparse-checkout-active",
+      "prefix": "git",
+      "suffix": "sparse-checkout-active",
+      "title": "Sparse checkout is on, so parts of the tree are deliberately absent",
+      "means": "`core.sparseCheckout` is enabled and a pattern list decides which paths are materialised.",
+      "matters": "This is normally deliberate and is reported rather than warned about. It earns a place because a build failing on a path that exists in the repository and not on disk has no other visible explanation -- `git status` is clean either way, and the file is present in every listing on the web.",
+      "fix": "`git sparse-checkout list` shows what is included and `git sparse-checkout disable` restores the full tree. Nothing here needs changing if the narrowing was intended.",
+      "composed": false
+    },
+    {
+      "rule_id": "git/submodules-uninitialised",
+      "prefix": "git",
+      "suffix": "submodules-uninitialised",
+      "title": "Declared submodules have not been checked out",
+      "means": "`.gitmodules` names submodules whose directories are empty.",
+      "matters": "An uninitialised submodule is an empty directory, not an error, so a build fails on a missing header or a missing module rather than on a missing submodule. `git status` says nothing, because as far as the outer repository is concerned nothing has changed.",
+      "fix": "`git submodule update --init --recursive`. Adding `--recurse-submodules` to your clone avoids the state entirely.",
+      "composed": false
+    },
+    {
+      "rule_id": "go/known-bad-version",
+      "prefix": "go",
+      "suffix": "known-bad-version",
+      "title": "Version explicitly forbidden by policy",
+      "means": "The installed version matches a range listed under `[known_bad_versions]` in the project's `.devrepro.toml`.",
+      "matters": "Someone recorded that this exact version breaks the project. That is more specific than a range check and usually earned the hard way.",
+      "fix": "Move off the forbidden version. The policy file should say why; if it does not, add the reason for whoever hits it next.",
+      "composed": true
+    },
+    {
+      "rule_id": "go/missing",
+      "prefix": "go",
+      "suffix": "missing",
+      "title": "Required tool not found",
+      "means": "The project declares this tool as a requirement and it does not resolve on PATH.",
+      "matters": "Any command that needs it fails immediately, usually with a confusing 'not recognized' or 'command not found' rather than a note about the declared requirement.",
+      "fix": "Install it, or remove the requirement from the manifest if it is no longer real. Check `devrepro which <tool>` first -- the tool may be installed but shadowed or off PATH in this shell.",
+      "composed": true
+    },
+    {
+      "rule_id": "go/multiple-installations",
+      "prefix": "go",
+      "suffix": "multiple-installations",
+      "title": "Several copies of the same tool on PATH",
+      "means": "More than one executable with this name resolves on PATH. The first wins, and the others are reachable only by full path.",
+      "matters": "The one that wins depends on PATH order, which differs between your shell, your editor's terminal, and CI. That is how the same command produces different versions in different windows on one machine.",
+      "fix": "Run `devrepro which <tool>` to see every candidate and which one wins. Keep the installation you intend to use and remove or de-prefer the rest; `devrepro plan` proposes the PATH edit.",
+      "composed": true
+    },
+    {
+      "rule_id": "go/version-mismatch",
+      "prefix": "go",
+      "suffix": "version-mismatch",
+      "title": "Version outside the declared range",
+      "means": "The tool is installed, but its version does not satisfy what the project's manifest requires.",
+      "matters": "This is the most common cause of a build that works for one person and not another. Lockfiles, syntax features and native modules are all version-sensitive, and the failure usually surfaces far from the cause.",
+      "fix": "Install a version inside the declared range, or widen the range if the declaration is stale. A version manager (mise, asdf, nvm, pyenv) makes this per-project rather than global.",
+      "composed": true
+    },
+    {
+      "rule_id": "go/version-ok",
+      "prefix": "go",
+      "suffix": "version-ok",
+      "title": "Version satisfies the requirement",
+      "means": "The installed version falls inside the range the project declares.",
+      "matters": "Nothing to do. It is reported so a passing check is visible rather than inferred from silence.",
+      "fix": "No action needed.",
+      "composed": true
+    },
+    {
+      "rule_id": "go/version-unparseable",
+      "prefix": "go",
+      "suffix": "version-unparseable",
+      "title": "Version string could not be read",
+      "means": "The tool responded, but its version output did not match any pattern this project knows how to parse.",
+      "matters": "The requirement cannot be checked either way, so this is reported as unknown rather than passing. A silent pass here would be a lie.",
+      "fix": "Run the tool's version command by hand and open an issue with the output, so the parser can learn the shape.",
+      "composed": true
+    },
+    {
+      "rule_id": "gpu/cuda-driver-old",
+      "prefix": "gpu",
+      "suffix": "cuda-driver-old",
+      "title": "Driver too old for the installed CUDA toolkit",
+      "means": "The NVIDIA driver version does not support the CUDA toolkit present.",
+      "matters": "This is the specific incompatible pair, rather than the 'CUDA not found' that frameworks usually report. Training and inference either fail at load or silently fall back to CPU.",
+      "fix": "Update the driver to one that supports the toolkit, or install a toolkit matching the driver.",
+      "composed": false
+    },
+    {
+      "rule_id": "gpu/cuda-toolkit-missing",
+      "prefix": "gpu",
+      "suffix": "cuda-toolkit-missing",
+      "title": "NVIDIA GPU present, CUDA toolkit absent",
+      "means": "A driver was detected but no CUDA toolkit was found.",
+      "matters": "Frameworks fall back to CPU, usually without saying so clearly. The symptom is a job that runs but takes a hundred times longer.",
+      "fix": "Install a CUDA toolkit compatible with the driver, or use a framework build that bundles its own runtime.",
+      "composed": false
+    },
+    {
+      "rule_id": "gpu/no-accelerator",
+      "prefix": "gpu",
+      "suffix": "no-accelerator",
+      "title": "No GPU accelerator detected",
+      "means": "No NVIDIA, ROCm, oneAPI, Metal or DirectML stack was found.",
+      "matters": "Informational. It matters only if the project expects acceleration.",
+      "fix": "No action needed on a CPU-only machine.",
+      "composed": false
+    },
+    {
+      "rule_id": "gpu/stack-detected",
+      "prefix": "gpu",
+      "suffix": "stack-detected",
+      "title": "GPU/AI stack detected",
+      "means": "An accelerator stack was found and its versions recorded.",
+      "matters": "Recorded so a snapshot diff can show when the stack changes -- one of the most common causes of a model that trains on one machine only.",
+      "fix": "No action needed.",
+      "composed": false
+    },
+    {
+      "rule_id": "gpu/state-unknown",
+      "prefix": "gpu",
+      "suffix": "state-unknown",
+      "title": "GPU state could not be determined",
+      "means": "The probe could not establish what accelerator stack is present.",
+      "matters": "Reported as unknown rather than absent.",
+      "fix": "Run `nvidia-smi` or the equivalent for your vendor by hand.",
+      "composed": false
+    },
+    {
+      "rule_id": "hygiene/filesystem-case",
+      "prefix": "hygiene",
+      "suffix": "filesystem-case",
+      "title": "Filesystem case sensitivity",
+      "means": "Whether this filesystem distinguishes `Config.py` from `config.py`.",
+      "matters": "Linux is case-sensitive; Windows and macOS are not, by default. A repository authored on Linux that contains two files differing only in case loses one of them on checkout elsewhere, with no error at any point -- git reports success and the working tree is wrong.",
+      "fix": "Nothing to change about the filesystem. Avoid committing paths that differ only in case; `git config core.ignorecase` affects how git compares them but not what the filesystem stores.",
+      "composed": false
+    },
+    {
+      "rule_id": "hygiene/non-utf8-locale",
+      "prefix": "hygiene",
+      "suffix": "non-utf8-locale",
+      "title": "Text encoding is not UTF-8",
+      "means": "The preferred encoding a subprocess inherits is a legacy codepage rather than UTF-8.",
+      "matters": "Any tool that writes a non-ASCII character to this console can die with UnicodeEncodeError, and filenames with accents may not round-trip. This project hit exactly that: a single arrow in a remediation hint ended `devrepro check` on a cp1252 console.",
+      "fix": "Set `PYTHONUTF8=1` for Python tools, or enable the OS-wide UTF-8 option (Windows: Region settings, 'Beta: Use Unicode UTF-8'). Note that the OS-wide switch affects every application, so it is worth changing deliberately rather than casually.",
+      "composed": false
+    },
+    {
+      "rule_id": "hygiene/reserved-filename",
+      "prefix": "hygiene",
+      "suffix": "reserved-filename",
+      "title": "A path uses a name Windows reserves",
+      "means": "The repository contains a path whose name is a DOS device name -- `con`, `prn`, `aux`, `nul`, `com1`-`com9` or `lpt1`-`lpt9` -- with or without an extension, so `aux.js` counts.",
+      "matters": "Windows cannot create the file at all. The clone fails with an error that names neither the file nor the reason, and the repository is simply unusable there.",
+      "fix": "Rename the path. This is reported on every platform on purpose: the person who can still fix it cheaply is the one about to commit it, not the one who cannot clone it.",
+      "composed": false
+    },
+    {
+      "rule_id": "hygiene/symlinks-unavailable",
+      "prefix": "hygiene",
+      "suffix": "symlinks-unavailable",
+      "title": "This process cannot create symlinks",
+      "means": "On Windows, symlink creation needs Developer Mode or SeCreateSymbolicLinkPrivilege, and neither is available here.",
+      "matters": "Git does not fail when it cannot create a symlink. It writes an ordinary file containing the link target instead, so the working tree differs from the commit while `git status` reports everything clean.",
+      "fix": "Enable Developer Mode in Windows Settings, or work inside WSL where symlinks behave normally.",
+      "composed": false
+    },
+    {
+      "rule_id": "java/known-bad-version",
+      "prefix": "java",
+      "suffix": "known-bad-version",
+      "title": "Version explicitly forbidden by policy",
+      "means": "The installed version matches a range listed under `[known_bad_versions]` in the project's `.devrepro.toml`.",
+      "matters": "Someone recorded that this exact version breaks the project. That is more specific than a range check and usually earned the hard way.",
+      "fix": "Move off the forbidden version. The policy file should say why; if it does not, add the reason for whoever hits it next.",
+      "composed": true
+    },
+    {
+      "rule_id": "java/missing",
+      "prefix": "java",
+      "suffix": "missing",
+      "title": "Required tool not found",
+      "means": "The project declares this tool as a requirement and it does not resolve on PATH.",
+      "matters": "Any command that needs it fails immediately, usually with a confusing 'not recognized' or 'command not found' rather than a note about the declared requirement.",
+      "fix": "Install it, or remove the requirement from the manifest if it is no longer real. Check `devrepro which <tool>` first -- the tool may be installed but shadowed or off PATH in this shell.",
+      "composed": true
+    },
+    {
+      "rule_id": "java/multiple-installations",
+      "prefix": "java",
+      "suffix": "multiple-installations",
+      "title": "Several copies of the same tool on PATH",
+      "means": "More than one executable with this name resolves on PATH. The first wins, and the others are reachable only by full path.",
+      "matters": "The one that wins depends on PATH order, which differs between your shell, your editor's terminal, and CI. That is how the same command produces different versions in different windows on one machine.",
+      "fix": "Run `devrepro which <tool>` to see every candidate and which one wins. Keep the installation you intend to use and remove or de-prefer the rest; `devrepro plan` proposes the PATH edit.",
+      "composed": true
+    },
+    {
+      "rule_id": "java/shim-bypassed",
+      "prefix": "java",
+      "suffix": "shim-bypassed",
+      "title": "A version manager is installed but not being used",
+      "means": "The manager's shim directory is on PATH, but another installation of this tool resolves before it.",
+      "matters": "The manager still reports the version it intends -- `pyenv version` says 3.12 -- while every command gets something else, because resolution is decided by PATH order and nothing else. Neither tool is wrong about what it was asked, so nothing reports a problem, and the project's pinned version is quietly not in effect.",
+      "fix": "Move the manager's shim directory earlier in PATH than the installation that currently wins. `devrepro which <tool>` lists every candidate in precedence order. Note that an IDE's integrated terminal often has a different PATH from a login shell, so check the one you actually build in.",
+      "composed": true
+    },
+    {
+      "rule_id": "java/version-mismatch",
+      "prefix": "java",
+      "suffix": "version-mismatch",
+      "title": "Version outside the declared range",
+      "means": "The tool is installed, but its version does not satisfy what the project's manifest requires.",
+      "matters": "This is the most common cause of a build that works for one person and not another. Lockfiles, syntax features and native modules are all version-sensitive, and the failure usually surfaces far from the cause.",
+      "fix": "Install a version inside the declared range, or widen the range if the declaration is stale. A version manager (mise, asdf, nvm, pyenv) makes this per-project rather than global.",
+      "composed": true
+    },
+    {
+      "rule_id": "java/version-ok",
+      "prefix": "java",
+      "suffix": "version-ok",
+      "title": "Version satisfies the requirement",
+      "means": "The installed version falls inside the range the project declares.",
+      "matters": "Nothing to do. It is reported so a passing check is visible rather than inferred from silence.",
+      "fix": "No action needed.",
+      "composed": true
+    },
+    {
+      "rule_id": "java/version-unparseable",
+      "prefix": "java",
+      "suffix": "version-unparseable",
+      "title": "Version string could not be read",
+      "means": "The tool responded, but its version output did not match any pattern this project knows how to parse.",
+      "matters": "The requirement cannot be checked either way, so this is reported as unknown rather than passing. A silent pass here would be a lie.",
+      "fix": "Run the tool's version command by hand and open an issue with the output, so the parser can learn the shape.",
+      "composed": true
+    },
+    {
+      "rule_id": "lockfiles/format-supported",
+      "prefix": "lockfiles",
+      "suffix": "format-supported",
+      "title": "The installed manager can use this lockfile",
+      "means": "The package manager on PATH is at or above the floor this lockfile format requires.",
+      "matters": "Recorded as a PASS because the absence of a finding and a verified match are different states, and a report that only lists problems cannot tell you which of the two it means.",
+      "fix": "Nothing to do.",
+      "composed": false
+    },
+    {
+      "rule_id": "lockfiles/format-unknown",
+      "prefix": "lockfiles",
+      "suffix": "format-unknown",
+      "title": "The manager is installed but did not report a version",
+      "means": "The package manager resolves on PATH, but asking it for its version produced nothing, so whether it can read the lockfile is unknown.",
+      "matters": "Reported as UNKNOWN rather than folded into 'not installed', because the two have different fixes and conflating them sends you looking for a missing program that is right there. A common cause on Windows is a wrapper script resolving ahead of the real executable.",
+      "fix": "Run the manager's `--version` by hand. If that works, the resolution order on PATH is the problem rather than the installation; `devrepro path` shows what resolves first.",
+      "composed": false
+    },
+    {
+      "rule_id": "lockfiles/manager-missing",
+      "prefix": "lockfiles",
+      "suffix": "manager-missing",
+      "title": "A lockfile with no package manager to read it",
+      "means": "The repository contains a lockfile for a package manager that does not resolve on PATH.",
+      "matters": "Nothing installs from it. This is a warning rather than a blocker because it is often correct: a project that moved from yarn to pnpm and left the old lockfile behind is untidy, not broken.",
+      "fix": "Install the manager if the lockfile is current, or delete the lockfile if the project has moved on. Leaving both a `yarn.lock` and a `package-lock.json` in one directory means two machines can resolve two different dependency trees from the same commit.",
+      "composed": false
+    },
+    {
+      "rule_id": "lockfiles/runtime-mismatch",
+      "prefix": "lockfiles",
+      "suffix": "runtime-mismatch",
+      "title": "The active runtime is outside the range this lockfile was solved for",
+      "means": "The lockfile records the runtime range it resolved against -- `requires-python`, `engines.node`, `RUBY VERSION` -- and the runtime on PATH falls outside it.",
+      "matters": "A dependency graph is solved for a specific runtime range. Installing it on a runtime outside that range gives you packages whose own constraints were never checked against what you are running, and the failure appears at import or build time rather than at install time.",
+      "fix": "Switch to a runtime inside the recorded range for this project, or re-resolve the lockfile on the runtime you intend to use and commit the result. Do not install across the boundary and hope.",
+      "composed": false
+    },
+    {
+      "rule_id": "lockfiles/runtime-spec-unparseable",
+      "prefix": "lockfiles",
+      "suffix": "runtime-spec-unparseable",
+      "title": "The lockfile pins a runtime range this tool cannot parse",
+      "means": "The recorded range uses ecosystem shorthand -- npm's `^20`, pip's `~=3.11` -- that this project's version comparison does not implement.",
+      "matters": "Reported rather than skipped so the gap is visible. A tool that silently ignores a constraint it cannot read is indistinguishable from one that checked and found no problem.",
+      "fix": "Check the range by hand against the runtime you are using. Comparator syntax (`>=20`, `>=3.11,<3.13`) is understood and can be used in `.devrepro.toml` if you want this enforced.",
+      "composed": false
+    },
+    {
+      "rule_id": "lockfiles/tool-too-old",
+      "prefix": "lockfiles",
+      "suffix": "tool-too-old",
+      "title": "The package manager is older than the lockfile format",
+      "means": "This lockfile is written in a format version that the installed package manager predates.",
+      "matters": "The manager does not usually refuse. npm 6 handed a `lockfileVersion: 3` file rewrites the entire tree in the old format, and cargo before 1.78 cannot read a `version = 4` `Cargo.lock` at all. The first outcome is worse than the second: the install appears to succeed and the damage arrives as an unreviewable diff in someone else's pull request.",
+      "fix": "Upgrade the package manager to the version the format requires. Downgrading the lockfile instead means every other machine that already has the newer manager re-upgrades it, and the file thrashes.",
+      "composed": false
+    },
+    {
+      "rule_id": "lockfiles/unreadable",
+      "prefix": "lockfiles",
+      "suffix": "unreadable",
+      "title": "The lockfile could not be parsed",
+      "means": "The file exists but is not valid JSON, TOML or the text format its name implies -- usually a merge conflict left in place, or a truncated write.",
+      "matters": "A lockfile that cannot be parsed cannot reproduce anything, and the error a package manager gives for one is rarely about the file.",
+      "fix": "Regenerate it with its package manager rather than hand-editing. If the cause was a merge conflict, resolve the manifest first and then re-lock; resolving conflict markers inside a lockfile by hand produces a file that parses and is still wrong.",
+      "composed": false
+    },
+    {
+      "rule_id": "network/ca-bundle-missing",
+      "prefix": "network",
+      "suffix": "ca-bundle-missing",
+      "title": "A CA bundle variable points at a file that is not there",
+      "means": "`NODE_EXTRA_CA_CERTS`, `REQUESTS_CA_BUNDLE` or a sibling names a path that does not exist.",
+      "matters": "The runtime falls back to its default trust store and the override does nothing, silently. Whoever set it believes the corporate CA is trusted, and it is not.",
+      "fix": "Correct the path, or unset the variable so the fallback is deliberate rather than accidental.",
+      "composed": false
+    },
+    {
+      "rule_id": "network/clock-skew",
+      "prefix": "network",
+      "suffix": "clock-skew",
+      "title": "System clock is significantly wrong",
+      "means": "The system clock differs from network time by more than the tolerated margin.",
+      "matters": "TLS certificate validation fails when the clock is far enough off, which breaks package installs, git over HTTPS and container pulls with errors that blame the certificate rather than the clock.",
+      "fix": "Enable automatic time synchronisation for your OS.",
+      "composed": false
+    },
+    {
+      "rule_id": "network/endpoint-unreachable",
+      "prefix": "network",
+      "suffix": "endpoint-unreachable",
+      "title": "A development endpoint did not respond",
+      "means": "One of the checked registries or hosts was unreachable, or its TLS chain did not validate.",
+      "matters": "Package installs will fail. Behind a corporate proxy this is usually TLS interception rather than an outage.",
+      "fix": "Check proxy settings and whether your organisation's CA is trusted by the language runtime you are using -- Node, Python, Go and Java each keep their own trust store.",
+      "composed": false
+    },
+    {
+      "rule_id": "network/endpoints-ok",
+      "prefix": "network",
+      "suffix": "endpoints-ok",
+      "title": "Development endpoints reachable",
+      "means": "The checked registries responded with a valid TLS chain.",
+      "matters": "Reported so a working network path is visible in the report.",
+      "fix": "No action needed.",
+      "composed": false
+    },
+    {
+      "rule_id": "network/registry-override",
+      "prefix": "network",
+      "suffix": "registry-override",
+      "title": "Packages come from somewhere other than the public registry",
+      "means": "An `.npmrc`, `pip.conf`, `.cargo/config.toml` or similar points at a mirror or proxy.",
+      "matters": "Normal on its own -- mirrors exist for good reasons. It matters when one machine has the override and another does not: the same install command then fetches different bytes, the lockfile still matches, and nothing reports a difference. A user-scoped override is the harder case, because it is invisible to everyone else on the team.",
+      "fix": "Confirm the whole team shares the configuration, and prefer a project-scoped file over a user-scoped one so it is reviewable.",
+      "composed": false
+    },
+    {
+      "rule_id": "network/trust-store-partial",
+      "prefix": "network",
+      "suffix": "trust-store-partial",
+      "title": "Some runtimes trust the corporate CA and others do not",
+      "means": "A custom CA bundle is configured for at least one ecosystem and not for others.",
+      "matters": "Every runtime keeps its own trust store: Node reads `NODE_EXTRA_CA_CERTS`, Python `REQUESTS_CA_BUNDLE`, Go `SSL_CERT_FILE`, git `GIT_SSL_CAINFO`. Behind a TLS-intercepting proxy, configuring one means `npm install` works and `pip install` fails on the same machine, with an error that blames the certificate rather than the missing variable.",
+      "fix": "Set the corresponding variable for each ecosystem you use. There is no single setting that covers them all, which is the whole difficulty.",
+      "composed": false
+    },
+    {
+      "rule_id": "node/known-bad-version",
+      "prefix": "node",
+      "suffix": "known-bad-version",
+      "title": "Version explicitly forbidden by policy",
+      "means": "The installed version matches a range listed under `[known_bad_versions]` in the project's `.devrepro.toml`.",
+      "matters": "Someone recorded that this exact version breaks the project. That is more specific than a range check and usually earned the hard way.",
+      "fix": "Move off the forbidden version. The policy file should say why; if it does not, add the reason for whoever hits it next.",
+      "composed": true
+    },
+    {
+      "rule_id": "node/manager-conflict",
+      "prefix": "node",
+      "suffix": "manager-conflict",
+      "title": "Two version managers fighting over one ecosystem",
+      "means": "More than one version manager for this ecosystem initialises in your shell profiles -- for example both nvm and fnm, or both conda and pyenv.",
+      "matters": "The last one to run wins, and which one that is depends on the order of lines in files you rarely read. The result is a tool version that changes when you open a different kind of terminal.",
+      "fix": "Pick one manager per ecosystem and remove the other's init lines from your shell profile. `devrepro envmanagers` shows what is declared and what is active.",
+      "composed": true
+    },
+    {
+      "rule_id": "node/missing",
+      "prefix": "node",
+      "suffix": "missing",
+      "title": "Required tool not found",
+      "means": "The project declares this tool as a requirement and it does not resolve on PATH.",
+      "matters": "Any command that needs it fails immediately, usually with a confusing 'not recognized' or 'command not found' rather than a note about the declared requirement.",
+      "fix": "Install it, or remove the requirement from the manifest if it is no longer real. Check `devrepro which <tool>` first -- the tool may be installed but shadowed or off PATH in this shell.",
+      "composed": true
+    },
+    {
+      "rule_id": "node/multiple-installations",
+      "prefix": "node",
+      "suffix": "multiple-installations",
+      "title": "Several copies of the same tool on PATH",
+      "means": "More than one executable with this name resolves on PATH. The first wins, and the others are reachable only by full path.",
+      "matters": "The one that wins depends on PATH order, which differs between your shell, your editor's terminal, and CI. That is how the same command produces different versions in different windows on one machine.",
+      "fix": "Run `devrepro which <tool>` to see every candidate and which one wins. Keep the installation you intend to use and remove or de-prefer the rest; `devrepro plan` proposes the PATH edit.",
+      "composed": true
+    },
+    {
+      "rule_id": "node/shim-bypassed",
+      "prefix": "node",
+      "suffix": "shim-bypassed",
+      "title": "A version manager is installed but not being used",
+      "means": "The manager's shim directory is on PATH, but another installation of this tool resolves before it.",
+      "matters": "The manager still reports the version it intends -- `pyenv version` says 3.12 -- while every command gets something else, because resolution is decided by PATH order and nothing else. Neither tool is wrong about what it was asked, so nothing reports a problem, and the project's pinned version is quietly not in effect.",
+      "fix": "Move the manager's shim directory earlier in PATH than the installation that currently wins. `devrepro which <tool>` lists every candidate in precedence order. Note that an IDE's integrated terminal often has a different PATH from a login shell, so check the one you actually build in.",
+      "composed": true
+    },
+    {
+      "rule_id": "node/version-mismatch",
+      "prefix": "node",
+      "suffix": "version-mismatch",
+      "title": "Version outside the declared range",
+      "means": "The tool is installed, but its version does not satisfy what the project's manifest requires.",
+      "matters": "This is the most common cause of a build that works for one person and not another. Lockfiles, syntax features and native modules are all version-sensitive, and the failure usually surfaces far from the cause.",
+      "fix": "Install a version inside the declared range, or widen the range if the declaration is stale. A version manager (mise, asdf, nvm, pyenv) makes this per-project rather than global.",
+      "composed": true
+    },
+    {
+      "rule_id": "node/version-ok",
+      "prefix": "node",
+      "suffix": "version-ok",
+      "title": "Version satisfies the requirement",
+      "means": "The installed version falls inside the range the project declares.",
+      "matters": "Nothing to do. It is reported so a passing check is visible rather than inferred from silence.",
+      "fix": "No action needed.",
+      "composed": true
+    },
+    {
+      "rule_id": "node/version-unparseable",
+      "prefix": "node",
+      "suffix": "version-unparseable",
+      "title": "Version string could not be read",
+      "means": "The tool responded, but its version output did not match any pattern this project knows how to parse.",
+      "matters": "The requirement cannot be checked either way, so this is reported as unknown rather than passing. A silent pass here would be a lie.",
+      "fix": "Run the tool's version command by hand and open an issue with the output, so the parser can learn the shape.",
+      "composed": true
+    },
+    {
+      "rule_id": "npm/multiple-installations",
+      "prefix": "npm",
+      "suffix": "multiple-installations",
+      "title": "Several copies of the same tool on PATH",
+      "means": "More than one executable with this name resolves on PATH. The first wins, and the others are reachable only by full path.",
+      "matters": "The one that wins depends on PATH order, which differs between your shell, your editor's terminal, and CI. That is how the same command produces different versions in different windows on one machine.",
+      "fix": "Run `devrepro which <tool>` to see every candidate and which one wins. Keep the installation you intend to use and remove or de-prefer the rest; `devrepro plan` proposes the PATH edit.",
+      "composed": true
+    },
+    {
+      "rule_id": "path/dead-entries",
+      "prefix": "path",
+      "suffix": "dead-entries",
+      "title": "PATH entries that do not exist",
+      "means": "PATH lists directories that are not present on disk.",
+      "matters": "The OS still stats every one of them on every lookup. On Windows in particular this measurably slows down each new process.",
+      "fix": "Remove the entries. If one was supposed to exist, the tool that owns it probably failed to install.",
+      "composed": false
+    },
+    {
+      "rule_id": "path/duplicates",
+      "prefix": "path",
+      "suffix": "duplicates",
+      "title": "Duplicate PATH entries",
+      "means": "The same directory appears more than once in PATH.",
+      "matters": "Every duplicate is searched again on every command lookup, so process startup gets slower for no benefit. It is also a sign that a profile is appending to PATH each time it is sourced.",
+      "fix": "Remove the later occurrences, keeping the first. This never changes which executable wins, so it is a SAFE remediation.",
+      "composed": false
+    },
+    {
+      "rule_id": "path/store-aliases",
+      "prefix": "path",
+      "suffix": "store-aliases",
+      "title": "Windows Store execution aliases on PATH",
+      "means": "The `WindowsApps` alias directory is on PATH. It contains stub executables that open the Microsoft Store instead of running a tool.",
+      "matters": "The stubs commonly shadow real installations -- the classic symptom is `python` opening the Store rather than the Python you installed.",
+      "fix": "Settings > Apps > Advanced app settings > App execution aliases, and turn off the aliases for tools you have installed properly.",
+      "composed": false
+    },
+    {
+      "rule_id": "pip/multiple-installations",
+      "prefix": "pip",
+      "suffix": "multiple-installations",
+      "title": "Several copies of the same tool on PATH",
+      "means": "More than one executable with this name resolves on PATH. The first wins, and the others are reachable only by full path.",
+      "matters": "The one that wins depends on PATH order, which differs between your shell, your editor's terminal, and CI. That is how the same command produces different versions in different windows on one machine.",
+      "fix": "Run `devrepro which <tool>` to see every candidate and which one wins. Keep the installation you intend to use and remove or de-prefer the rest; `devrepro plan` proposes the PATH edit.",
+      "composed": true
+    },
+    {
+      "rule_id": "ports/port-in-use",
+      "prefix": "ports",
+      "suffix": "port-in-use",
+      "title": "A declared port is already bound",
+      "means": "A port the project declares is in use by another process.",
+      "matters": "The service will fail to start, usually with an 'address already in use' that does not say what is holding it.",
+      "fix": "Stop the process holding the port, or change the port the project declares.",
+      "composed": false
+    },
+    {
+      "rule_id": "python/known-bad-version",
+      "prefix": "python",
+      "suffix": "known-bad-version",
+      "title": "Version explicitly forbidden by policy",
+      "means": "The installed version matches a range listed under `[known_bad_versions]` in the project's `.devrepro.toml`.",
+      "matters": "Someone recorded that this exact version breaks the project. That is more specific than a range check and usually earned the hard way.",
+      "fix": "Move off the forbidden version. The policy file should say why; if it does not, add the reason for whoever hits it next.",
+      "composed": true
+    },
+    {
+      "rule_id": "python/manager-conflict",
+      "prefix": "python",
+      "suffix": "manager-conflict",
+      "title": "Two version managers fighting over one ecosystem",
+      "means": "More than one version manager for this ecosystem initialises in your shell profiles -- for example both nvm and fnm, or both conda and pyenv.",
+      "matters": "The last one to run wins, and which one that is depends on the order of lines in files you rarely read. The result is a tool version that changes when you open a different kind of terminal.",
+      "fix": "Pick one manager per ecosystem and remove the other's init lines from your shell profile. `devrepro envmanagers` shows what is declared and what is active.",
+      "composed": true
+    },
+    {
+      "rule_id": "python/missing",
+      "prefix": "python",
+      "suffix": "missing",
+      "title": "Required tool not found",
+      "means": "The project declares this tool as a requirement and it does not resolve on PATH.",
+      "matters": "Any command that needs it fails immediately, usually with a confusing 'not recognized' or 'command not found' rather than a note about the declared requirement.",
+      "fix": "Install it, or remove the requirement from the manifest if it is no longer real. Check `devrepro which <tool>` first -- the tool may be installed but shadowed or off PATH in this shell.",
+      "composed": true
+    },
+    {
+      "rule_id": "python/multiple-installations",
+      "prefix": "python",
+      "suffix": "multiple-installations",
+      "title": "Several copies of the same tool on PATH",
+      "means": "More than one executable with this name resolves on PATH. The first wins, and the others are reachable only by full path.",
+      "matters": "The one that wins depends on PATH order, which differs between your shell, your editor's terminal, and CI. That is how the same command produces different versions in different windows on one machine.",
+      "fix": "Run `devrepro which <tool>` to see every candidate and which one wins. Keep the installation you intend to use and remove or de-prefer the rest; `devrepro plan` proposes the PATH edit.",
+      "composed": true
+    },
+    {
+      "rule_id": "python/multiple-versions",
+      "prefix": "python",
+      "suffix": "multiple-versions",
+      "title": "Several Python versions installed",
+      "means": "More than one Python interpreter is present with differing versions.",
+      "matters": "Not a problem in itself -- it is normal and often deliberate. It is reported because it is the context you need when a package installs into an interpreter other than the one you are running.",
+      "fix": "No action needed unless a requirement is unmet. Use a per-project version manager or a virtualenv to make the choice explicit.",
+      "composed": false
+    },
+    {
+      "rule_id": "python/shim-bypassed",
+      "prefix": "python",
+      "suffix": "shim-bypassed",
+      "title": "A version manager is installed but not being used",
+      "means": "The manager's shim directory is on PATH, but another installation of this tool resolves before it.",
+      "matters": "The manager still reports the version it intends -- `pyenv version` says 3.12 -- while every command gets something else, because resolution is decided by PATH order and nothing else. Neither tool is wrong about what it was asked, so nothing reports a problem, and the project's pinned version is quietly not in effect.",
+      "fix": "Move the manager's shim directory earlier in PATH than the installation that currently wins. `devrepro which <tool>` lists every candidate in precedence order. Note that an IDE's integrated terminal often has a different PATH from a login shell, so check the one you actually build in.",
+      "composed": true
+    },
+    {
+      "rule_id": "python/store-alias-shadow",
+      "prefix": "python",
+      "suffix": "store-alias-shadow",
+      "title": "A Store alias is shadowing a real Python",
+      "means": "A `WindowsApps` python stub resolves before a genuine Python installation.",
+      "matters": "`python` will not run the interpreter you installed. Virtualenv creation, pip and every script fail in ways that do not mention the alias.",
+      "fix": "Disable the python app execution alias, or move the real installation's directory earlier in PATH.",
+      "composed": false
+    },
+    {
+      "rule_id": "python/version-mismatch",
+      "prefix": "python",
+      "suffix": "version-mismatch",
+      "title": "Version outside the declared range",
+      "means": "The tool is installed, but its version does not satisfy what the project's manifest requires.",
+      "matters": "This is the most common cause of a build that works for one person and not another. Lockfiles, syntax features and native modules are all version-sensitive, and the failure usually surfaces far from the cause.",
+      "fix": "Install a version inside the declared range, or widen the range if the declaration is stale. A version manager (mise, asdf, nvm, pyenv) makes this per-project rather than global.",
+      "composed": true
+    },
+    {
+      "rule_id": "python/version-ok",
+      "prefix": "python",
+      "suffix": "version-ok",
+      "title": "Version satisfies the requirement",
+      "means": "The installed version falls inside the range the project declares.",
+      "matters": "Nothing to do. It is reported so a passing check is visible rather than inferred from silence.",
+      "fix": "No action needed.",
+      "composed": true
+    },
+    {
+      "rule_id": "python/version-unparseable",
+      "prefix": "python",
+      "suffix": "version-unparseable",
+      "title": "Version string could not be read",
+      "means": "The tool responded, but its version output did not match any pattern this project knows how to parse.",
+      "matters": "The requirement cannot be checked either way, so this is reported as unknown rather than passing. A silent pass here would be a lie.",
+      "fix": "Run the tool's version command by hand and open an issue with the output, so the parser can learn the shape.",
+      "composed": true
+    },
+    {
+      "rule_id": "ruby/shim-bypassed",
+      "prefix": "ruby",
+      "suffix": "shim-bypassed",
+      "title": "A version manager is installed but not being used",
+      "means": "The manager's shim directory is on PATH, but another installation of this tool resolves before it.",
+      "matters": "The manager still reports the version it intends -- `pyenv version` says 3.12 -- while every command gets something else, because resolution is decided by PATH order and nothing else. Neither tool is wrong about what it was asked, so nothing reports a problem, and the project's pinned version is quietly not in effect.",
+      "fix": "Move the manager's shim directory earlier in PATH than the installation that currently wins. `devrepro which <tool>` lists every candidate in precedence order. Note that an IDE's integrated terminal often has a different PATH from a login shell, so check the one you actually build in.",
+      "composed": true
+    },
+    {
+      "rule_id": "rust/known-bad-version",
+      "prefix": "rust",
+      "suffix": "known-bad-version",
+      "title": "Version explicitly forbidden by policy",
+      "means": "The installed version matches a range listed under `[known_bad_versions]` in the project's `.devrepro.toml`.",
+      "matters": "Someone recorded that this exact version breaks the project. That is more specific than a range check and usually earned the hard way.",
+      "fix": "Move off the forbidden version. The policy file should say why; if it does not, add the reason for whoever hits it next.",
+      "composed": true
+    },
+    {
+      "rule_id": "rust/missing",
+      "prefix": "rust",
+      "suffix": "missing",
+      "title": "Required tool not found",
+      "means": "The project declares this tool as a requirement and it does not resolve on PATH.",
+      "matters": "Any command that needs it fails immediately, usually with a confusing 'not recognized' or 'command not found' rather than a note about the declared requirement.",
+      "fix": "Install it, or remove the requirement from the manifest if it is no longer real. Check `devrepro which <tool>` first -- the tool may be installed but shadowed or off PATH in this shell.",
+      "composed": true
+    },
+    {
+      "rule_id": "rust/version-mismatch",
+      "prefix": "rust",
+      "suffix": "version-mismatch",
+      "title": "Version outside the declared range",
+      "means": "The tool is installed, but its version does not satisfy what the project's manifest requires.",
+      "matters": "This is the most common cause of a build that works for one person and not another. Lockfiles, syntax features and native modules are all version-sensitive, and the failure usually surfaces far from the cause.",
+      "fix": "Install a version inside the declared range, or widen the range if the declaration is stale. A version manager (mise, asdf, nvm, pyenv) makes this per-project rather than global.",
+      "composed": true
+    },
+    {
+      "rule_id": "rust/version-ok",
+      "prefix": "rust",
+      "suffix": "version-ok",
+      "title": "Version satisfies the requirement",
+      "means": "The installed version falls inside the range the project declares.",
+      "matters": "Nothing to do. It is reported so a passing check is visible rather than inferred from silence.",
+      "fix": "No action needed.",
+      "composed": true
+    },
+    {
+      "rule_id": "rust/version-unparseable",
+      "prefix": "rust",
+      "suffix": "version-unparseable",
+      "title": "Version string could not be read",
+      "means": "The tool responded, but its version output did not match any pattern this project knows how to parse.",
+      "matters": "The requirement cannot be checked either way, so this is reported as unknown rather than passing. A silent pass here would be a lie.",
+      "fix": "Run the tool's version command by hand and open an issue with the output, so the parser can learn the shape.",
+      "composed": true
+    },
+    {
+      "rule_id": "shell/managers-initialized",
+      "prefix": "shell",
+      "suffix": "managers-initialized",
+      "title": "Version managers initialised by shell profiles",
+      "means": "Which tool managers your shell profiles set up at startup.",
+      "matters": "Context for PATH ordering and for `manager-conflict`.",
+      "fix": "No action needed.",
+      "composed": false
+    },
+    {
+      "rule_id": "system/os-detected",
+      "prefix": "system",
+      "suffix": "os-detected",
+      "title": "Operating system detected",
+      "means": "The OS, version and architecture this scan ran on.",
+      "matters": "Every other finding is relative to this. It is also the first thing anyone comparing two machines wants.",
+      "fix": "No action needed.",
+      "composed": false
+    },
+    {
+      "rule_id": "system/resources",
+      "prefix": "system",
+      "suffix": "resources",
+      "title": "CPU, memory and disk headroom",
+      "means": "Totals only -- no serial numbers, no SMART data.",
+      "matters": "Builds fail in confusing ways when a disk is nearly full, and a container build can exhaust one quietly.",
+      "fix": "Free space if the report shows little headroom.",
+      "composed": false
+    },
+    {
+      "rule_id": "system/shell",
+      "prefix": "system",
+      "suffix": "shell",
+      "title": "Active shell",
+      "means": "Which shell this scan believes you are running.",
+      "matters": "Determines which profile files matter for PATH and manager initialisation.",
+      "fix": "No action needed.",
+      "composed": false
+    },
+    {
+      "rule_id": "virt/status",
+      "prefix": "virt",
+      "suffix": "status",
+      "title": "Virtualization capability",
+      "means": "Whether hardware virtualization and the relevant hypervisor are available.",
+      "matters": "WSL2 and container backends need it. It is often disabled in firmware on new machines.",
+      "fix": "Enable virtualization in firmware if a container backend needs it.",
+      "composed": false
+    },
+    {
+      "rule_id": "wsl/detected",
+      "prefix": "wsl",
+      "suffix": "detected",
+      "title": "WSL is available",
+      "means": "WSL was found, with its distributions listed.",
+      "matters": "Recorded because a Windows machine with WSL behaves very differently from one without, and the default distro determines which filesystem commands run against.",
+      "fix": "No action needed.",
+      "composed": false
+    },
+    {
+      "rule_id": "wsl/interop-disabled",
+      "prefix": "wsl",
+      "suffix": "interop-disabled",
+      "title": "WSL interop is disabled",
+      "means": "Windows/Linux interop is turned off in this WSL installation.",
+      "matters": "Calling Windows executables from inside WSL fails, which breaks many cross-platform toolchains.",
+      "fix": "Enable `interop` in `/etc/wsl.conf` and restart WSL.",
+      "composed": false
+    },
+    {
+      "rule_id": "wsl/no-default-distro",
+      "prefix": "wsl",
+      "suffix": "no-default-distro",
+      "title": "WSL has no default distribution",
+      "means": "WSL is installed but no distribution is set as default.",
+      "matters": "`wsl <command>` fails, and tools that shell into WSL fail with it.",
+      "fix": "`wsl --set-default <distro>`.",
+      "composed": false
+    },
+    {
+      "rule_id": "wsl/not-installed",
+      "prefix": "wsl",
+      "suffix": "not-installed",
+      "title": "WSL is not installed",
+      "means": "No WSL installation was detected on this Windows machine.",
+      "matters": "Matters only if the project expects a Linux environment.",
+      "fix": "`wsl --install` if the project needs it.",
+      "composed": false
+    }
+  ]
+}

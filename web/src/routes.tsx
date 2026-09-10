@@ -22,6 +22,7 @@ export type PlainPage = ComponentType
 
 const core = () => import('./pages/core')
 const diff = () => import('./pages/diff')
+const rulesPage = () => import('./pages/rules')
 const environment = () => import('./pages/environment')
 const platform = () => import('./pages/platform')
 const enterprise = () => import('./pages/enterprise')
@@ -48,7 +49,6 @@ export const REPORT_PAGES: Record<string, ReportPage> = {
   path: reportPage(core, 'PathPage'),
   findings: reportPage(core, 'FindingsPage'),
   snapshots: reportPage(core, 'SnapshotsPage'),
-  rules: reportPage(core, 'RulesPage'),
   remediation: reportPage(core, 'RemediationPage'),
   about: reportPage(core, 'AboutPage'),
   containers: reportPage(platform, 'ContainersWslPage'),
@@ -57,6 +57,7 @@ export const REPORT_PAGES: Record<string, ReportPage> = {
 /** Views that fetch their own data or need none. */
 export const PLAIN_PAGES: Record<string, PlainPage> = {
   diff: plainPage(diff, 'DiffPage'),
+  rules: plainPage(rulesPage, 'RulesPage'),
   history: plainPage(core, 'HistoryPage'),
   docs: plainPage(core, 'DocsPage'),
   contributors: plainPage(core, 'ContributorsPage'),

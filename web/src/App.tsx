@@ -154,27 +154,41 @@ function Shell() {
       </header>
 
       <main id="main" className="content" tabIndex={-1}>
-        {error ? (
-          <ErrorState message={error} />
-        ) : (
-          <Suspense fallback={<RouteSkeleton />}>
-            <Routes>
-              <Route path="/" element={<Navigate to="/home" replace />} />
-              <Route path="/home" element={<HomeRoute />} />
-              {Object.entries(REPORT_PAGES).map(([id, Page]) => (
-                <Route
-                  key={id}
-                  path={'/' + id}
-                  element={report ? <Page report={report} /> : <Loading />}
-                />
-              ))}
-              {Object.entries(PLAIN_PAGES).map(([id, Page]) => (
-                <Route key={id} path={'/' + id} element={<Page />} />
-              ))}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-        )}
+        {/*
+            A failed report load used to replace the entire console with one
+            error. It blanked the routes that need a report, which is correct,
+            and also every route that does not -- the docs, the contributors
+            list, the rule catalogue, the diff viewer that reads a file you
+            hand it. Someone whose scan has not run yet was told the whole tool
+            was unavailable.
+
+            The error now belongs to the routes that actually depend on it.
+        */}
+        <Suspense fallback={<RouteSkeleton />}>
+          <Routes>
+            <Route path="/" element={<Navigate to="/home" replace />} />
+            <Route path="/home" element={<HomeRoute />} />
+            {Object.entries(REPORT_PAGES).map(([id, Page]) => (
+              <Route
+                key={id}
+                path={'/' + id}
+                element={
+                  error ? (
+                    <ErrorState message={error} />
+                  ) : report ? (
+                    <Page report={report} />
+                  ) : (
+                    <Loading />
+                  )
+                }
+              />
+            ))}
+            {Object.entries(PLAIN_PAGES).map(([id, Page]) => (
+              <Route key={id} path={'/' + id} element={<Page />} />
+            ))}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
       </main>
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
