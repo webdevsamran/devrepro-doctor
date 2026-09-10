@@ -149,8 +149,10 @@ def test_every_doc_is_actually_written(doc: RuleDoc) -> None:
         assert value.strip(), f"{doc.rule_id}: {field} is empty"
         assert "TODO" not in value and "TBD" not in value
         # A sentence may legitimately open with a code span --
-        # "`wsl --install` if the project needs it" is correct prose.
-        first = value.lstrip("`")[:1]
-        assert first.isupper() or (first.islower() and value.startswith("`")), (
-            f"{doc.rule_id}: {field} should read as a sentence"
-        )
+        # "`wsl --install` if the project needs it" is correct prose, and so is
+        # "`.gitmodules` names submodules...". The first version of this also
+        # required the span's first character to be a letter, which rejected
+        # every dotfile: a rule about capitalisation should not care what is
+        # inside the backticks.
+        first = value[:1]
+        assert first.isupper() or first == "`", f"{doc.rule_id}: {field} should read as a sentence"

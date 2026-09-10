@@ -133,6 +133,108 @@ _COMPOSED: dict[str, tuple[str, str, str, str]] = {
 }
 
 _LITERAL: dict[str, tuple[str, str, str, str]] = {
+    "git/lfs-required-not-installed": (
+        "This repository needs Git LFS and it is not installed",
+        "A `.gitattributes` here routes files through `filter=lfs`, and "
+        "`git lfs` does not resolve on this machine.",
+        "Git does not fail. It writes the pointer files -- a few lines of text "
+        "where a binary should be -- reports the working tree as clean, and "
+        "leaves the failure for whatever opens those files later. The error "
+        "you get says the image is corrupt or the archive ended unexpectedly, "
+        "and names a file rather than a missing tool.",
+        "Install git-lfs, run `git lfs install`, then `git lfs pull` to replace "
+        "the pointers already in your working tree. Cloning again without "
+        "installing LFS first produces the same pointers.",
+    ),
+    "git/lfs-not-initialised": (
+        "Git LFS is installed but its filters are not configured",
+        "`git lfs` exists, but `filter.lfs.smudge` is unset for this user and "
+        "repository, so the clean/smudge filters never run.",
+        "Same symptom as not having LFS at all -- pointer files in the working "
+        "tree, a clean `git status` -- and a different fix, which is why the "
+        "two are separate findings rather than one. Being told to install "
+        "something already installed is how a person concludes the tool is "
+        "wrong and stops reading it.",
+        "`git lfs install` configures the filters; `git lfs pull` fetches what "
+        "the current checkout missed.",
+    ),
+    "git/lfs-ready": (
+        "Git LFS is installed and configured for this checkout",
+        "The repository declares LFS-tracked paths and the filters are in place.",
+        "Recorded as a PASS because the absence of a finding and a verified "
+        "match are different states, and a report that only lists problems "
+        "cannot tell you which of the two it means.",
+        "Nothing to do.",
+    ),
+    "git/submodules-uninitialised": (
+        "Declared submodules have not been checked out",
+        "`.gitmodules` names submodules whose directories are empty.",
+        "An uninitialised submodule is an empty directory, not an error, so a "
+        "build fails on a missing header or a missing module rather than on a "
+        "missing submodule. `git status` says nothing, because as far as the "
+        "outer repository is concerned nothing has changed.",
+        "`git submodule update --init --recursive`. Adding "
+        "`--recurse-submodules` to your clone avoids the state entirely.",
+    ),
+    "git/sparse-checkout-active": (
+        "Sparse checkout is on, so parts of the tree are deliberately absent",
+        "`core.sparseCheckout` is enabled and a pattern list decides which paths are materialised.",
+        "This is normally deliberate and is reported rather than warned about. "
+        "It earns a place because a build failing on a path that exists in the "
+        "repository and not on disk has no other visible explanation -- "
+        "`git status` is clean either way, and the file is present in every "
+        "listing on the web.",
+        "`git sparse-checkout list` shows what is included and "
+        "`git sparse-checkout disable` restores the full tree. Nothing here "
+        "needs changing if the narrowing was intended.",
+    ),
+    "git/shallow-clone": (
+        "This is a shallow clone",
+        "History before the graft point is absent, usually from a "
+        "`--depth` clone or a CI checkout that defaults to depth 1.",
+        "`git describe` produces the wrong version or fails, `git blame` stops "
+        "at the graft, and any diff against a base ref -- including the one "
+        "`devrepro guard --scope changed` uses -- cannot resolve the base. None "
+        "of those errors mention shallowness.",
+        "`git fetch --unshallow`. In GitHub Actions, `fetch-depth: 0` on the "
+        "checkout step; most CI systems have an equivalent.",
+    ),
+    "git/partial-clone": (
+        "This is a partial clone; some objects are fetched on demand",
+        "A filter such as `blob:none` or `tree:0` is configured on the remote, "
+        "so objects arrive lazily rather than at clone time.",
+        "It is a deliberate and usually good trade. It matters here because an "
+        "operation needing a missing blob reaches the network, and on an "
+        "air-gapped or simply offline machine that failure reads as repository "
+        "corruption rather than as a fetch that could not happen.",
+        "Nothing, unless you work offline: `git fetch --refetch` with no filter "
+        "materialises what is missing.",
+    ),
+    "git/credential-helper-missing": (
+        "A credential helper is configured but not installed",
+        "`credential.helper` names a helper that resolves to no program in "
+        "git's exec directory or on PATH.",
+        "Every authenticated fetch, clone and push falls back to prompting. "
+        "Interactively that is a confusing password request for a repository "
+        "you thought was public; in CI it is a hang followed by a timeout, and "
+        "nothing in the output names the helper. The setting usually survives a "
+        "machine migration or an OS change that the helper did not.",
+        "Install the helper, or clear the setting with "
+        "`git config --global --unset credential.helper`. devrepro reads the "
+        "helper's name and never runs it -- several of them block on stdin.",
+    ),
+    "git/credential-store-plaintext": (
+        "The `store` credential helper keeps tokens in plain text",
+        "`credential.helper=store` writes credentials to `~/.git-credentials` unencrypted.",
+        "Reported as information rather than a problem: on a single-user "
+        "machine it is a considered choice, and it is the only helper that "
+        "works everywhere. It is worth knowing because the file is readable by "
+        "anything running as you -- including any package postinstall script -- "
+        "and because backups and sync tools copy it without asking.",
+        "An OS keychain helper (`osxkeychain`, `wincred`, `libsecret`) or Git "
+        "Credential Manager stores the same tokens encrypted. devrepro reports "
+        "the setting and never reads the file.",
+    ),
     "containers/arch-emulated": (
         "The container engine is emulating another architecture",
         "The daemon reports a different CPU architecture from the host, so every "

@@ -9,6 +9,45 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - checkout readiness: the ways git leaves a working tree incomplete
+
+- `git_health` was reachable only through `devrepro git-health`. Nothing it
+  found reached `doctor`, `guard`, a snapshot or a SARIF upload, so a clone that
+  cannot possibly build was invisible to every gate this project ships. A new
+  `git/checkout` probe puts it in the scan.
+- The theme is that git fails quietly, and every case below produces a build
+  failure that names something other than the cause:
+  - **LFS declared, LFS absent.** Git writes pointer files -- a few lines of
+    text where a binary should be -- reports the tree clean, and leaves the
+    failure to whatever opens them. The error says the image is corrupt.
+    BLOCKED.
+  - **LFS installed but not initialised** is a separate finding on purpose:
+    identical symptom, different fix, and being told to install something
+    already installed is how someone concludes the tool is wrong.
+  - **Uninitialised submodules** are empty directories, not errors, so the
+    build fails on a missing header.
+  - **Sparse checkout** leaves `git status` clean while the directory the build
+    wants is simply absent. Reported as INFO, since it is usually deliberate.
+  - **Shallow clone** breaks `git describe`, `git blame` and any diff against a
+    base ref -- including the one `guard --scope changed` uses.
+  - **Partial clone** fetches objects on demand, which on an offline machine
+    reads as repository corruption.
+- Credential helpers are checked for *reachability*. A helper configured but
+  not installed makes every authenticated fetch prompt; in CI that is a hang and
+  then a timeout, with nothing naming the helper. Helpers git ships in its exec
+  directory are not mistaken for missing, and a helper defined as a shell
+  fragment is recorded as `custom` rather than verbatim -- the fragment is the
+  user's text and may name internal hosts.
+- Nothing here runs a credential helper, and a test asserts it: several block on
+  stdin, and a diagnostic that hangs waiting for a password prompt is worse than
+  one that says nothing. `git config --show-origin` is likewise avoided, because
+  it would put the path of the user's global config -- which contains their
+  name -- into the report; asking each scope separately costs two subprocess
+  calls and keeps identity out entirely.
+- `git_health` now takes an injectable runner. It built its own, so every
+  branch was reachable only on a machine that happened to be in the right state
+  -- which is why none of them had tests.
+
 ### Fixed - a CI matrix is a set of versions, not a wildcard
 
 - `${{ matrix.python-version }}` is a template rather than a version, and the

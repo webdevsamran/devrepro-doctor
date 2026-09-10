@@ -103,12 +103,26 @@ def register(app: typer.Typer) -> None:
             "signing_configured": report.signing_configured,
             "credential_helper_present": report.credential_helper_present,
             "credential_helper_name": report.credential_helper_name,
+            # Names, scopes and reachability. A helper's stored value is never
+            # read, and `--show-origin` is deliberately not used because it
+            # would name the global config path, which contains the username.
+            "credential_helpers": [
+                {"name": h.name, "scope": h.scope, "resolvable": h.resolvable}
+                for h in report.credential_helpers
+            ],
             "lfs_available": report.lfs_available,
             "lfs_version": report.lfs_version,
+            "lfs_required": report.lfs_required,
+            "lfs_initialised": report.lfs_initialised,
             "submodules": [
                 {"path": s.path, "initialized": s.initialized, "dirty": s.dirty}
                 for s in report.submodules
             ],
+            "sparse_checkout": report.sparse_checkout,
+            "sparse_cone_mode": report.sparse_cone_mode,
+            "sparse_pattern_count": report.sparse_pattern_count,
+            "shallow": report.shallow,
+            "partial_clone_filter": report.partial_clone_filter,
             "notes": list(report.notes),
         }
         emit(payload, as_json)

@@ -5,7 +5,7 @@
 > `devrepro explain <rule-id>` prints any one of these.
 > `devrepro rules --catalog` lists them all.
 
-Every finding carries a rule id. There are **109** documented ids.
+Every finding carries a rule id. There are **118** documented ids.
 
 Two shapes exist. Most are written out in full where they are emitted.
 Some are composed at runtime from a tool or ecosystem name:
@@ -371,6 +371,56 @@ than exhaustive. `devrepro explain` resolves any prefix.
 
 ## `git/`
 
+### `git/credential-helper-missing`
+
+**A credential helper is configured but not installed**
+
+*What it means.* `credential.helper` names a helper that resolves to no program in git's exec directory or on PATH.
+
+*Why it matters.* Every authenticated fetch, clone and push falls back to prompting. Interactively that is a confusing password request for a repository you thought was public; in CI it is a hang followed by a timeout, and nothing in the output names the helper. The setting usually survives a machine migration or an OS change that the helper did not.
+
+*How to fix it.* Install the helper, or clear the setting with `git config --global --unset credential.helper`. devrepro reads the helper's name and never runs it -- several of them block on stdin.
+
+### `git/credential-store-plaintext`
+
+**The `store` credential helper keeps tokens in plain text**
+
+*What it means.* `credential.helper=store` writes credentials to `~/.git-credentials` unencrypted.
+
+*Why it matters.* Reported as information rather than a problem: on a single-user machine it is a considered choice, and it is the only helper that works everywhere. It is worth knowing because the file is readable by anything running as you -- including any package postinstall script -- and because backups and sync tools copy it without asking.
+
+*How to fix it.* An OS keychain helper (`osxkeychain`, `wincred`, `libsecret`) or Git Credential Manager stores the same tokens encrypted. devrepro reports the setting and never reads the file.
+
+### `git/lfs-not-initialised`
+
+**Git LFS is installed but its filters are not configured**
+
+*What it means.* `git lfs` exists, but `filter.lfs.smudge` is unset for this user and repository, so the clean/smudge filters never run.
+
+*Why it matters.* Same symptom as not having LFS at all -- pointer files in the working tree, a clean `git status` -- and a different fix, which is why the two are separate findings rather than one. Being told to install something already installed is how a person concludes the tool is wrong and stops reading it.
+
+*How to fix it.* `git lfs install` configures the filters; `git lfs pull` fetches what the current checkout missed.
+
+### `git/lfs-ready`
+
+**Git LFS is installed and configured for this checkout**
+
+*What it means.* The repository declares LFS-tracked paths and the filters are in place.
+
+*Why it matters.* Recorded as a PASS because the absence of a finding and a verified match are different states, and a report that only lists problems cannot tell you which of the two it means.
+
+*How to fix it.* Nothing to do.
+
+### `git/lfs-required-not-installed`
+
+**This repository needs Git LFS and it is not installed**
+
+*What it means.* A `.gitattributes` here routes files through `filter=lfs`, and `git lfs` does not resolve on this machine.
+
+*Why it matters.* Git does not fail. It writes the pointer files -- a few lines of text where a binary should be -- reports the working tree as clean, and leaves the failure for whatever opens those files later. The error you get says the image is corrupt or the archive ended unexpectedly, and names a file rather than a missing tool.
+
+*How to fix it.* Install git-lfs, run `git lfs install`, then `git lfs pull` to replace the pointers already in your working tree. Cloning again without installing LFS first produces the same pointers.
+
 ### `git/multiple-installations`
 
 **Several copies of the same tool on PATH**
@@ -380,6 +430,46 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* The one that wins depends on PATH order, which differs between your shell, your editor's terminal, and CI. That is how the same command produces different versions in different windows on one machine.
 
 *How to fix it.* Run `devrepro which <tool>` to see every candidate and which one wins. Keep the installation you intend to use and remove or de-prefer the rest; `devrepro plan` proposes the PATH edit.
+
+### `git/partial-clone`
+
+**This is a partial clone; some objects are fetched on demand**
+
+*What it means.* A filter such as `blob:none` or `tree:0` is configured on the remote, so objects arrive lazily rather than at clone time.
+
+*Why it matters.* It is a deliberate and usually good trade. It matters here because an operation needing a missing blob reaches the network, and on an air-gapped or simply offline machine that failure reads as repository corruption rather than as a fetch that could not happen.
+
+*How to fix it.* Nothing, unless you work offline: `git fetch --refetch` with no filter materialises what is missing.
+
+### `git/shallow-clone`
+
+**This is a shallow clone**
+
+*What it means.* History before the graft point is absent, usually from a `--depth` clone or a CI checkout that defaults to depth 1.
+
+*Why it matters.* `git describe` produces the wrong version or fails, `git blame` stops at the graft, and any diff against a base ref -- including the one `devrepro guard --scope changed` uses -- cannot resolve the base. None of those errors mention shallowness.
+
+*How to fix it.* `git fetch --unshallow`. In GitHub Actions, `fetch-depth: 0` on the checkout step; most CI systems have an equivalent.
+
+### `git/sparse-checkout-active`
+
+**Sparse checkout is on, so parts of the tree are deliberately absent**
+
+*What it means.* `core.sparseCheckout` is enabled and a pattern list decides which paths are materialised.
+
+*Why it matters.* This is normally deliberate and is reported rather than warned about. It earns a place because a build failing on a path that exists in the repository and not on disk has no other visible explanation -- `git status` is clean either way, and the file is present in every listing on the web.
+
+*How to fix it.* `git sparse-checkout list` shows what is included and `git sparse-checkout disable` restores the full tree. Nothing here needs changing if the narrowing was intended.
+
+### `git/submodules-uninitialised`
+
+**Declared submodules have not been checked out**
+
+*What it means.* `.gitmodules` names submodules whose directories are empty.
+
+*Why it matters.* An uninitialised submodule is an empty directory, not an error, so a build fails on a missing header or a missing module rather than on a missing submodule. `git status` says nothing, because as far as the outer repository is concerned nothing has changed.
+
+*How to fix it.* `git submodule update --init --recursive`. Adding `--recurse-submodules` to your clone avoids the state entirely.
 
 
 ## `go/`

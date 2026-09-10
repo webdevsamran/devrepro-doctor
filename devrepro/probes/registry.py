@@ -14,6 +14,7 @@ def build_default_probes(ctx: ProbeContext) -> list[Probe]:
     """Instantiate every built-in probe applicable to this platform."""
     from devrepro.probes.containers import ContainerProbe
     from devrepro.probes.env_probe import EnvAuditProbe
+    from devrepro.probes.git_checkout import GitCheckoutProbe
     from devrepro.probes.gpu import GpuAiProbe
     from devrepro.probes.hygiene import HygieneProbe
     from devrepro.probes.network import NetworkTlsProbe
@@ -35,6 +36,7 @@ def build_default_probes(ctx: ProbeContext) -> list[Probe]:
         ShellProfileProbe,
         NetworkTlsProbe,
         ContainerProbe,
+        GitCheckoutProbe,
         WslProbe,
         VirtualizationProbe,
         GpuAiProbe,
