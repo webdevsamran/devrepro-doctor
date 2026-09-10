@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
 
 from devrepro.containers.engine import (
     LEGACY_STORAGE_DRIVERS,
@@ -258,6 +259,51 @@ class ContainerProbe(Probe):
                         "`kubectl delete` was typed into a shell whose context the "
                         "person believed was something else."
                     ),
+                )
+            )
+
+        # --- does the sandbox resemble this machine? -------------------------
+        #
+        # The toolchain axis of this question is `devrepro ci-diff`. What is left
+        # is the shape of the box: memory, cores and whether the network is on.
+        # None of those produce a version mismatch or a missing binary, which is
+        # why nothing reports them and why the failures they cause get
+        # misattributed -- exit 137 reads as a compiler crash, and a container
+        # thrashing on the host's core count reads as a slow machine.
+        import os as _os
+
+        from devrepro.agents.sandbox import compare_limits, read_declared_limits
+        from devrepro.probes.system import CpuRamDiskProbe as _Resources
+
+        declared = read_declared_limits(Path(self.ctx.project_dir or Path.cwd()))
+        host_ram = _Resources._ram_total_bytes()
+        parity = compare_limits(
+            host_memory_bytes=host_ram,
+            host_cpus=_os.cpu_count(),
+            engine_memory_bytes=engine.memory_bytes if engine else None,
+            engine_cpus=engine.cpus if engine else None,
+            declared=declared,
+            needs_network=bool(declared),
+        )
+        for item in parity:
+            findings.append(
+                self.finding(
+                    f"sandbox/{item.kind}-parity",
+                    FindingState.WARN,
+                    f"{item.summary} {item.detail}",
+                    evidence=(
+                        Evidence(
+                            source="system",
+                            excerpt="; ".join(
+                                f"{limit.source}: mem={limit.memory_bytes} "
+                                f"cpus={limit.cpus} net_off={limit.network_disabled}"
+                                for limit in declared
+                            )
+                            or "engine limits only",
+                        ),
+                    ),
+                    component="sandbox",
+                    remediation_hint=item.remedy,
                 )
             )
 

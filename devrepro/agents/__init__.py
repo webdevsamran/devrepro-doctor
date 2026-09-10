@@ -24,6 +24,7 @@ flag, mirroring `network --allow-network` and `fix --yes`.
 
 from __future__ import annotations
 
+from devrepro.agents.badge import badge_markdown, badge_payload
 from devrepro.agents.blast_radius import BlastRadius, Exposure, assess_blast_radius
 from devrepro.agents.freshness import (
     ManifestDisagreement,
@@ -31,6 +32,13 @@ from devrepro.agents.freshness import (
     compare_manifests,
     project_script_names,
     stale_commands,
+)
+from devrepro.agents.gate import (
+    DEFAULT_THRESHOLD,
+    GateVerdict,
+    claude_code_hook,
+    evaluate_gate,
+    generic_hook_script,
 )
 from devrepro.agents.manifest import (
     AGENT_MANIFESTS,
@@ -43,27 +51,47 @@ from devrepro.agents.manifest import (
     manifest_vs_ci,
     parse_declared_commands,
 )
+from devrepro.agents.sandbox import (
+    ParityFinding,
+    SandboxLimits,
+    compare_limits,
+    read_declared_limits,
+)
 from devrepro.agents.score import AgentReadiness, ReadinessFactor, score_readiness
+from devrepro.agents.tokencost import TokenEstimate, estimate_token_cost
 
 __all__ = [
     "AGENT_MANIFESTS",
+    "DEFAULT_THRESHOLD",
     "AgentManifest",
     "AgentReadiness",
     "BlastRadius",
     "CommandCheck",
     "DeclaredCommand",
     "Exposure",
+    "GateVerdict",
     "ManifestDisagreement",
+    "ParityFinding",
     "ReadinessFactor",
+    "SandboxLimits",
     "StaleCommand",
+    "TokenEstimate",
     "assess_blast_radius",
+    "badge_markdown",
+    "badge_payload",
     "check_declared_commands",
     "ci_declared_commands",
+    "claude_code_hook",
+    "compare_limits",
     "compare_manifests",
     "discover_manifests",
+    "estimate_token_cost",
+    "evaluate_gate",
+    "generic_hook_script",
     "manifest_vs_ci",
     "parse_declared_commands",
     "project_script_names",
+    "read_declared_limits",
     "score_readiness",
     "stale_commands",
 ]

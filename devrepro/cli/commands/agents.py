@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import typer
 
+from devrepro.agents.gate import DEFAULT_THRESHOLD
 from devrepro.cli.common import JsonOption, emit, secho
 from devrepro.core.exit_codes import ExitCode
 
@@ -39,7 +40,7 @@ def register(app: typer.Typer) -> None:
     """Attach agent commands to the root app."""
 
     @app.command("agent-check")
-    def agent_check_cmd(
+    def agent_check_cmd(  # noqa: PLR0917 -- CLI options, not a call signature
         path: Path = typer.Argument(Path(), help="Repository root to check."),
         run: bool = typer.Option(
             False,
@@ -51,6 +52,22 @@ def register(app: typer.Typer) -> None:
             True,
             "--blast-radius/--no-blast-radius",
             help="Report what an agent starting here could reach.",
+        ),
+        gate: bool = typer.Option(
+            False,
+            "--gate",
+            help="Exit BLOCKED when this is not a safe place to start a session.",
+        ),
+        threshold: int = typer.Option(
+            DEFAULT_THRESHOLD,
+            "--threshold",
+            help="Readiness percentage below which --gate blocks.",
+        ),
+        badge: bool = typer.Option(
+            False, "--badge", help="Emit a shields.io endpoint payload and exit."
+        ),
+        hook: str | None = typer.Option(
+            None, "--hook", help="Print a session gate hook: claude-code | shell."
         ),
         as_json: bool = JsonOption,
     ) -> None:
@@ -66,14 +83,31 @@ def register(app: typer.Typer) -> None:
         """
         from devrepro.agents import (
             assess_blast_radius,
+            badge_payload,
             check_declared_commands,
             ci_declared_commands,
+            claude_code_hook,
             compare_manifests,
             discover_manifests,
+            estimate_token_cost,
+            evaluate_gate,
+            generic_hook_script,
             manifest_vs_ci,
             score_readiness,
             stale_commands,
         )
+
+        if hook is not None:
+            # No scan: a hook is a template, and running a five-second check to
+            # print one is a cost with nothing behind it.
+            if hook == "claude-code":
+                typer.echo(claude_code_hook(threshold=threshold, path=str(path)))
+            elif hook == "shell":
+                typer.echo(generic_hook_script(threshold=threshold, path=str(path)))
+            else:
+                secho(f"unknown --hook {hook!r}: claude-code | shell", fg="red", err=True)
+                raise typer.Exit(ExitCode.USAGE_ERROR)
+            raise typer.Exit(ExitCode.READY)
 
         manifests = discover_manifests(path)
         declared = [c for m in manifests for c in m.commands]
@@ -90,6 +124,34 @@ def register(app: typer.Typer) -> None:
         )
 
         radius = assess_blast_radius(path) if blast_radius else None
+        cost = estimate_token_cost(
+            manifests=manifests,
+            checks=checks,
+            stale=stale,
+            drift=drift,
+            disagreements=disagreements,
+        )
+
+        if badge:
+            emit(badge_payload(readiness), True)
+            raise typer.Exit(ExitCode.READY)
+
+        if gate:
+            verdict = evaluate_gate(readiness, blast_radius=radius, threshold=threshold)
+            if as_json:
+                emit(verdict.as_dict(), True)
+            elif verdict.allowed:
+                typer.echo(f"GATE: ok ({verdict.score}% readiness, threshold {verdict.threshold}%)")
+            else:
+                secho("GATE: not a safe place to start an agent session.", fg="red", err=True)
+                for reason in verdict.reasons:
+                    typer.echo(f"  - {reason}", err=True)
+                typer.echo(
+                    "Run `devrepro agent-check` for the full report, or lower "
+                    "--threshold if this is deliberate.",
+                    err=True,
+                )
+            raise typer.Exit(ExitCode.READY if verdict.allowed else ExitCode.BLOCKED)
 
         executed: list[dict[str, object]] = []
         if run:
@@ -146,6 +208,7 @@ def register(app: typer.Typer) -> None:
                 ],
             },
             "verdict": _verdict(manifests, checks),
+            "token_cost": cost.as_dict(),
         }
         if radius is not None:
             payload["blast_radius"] = {

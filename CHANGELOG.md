@@ -9,6 +9,41 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - stopping an agent session before it starts, and pricing the gaps
+
+- **`agent-check --gate`** exits BLOCKED when this is not a reasonable place to
+  begin. Two independent grounds, answering different questions: readiness asks
+  whether the agent can get work done, blast radius asks what it reaches if it
+  goes wrong. A clean, well-documented checkout with production credentials in
+  the environment scores well on the first and is the **worst** case for the
+  second, because everything about it invites confidence. A threshold rather
+  than any-finding, for the same reason `guard --scope changed` exists: a gate
+  that fires on every repository is one removed in week one.
+- **`agent-check --hook claude-code|shell`** prints the configuration and never
+  writes it. A hook is code that runs on every session, and installing one on
+  somebody's behalf is a larger permission than a diagnostic needs. The Claude
+  Code hook is `SessionStart`, not `PreToolUse` -- a per-tool hook would re-scan
+  the machine on every single tool call.
+- **`agent-check --badge`** emits a shields.io *endpoint* payload rather than a
+  static SVG, so the number comes from a scan instead of from whenever somebody
+  last committed an image. Green starts at 90%; green at 60% would be a choice
+  to make a mediocre score look fine.
+- **`token_cost`** in the JSON report: roughly what this repository's gaps cost
+  an agent in wasted turns. An estimate from a stated model, not a measurement --
+  every per-signal cost is a named constant, the assumed tokens-per-turn travels
+  in the payload, and the figure rounds to the nearest 5,000 because 43,712
+  implies a measurement nobody made. **No price is attached**: model pricing
+  changes monthly, and a stale dollar figure would be worse than none.
+- **`sandbox/memory-parity`, `sandbox/cpu-parity`, `sandbox/network-parity`.**
+  `ci-diff` compares toolchains; this compares the shape of the box. Exit code
+  `137` is `128 + SIGKILL` from the OOM killer, which writes nothing to the
+  build log and reads as a compiler crash. Build tools that detect parallelism
+  through `nproc` read the *host's* core count and spawn that many workers into
+  a smaller container -- the build does not fail, it thrashes. And a sandbox with
+  no network is right for an agent and wrong for a first dependency install,
+  with both declarations routinely in the same repository. Compose's `2g`
+  (10^9) and `2gb` (2^30) are parsed as the different numbers they are.
+
 ### Added - four things somebody already wrote down and nobody re-reads
 
 - **`<tool>/cache-credential-committed`.** `nx.json` takes an

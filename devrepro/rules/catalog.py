@@ -958,6 +958,40 @@ _LITERAL: dict[str, tuple[str, str, str, str]] = {
         "`wsl <command>` fails, and tools that shell into WSL fail with it.",
         "`wsl --set-default <distro>`.",
     ),
+    "sandbox/memory-parity": (
+        "The sandbox gets far less memory than the machine it was tested on",
+        "The container engine's ceiling, or a limit declared in compose or a "
+        "devcontainer, is under a quarter of the host's memory.",
+        "A build that links comfortably here can be killed in the sandbox with "
+        "exit code 137 -- that is 128 plus SIGKILL, sent by the kernel's OOM "
+        "killer, which writes nothing to the build log. It reads as a compiler "
+        "crash, and the fix people reach for is a compiler flag.",
+        "Raise the engine's memory limit (Docker Desktop: Settings > "
+        "Resources), or lower the build's peak by pinning its parallelism. "
+        "Plenty of containers are deliberately smaller than their host, so this "
+        "is a difference worth knowing rather than an error.",
+    ),
+    "sandbox/cpu-parity": (
+        "The sandbox gets fewer cores than the host, and build tools will not notice",
+        "The effective core count inside the sandbox is below the host's.",
+        "Build tools that detect parallelism through `nproc`, `os.cpu_count()` "
+        "or an older JVM read the *host's* number and spawn that many workers "
+        "into a smaller box. Nothing fails: the build thrashes and finishes "
+        "several times slower, with no log line anywhere saying why.",
+        "Pin the parallelism explicitly -- `make -j`, `cargo build -j`, "
+        "`CARGO_BUILD_JOBS`, `MAKEFLAGS` -- rather than letting the tool detect "
+        "it.",
+    ),
+    "sandbox/network-parity": (
+        "The sandbox has no network and the build fetches dependencies",
+        "A compose file or devcontainer disables the network, and this "
+        "project's setup needs to reach a registry.",
+        "No network is the correct default for an agent sandbox and the wrong "
+        "one for a first build. Both declarations live in the same repository "
+        "and neither knows about the other.",
+        "Warm the dependency cache in an image layer, or vendor the "
+        "dependencies, so the isolated run needs nothing from outside.",
+    ),
     "buildtools/detected": (
         "A monorepo orchestrator is in use",
         "Nx, Turborepo, Bazel or a similar tool is configured in this "

@@ -217,3 +217,87 @@ that CI wins and the file is the bug when they disagree.
 
 That is not a criticism of those repositories. It is what happens to any
 document that describes a process nothing checks.
+
+## Gating a session before it starts
+
+The incidents that made this a category share a shape: broad permissions, an
+unverified environment, and human approval arriving after the fact. The gate is
+the cheap half of the fix -- ask, before the session starts, whether the
+declared commands run here and whether this shell can reach production.
+
+```bash
+devrepro agent-check . --gate --threshold 60
+```
+
+Exits `0` when it is a reasonable place to start and `2` (BLOCKED) when it is
+not. The exit code is the interface: a hook that only prints a warning is a
+hook people stop reading.
+
+Two grounds, and they answer different questions. **Readiness** asks whether
+the agent can get work done. **Blast radius** asks what it reaches if it goes
+wrong. A clean, well-documented checkout with production credentials in the
+environment scores well on the first and is the *worst* case for the second,
+because everything about it invites confidence.
+
+The threshold matters as much as the check. A gate that fires on every
+repository is one that gets removed in week one -- the same reasoning that
+produced `guard --scope changed`.
+
+### Installing it
+
+`--hook` prints the configuration; it never writes it. A hook is code that runs
+on every session, and installing one on somebody's behalf is a larger
+permission than any diagnostic needs.
+
+```bash
+devrepro agent-check . --hook claude-code   # JSON for settings.json
+devrepro agent-check . --hook shell         # a wrapper script for any runner
+```
+
+The Claude Code hook is a `SessionStart` hook rather than `PreToolUse`: the
+point is to answer before any work happens, and a per-tool hook would re-scan
+the machine on every single tool call.
+
+## The badge
+
+```bash
+devrepro agent-check . --badge > agent-ready.json
+```
+
+A [shields.io endpoint](https://shields.io/badges/endpoint-badge) payload,
+which shields fetches when the badge renders -- so the number comes from a scan
+rather than from whenever somebody last committed an SVG.
+
+Colour follows the same grades the command prints, and green starts at 90%.
+Green at 60% would be a choice to make a mediocre score look fine.
+
+## What an unprepared repository costs
+
+`agent-check --json` carries a `token_cost` estimate: roughly how many turns and
+tokens an agent burns on gaps this tool already found -- a command that does not
+run, a manifest that is confidently wrong, a CI gate nobody declared.
+
+It is **an estimate from a stated model, not a measurement**. Every per-signal
+cost is a named constant in `devrepro/agents/tokencost.py`, the assumed tokens
+per turn travels in the payload, and the figure is rounded to the nearest 5,000
+because a number like 43,712 implies a measurement nobody made.
+
+No price is attached. Model pricing changes monthly and varies by provider and
+tier; a stale dollar figure in a diagnostic tool would be worse than none.
+
+## Sandbox parity
+
+`devrepro ci-diff` compares toolchains. What is left is the *shape* of the box
+an agent gets, which produces no version mismatch and no missing binary:
+
+- **Memory.** Exit code `137` is `128 + SIGKILL` from the OOM killer, which
+  writes nothing to the build log. It reads as a compiler crash.
+- **Cores.** Tools that detect parallelism through `nproc` read the host's
+  count and spawn that many workers into a smaller box. The build does not
+  fail; it thrashes.
+- **Network.** A sandbox with no network is right for an agent and wrong for a
+  first dependency install, and both declarations routinely live in the same
+  repository.
+
+Read from engine metadata and from compose/devcontainer declarations. Nothing
+is started to find out.

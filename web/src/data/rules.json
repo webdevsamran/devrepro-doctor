@@ -1,6 +1,6 @@
 {
   "_generated_by": "scripts/generate_rule_docs.py -- edit devrepro/rules/catalog.py",
-  "count": 156,
+  "count": 159,
   "manager_conflict_ecosystems": [
     "node",
     "python"
@@ -1455,6 +1455,36 @@
       "matters": "The requirement cannot be checked either way, so this is reported as unknown rather than passing. A silent pass here would be a lie.",
       "fix": "Run the tool's version command by hand and open an issue with the output, so the parser can learn the shape.",
       "composed": true
+    },
+    {
+      "rule_id": "sandbox/cpu-parity",
+      "prefix": "sandbox",
+      "suffix": "cpu-parity",
+      "title": "The sandbox gets fewer cores than the host, and build tools will not notice",
+      "means": "The effective core count inside the sandbox is below the host's.",
+      "matters": "Build tools that detect parallelism through `nproc`, `os.cpu_count()` or an older JVM read the *host's* number and spawn that many workers into a smaller box. Nothing fails: the build thrashes and finishes several times slower, with no log line anywhere saying why.",
+      "fix": "Pin the parallelism explicitly -- `make -j`, `cargo build -j`, `CARGO_BUILD_JOBS`, `MAKEFLAGS` -- rather than letting the tool detect it.",
+      "composed": false
+    },
+    {
+      "rule_id": "sandbox/memory-parity",
+      "prefix": "sandbox",
+      "suffix": "memory-parity",
+      "title": "The sandbox gets far less memory than the machine it was tested on",
+      "means": "The container engine's ceiling, or a limit declared in compose or a devcontainer, is under a quarter of the host's memory.",
+      "matters": "A build that links comfortably here can be killed in the sandbox with exit code 137 -- that is 128 plus SIGKILL, sent by the kernel's OOM killer, which writes nothing to the build log. It reads as a compiler crash, and the fix people reach for is a compiler flag.",
+      "fix": "Raise the engine's memory limit (Docker Desktop: Settings > Resources), or lower the build's peak by pinning its parallelism. Plenty of containers are deliberately smaller than their host, so this is a difference worth knowing rather than an error.",
+      "composed": false
+    },
+    {
+      "rule_id": "sandbox/network-parity",
+      "prefix": "sandbox",
+      "suffix": "network-parity",
+      "title": "The sandbox has no network and the build fetches dependencies",
+      "means": "A compose file or devcontainer disables the network, and this project's setup needs to reach a registry.",
+      "matters": "No network is the correct default for an agent sandbox and the wrong one for a first build. Both declarations live in the same repository and neither knows about the other.",
+      "fix": "Warm the dependency cache in an image layer, or vendor the dependencies, so the isolated run needs nothing from outside.",
+      "composed": false
     },
     {
       "rule_id": "shell/managers-initialized",
