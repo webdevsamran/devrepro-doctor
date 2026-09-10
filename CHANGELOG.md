@@ -9,6 +9,68 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - reproduction: a container somebody else can run, and the search tools
+
+`docs/REPRODUCTION.md`. The README opens by promising to answer "Docker works
+there but not here", and a diff only tells a maintainer what is different -- a
+reproduction tells them they are looking at the right thing.
+
+- **`devrepro reproduce`** drafts a recipe and runs nothing. The verb is
+  `reproduce`, not `generate`: `generate` already means "draft a config from
+  what I detected", and one verb doing both would leave them sharing a set of
+  flags that half apply.
+- **The assertion is what makes it a reproduction.** A recipe that sets up an
+  environment and stops is a Dockerfile; this one ends by running the thing that
+  failed, so when somebody fixes the cause **the recipe stops working** -- which
+  is the signal anybody actually wants. The failing command is a `CMD`, not a
+  `RUN`: a `RUN` that fails aborts the build, and an aborted build looks exactly
+  like a broken recipe.
+- **What it cannot carry is named, not omitted.** A container engine in the
+  original (reproducing needs a mounted socket, which is a privilege escalation
+  rather than a build step), a GPU, a non-Linux host -- and the one found by
+  running it, `no-install-step`: with no lockfile the container has a runtime and
+  none of the project's dependencies, so the command dies with "not found". That
+  is the most expensive kind of wrong reproduction, because it looks like a
+  successful one.
+- **Five formats from one recipe** -- Dockerfile, `repro.sh`, compose,
+  devcontainer, Nix flake -- so a Dockerfile and a flake describing the same
+  failure cannot drift apart. `repro.sh` prints the interpretation rather than
+  leaving it to an exit code, because the counter-intuitive part is that
+  **success is failure**: a recipe that exits zero has reproduced nothing.
+- **Sandbox adapters** for E2B, Daytona and container-use: configuration files,
+  not API clients. Three integrations would mean three credential stores and
+  three release cadences inside a tool whose value proposition is that it
+  contacts nothing.
+- **`--check`** regenerates and compares, so a committed recipe that quietly
+  stopped describing the project fails a CI job rather than a maintainer six
+  months later. The first version of it reported every file stale the instant
+  after writing them -- the header carries a scan timestamp -- so the comparison
+  now ignores the timestamp lines: a recipe is stale when what it *describes*
+  changed, not when it was regenerated.
+
+- **`devrepro bisect`** is `git bisect` for a machine. Everybody's instinct is
+  to read a forty-line environment diff and pick the suspicious-looking line,
+  which works for a runtime version and fails completely for a locale or a PATH
+  order. It applies nothing -- that would mean editing a PATH or installing a
+  version on somebody's machine -- and proposes candidates for you to apply and
+  answer. Two sanity checks run first, because skipping them is how a bisect
+  returns a confident wrong answer: a baseline that already fails, and a diff
+  that does not contain the cause, are both reported as inconclusive.
+- **`--minimise`** runs delta debugging instead, answering the question
+  bisection structurally cannot: when two changes are each harmless and break
+  things only together, a bisect names one of them and is wrong in a way that
+  reads as right. Bounded, because every verdict is a person running a build,
+  and when the bound bites it says the result may not be minimal.
+
+- **`devrepro repro-rate`** records how often reproductions actually work.
+  Every tool in this space claims to reproduce environments and none publishes a
+  rate, because the number is going to be disappointing. Publishing it anyway
+  beats implying 100% and letting each user discover otherwise separately.
+  `different-failure` counts as **not** reproduced -- that single choice is what
+  keeps the number honest, and counting it as success is how vendor benchmarks
+  reach 95%. No rate below ten attempts. Local only; nothing is uploaded and
+  there is no aggregate anywhere.
+
 ### Added - stopping an agent session before it starts, and pricing the gaps
 
 - **`agent-check --gate`** exits BLOCKED when this is not a reasonable place to

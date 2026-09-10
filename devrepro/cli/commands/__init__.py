@@ -25,6 +25,7 @@ def register_all(app: typer.Typer) -> None:
         project,
         remediation,
         reports,
+        reproduction,
         service,
         snapshots,
     )
@@ -41,6 +42,7 @@ def register_all(app: typer.Typer) -> None:
         service,
         compliance,
         integration,
+        reproduction,
     ):
         module.register(app)
 

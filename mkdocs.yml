@@ -44,6 +44,7 @@ nav:
       - Plugins: PLUGINS.md
       - Environment BOM: ENVIRONMENT-BOM.md
       - Compliance evidence: COMPLIANCE.md
+      - Reproduction: REPRODUCTION.md
       - Privacy: PRIVACY.md
       - Exit codes: EXIT-CODES.md
       - MCP exposure: MCP-EXPOSURE.md

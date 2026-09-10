@@ -225,6 +225,7 @@ Project       project  monorepo  ci-diff  profile  baseline  generate  init
 Agents        agent-check
 Environment   env  ports  git-health  network  envmanagers
 Snapshots     snapshot  diff  history  drift  sign-snapshot  verify-snapshot  bundle
+Reproduce     reproduce  bisect  repro-rate
 Compliance    attest  evidence  advisories
 Integration   contract  pins  watch  onboard
 Remediation   plan  fix  rules  explain  plugins
