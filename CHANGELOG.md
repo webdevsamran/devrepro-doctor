@@ -9,6 +9,40 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - whether a prebuilt binary can actually load here
+
+- Package managers choose which compiled artefact to download from three facts
+  about the machine -- its architecture, its C library, and that library's
+  version -- and every way of getting one wrong produces a failure about
+  something else entirely.
+- The new `abi/compat` probe reports all three, and six documented rules:
+  - **`abi/translated-process`** -- an x86_64 interpreter under Rosetta on
+    Apple silicon. Nothing fails, which is the problem: every wheel and native
+    addon installed from here is the x86_64 build, they stay that way for
+    anything that loads them, builds take roughly ten times as long, and the
+    machine reports itself as arm64 throughout.
+  - **`abi/interpreter-arch-mismatch`** and **`abi/runtime-arch-mismatch`** --
+    prebuilt artefacts are chosen by the *interpreter's* architecture, not the
+    machine's, which is how a `node_modules` becomes non-portable between two
+    machines that look identical.
+  - **`abi/musl-libc`** -- a manylinux wheel is linked against glibc and cannot
+    load on Alpine. pip does not say so; it skips the wheel and builds from
+    source, needing a compiler a slim image deliberately lacks, and the error
+    names a missing header.
+  - **`abi/glibc-below-common-wheel-tag`** -- below the `manylinux_2_28` floor,
+    wheels are skipped silently and `pip install numpy` becomes a
+    fifteen-minute compile. The finding names the tags the machine *can*
+    install, because that is the actionable part.
+- Architecture names are normalised before any comparison. Python reports
+  `AMD64`, uname `x86_64`, node `x64`; comparing any two raw would report every
+  Windows machine as mismatched with itself. An unrecognised name compares as
+  *unknown* rather than as a difference.
+- The first `ldd` parser reported **musl 86** on every Alpine machine: musl's
+  banner is `musl libc (x86_64)` with the version on the *next* line, so a
+  pattern looking for digits after the flavour name found the `86` in
+  `x86_64`. The two formats now have separate patterns, and the test that
+  caught it uses a recorded banner.
+
 ### Changed - the Rules view is a searchable catalogue, not a pack tally
 
 - It listed the rule *packs* that appeared in the current report -- a handful

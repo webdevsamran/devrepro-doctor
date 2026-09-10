@@ -1,11 +1,71 @@
 {
   "_generated_by": "scripts/generate_rule_docs.py -- edit devrepro/rules/catalog.py",
-  "count": 118,
+  "count": 124,
   "manager_conflict_ecosystems": [
     "node",
     "python"
   ],
   "rules": [
+    {
+      "rule_id": "abi/glibc-below-common-wheel-tag",
+      "prefix": "abi",
+      "suffix": "glibc-below-common-wheel-tag",
+      "title": "glibc is older than the wheels most projects publish",
+      "means": "The installed glibc is below the floor required by the `manylinux` tag the ecosystem has largely moved to.",
+      "matters": "Wheels carrying that tag are skipped silently and pip builds from source, which is how `pip install numpy` turns into a fifteen-minute compile that fails on a missing header. The finding names the tags this machine *can* install, because that is the part you can act on.",
+      "fix": "Use a newer base image or distribution release. Pinning older releases of each package works and is a treadmill; the glibc floor only moves in one direction.",
+      "composed": false
+    },
+    {
+      "rule_id": "abi/glibc-ok",
+      "prefix": "abi",
+      "suffix": "glibc-ok",
+      "title": "glibc accepts the wheels most projects publish",
+      "means": "The installed glibc meets the floor for current `manylinux` tags.",
+      "matters": "Recorded as a PASS because the absence of a finding and a verified match are different states, and a report that only lists problems cannot tell you which of the two it means.",
+      "fix": "Nothing to do.",
+      "composed": false
+    },
+    {
+      "rule_id": "abi/interpreter-arch-mismatch",
+      "prefix": "abi",
+      "suffix": "interpreter-arch-mismatch",
+      "title": "The interpreter and the machine disagree about the architecture",
+      "means": "The process asking for packages reports one architecture while the host reports another.",
+      "matters": "Package managers choose prebuilt artefacts by the *interpreter's* architecture, not the machine's, so everything installed through this interpreter is built for the wrong one. Installation succeeds every time; the cost appears as slow builds and as extensions that will not load elsewhere.",
+      "fix": "Reinstall the runtime for this machine's architecture. A runtime carried across from an Intel Mac by a migration assistant is the usual cause, and it keeps working well enough to go unnoticed.",
+      "composed": false
+    },
+    {
+      "rule_id": "abi/musl-libc",
+      "prefix": "abi",
+      "suffix": "musl-libc",
+      "title": "This machine uses musl, so manylinux wheels will not load",
+      "means": "The C library is musl rather than glibc -- Alpine, and images derived from it, are the common case.",
+      "matters": "A `manylinux` wheel is linked against glibc and cannot load here. pip does not report that: it skips the wheel and builds from source instead, which needs a compiler and development headers that a slim image deliberately does not carry. The error names a missing header file, and the actual cause -- the C library -- is never mentioned.",
+      "fix": "Install the `musllinux` wheel where the project publishes one. Where it does not, add the build toolchain deliberately rather than discovering the need part-way through an install.",
+      "composed": false
+    },
+    {
+      "rule_id": "abi/runtime-arch-mismatch",
+      "prefix": "abi",
+      "suffix": "runtime-arch-mismatch",
+      "title": "A runtime reports a different architecture from the machine",
+      "means": "`node`, `go` or a similar runtime answers with an architecture the host does not share.",
+      "matters": "Prebuilt native addons are selected by the runtime's own architecture. A mismatch means every one of them is the emulated build, and any addon compiled here will not load in a native process -- which is how a `node_modules` directory becomes non-portable between two machines that look identical.",
+      "fix": "Reinstall the runtime for this architecture and rebuild its native dependencies. For node, that is `npm rebuild` after removing `node_modules`.",
+      "composed": false
+    },
+    {
+      "rule_id": "abi/translated-process",
+      "prefix": "abi",
+      "suffix": "translated-process",
+      "title": "This process runs under Rosetta translation",
+      "means": "The interpreter is an x86_64 build running on Apple silicon, with macOS translating every instruction.",
+      "matters": "Nothing fails, which is the problem. Every package installed from here is the x86_64 build -- wheels, native addons, compiled extensions -- and they stay x86_64 for anything that loads them later. Builds take roughly ten times as long, and an extension compiled here will not load in a colleague's native arm64 process. The machine reports itself as arm64 throughout.",
+      "fix": "Install an arm64 build of the runtime and re-create the virtualenv or `node_modules` from scratch. Reinstalling packages into the existing one keeps the x86_64 artefacts that are already there.",
+      "composed": false
+    },
     {
       "rule_id": "containers/arch-emulated",
       "prefix": "containers",

@@ -235,6 +235,77 @@ _LITERAL: dict[str, tuple[str, str, str, str]] = {
         "Credential Manager stores the same tokens encrypted. devrepro reports "
         "the setting and never reads the file.",
     ),
+    "abi/translated-process": (
+        "This process runs under Rosetta translation",
+        "The interpreter is an x86_64 build running on Apple silicon, with "
+        "macOS translating every instruction.",
+        "Nothing fails, which is the problem. Every package installed from "
+        "here is the x86_64 build -- wheels, native addons, compiled "
+        "extensions -- and they stay x86_64 for anything that loads them "
+        "later. Builds take roughly ten times as long, and an extension "
+        "compiled here will not load in a colleague's native arm64 process. "
+        "The machine reports itself as arm64 throughout.",
+        "Install an arm64 build of the runtime and re-create the virtualenv or "
+        "`node_modules` from scratch. Reinstalling packages into the existing "
+        "one keeps the x86_64 artefacts that are already there.",
+    ),
+    "abi/interpreter-arch-mismatch": (
+        "The interpreter and the machine disagree about the architecture",
+        "The process asking for packages reports one architecture while the host reports another.",
+        "Package managers choose prebuilt artefacts by the *interpreter's* "
+        "architecture, not the machine's, so everything installed through this "
+        "interpreter is built for the wrong one. Installation succeeds every "
+        "time; the cost appears as slow builds and as extensions that will not "
+        "load elsewhere.",
+        "Reinstall the runtime for this machine's architecture. A runtime "
+        "carried across from an Intel Mac by a migration assistant is the "
+        "usual cause, and it keeps working well enough to go unnoticed.",
+    ),
+    "abi/runtime-arch-mismatch": (
+        "A runtime reports a different architecture from the machine",
+        "`node`, `go` or a similar runtime answers with an architecture the host does not share.",
+        "Prebuilt native addons are selected by the runtime's own "
+        "architecture. A mismatch means every one of them is the emulated "
+        "build, and any addon compiled here will not load in a native process "
+        "-- which is how a `node_modules` directory becomes non-portable "
+        "between two machines that look identical.",
+        "Reinstall the runtime for this architecture and rebuild its native "
+        "dependencies. For node, that is `npm rebuild` after removing "
+        "`node_modules`.",
+    ),
+    "abi/musl-libc": (
+        "This machine uses musl, so manylinux wheels will not load",
+        "The C library is musl rather than glibc -- Alpine, and images derived "
+        "from it, are the common case.",
+        "A `manylinux` wheel is linked against glibc and cannot load here. pip "
+        "does not report that: it skips the wheel and builds from source "
+        "instead, which needs a compiler and development headers that a slim "
+        "image deliberately does not carry. The error names a missing header "
+        "file, and the actual cause -- the C library -- is never mentioned.",
+        "Install the `musllinux` wheel where the project publishes one. Where "
+        "it does not, add the build toolchain deliberately rather than "
+        "discovering the need part-way through an install.",
+    ),
+    "abi/glibc-below-common-wheel-tag": (
+        "glibc is older than the wheels most projects publish",
+        "The installed glibc is below the floor required by the `manylinux` "
+        "tag the ecosystem has largely moved to.",
+        "Wheels carrying that tag are skipped silently and pip builds from "
+        "source, which is how `pip install numpy` turns into a fifteen-minute "
+        "compile that fails on a missing header. The finding names the tags "
+        "this machine *can* install, because that is the part you can act on.",
+        "Use a newer base image or distribution release. Pinning older "
+        "releases of each package works and is a treadmill; the glibc floor "
+        "only moves in one direction.",
+    ),
+    "abi/glibc-ok": (
+        "glibc accepts the wheels most projects publish",
+        "The installed glibc meets the floor for current `manylinux` tags.",
+        "Recorded as a PASS because the absence of a finding and a verified "
+        "match are different states, and a report that only lists problems "
+        "cannot tell you which of the two it means.",
+        "Nothing to do.",
+    ),
     "containers/arch-emulated": (
         "The container engine is emulating another architecture",
         "The daemon reports a different CPU architecture from the host, so every "

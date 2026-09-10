@@ -5,13 +5,76 @@
 > `devrepro explain <rule-id>` prints any one of these.
 > `devrepro rules --catalog` lists them all.
 
-Every finding carries a rule id. There are **118** documented ids.
+Every finding carries a rule id. There are **124** documented ids.
 
 Two shapes exist. Most are written out in full where they are emitted.
 Some are composed at runtime from a tool or ecosystem name:
 `multiple-installations` takes whichever tool was found twice, so it is
 valid for any tool name and the entries below are representative rather
 than exhaustive. `devrepro explain` resolves any prefix.
+
+
+## `abi/`
+
+### `abi/glibc-below-common-wheel-tag`
+
+**glibc is older than the wheels most projects publish**
+
+*What it means.* The installed glibc is below the floor required by the `manylinux` tag the ecosystem has largely moved to.
+
+*Why it matters.* Wheels carrying that tag are skipped silently and pip builds from source, which is how `pip install numpy` turns into a fifteen-minute compile that fails on a missing header. The finding names the tags this machine *can* install, because that is the part you can act on.
+
+*How to fix it.* Use a newer base image or distribution release. Pinning older releases of each package works and is a treadmill; the glibc floor only moves in one direction.
+
+### `abi/glibc-ok`
+
+**glibc accepts the wheels most projects publish**
+
+*What it means.* The installed glibc meets the floor for current `manylinux` tags.
+
+*Why it matters.* Recorded as a PASS because the absence of a finding and a verified match are different states, and a report that only lists problems cannot tell you which of the two it means.
+
+*How to fix it.* Nothing to do.
+
+### `abi/interpreter-arch-mismatch`
+
+**The interpreter and the machine disagree about the architecture**
+
+*What it means.* The process asking for packages reports one architecture while the host reports another.
+
+*Why it matters.* Package managers choose prebuilt artefacts by the *interpreter's* architecture, not the machine's, so everything installed through this interpreter is built for the wrong one. Installation succeeds every time; the cost appears as slow builds and as extensions that will not load elsewhere.
+
+*How to fix it.* Reinstall the runtime for this machine's architecture. A runtime carried across from an Intel Mac by a migration assistant is the usual cause, and it keeps working well enough to go unnoticed.
+
+### `abi/musl-libc`
+
+**This machine uses musl, so manylinux wheels will not load**
+
+*What it means.* The C library is musl rather than glibc -- Alpine, and images derived from it, are the common case.
+
+*Why it matters.* A `manylinux` wheel is linked against glibc and cannot load here. pip does not report that: it skips the wheel and builds from source instead, which needs a compiler and development headers that a slim image deliberately does not carry. The error names a missing header file, and the actual cause -- the C library -- is never mentioned.
+
+*How to fix it.* Install the `musllinux` wheel where the project publishes one. Where it does not, add the build toolchain deliberately rather than discovering the need part-way through an install.
+
+### `abi/runtime-arch-mismatch`
+
+**A runtime reports a different architecture from the machine**
+
+*What it means.* `node`, `go` or a similar runtime answers with an architecture the host does not share.
+
+*Why it matters.* Prebuilt native addons are selected by the runtime's own architecture. A mismatch means every one of them is the emulated build, and any addon compiled here will not load in a native process -- which is how a `node_modules` directory becomes non-portable between two machines that look identical.
+
+*How to fix it.* Reinstall the runtime for this architecture and rebuild its native dependencies. For node, that is `npm rebuild` after removing `node_modules`.
+
+### `abi/translated-process`
+
+**This process runs under Rosetta translation**
+
+*What it means.* The interpreter is an x86_64 build running on Apple silicon, with macOS translating every instruction.
+
+*Why it matters.* Nothing fails, which is the problem. Every package installed from here is the x86_64 build -- wheels, native addons, compiled extensions -- and they stay x86_64 for anything that loads them later. Builds take roughly ten times as long, and an extension compiled here will not load in a colleague's native arm64 process. The machine reports itself as arm64 throughout.
+
+*How to fix it.* Install an arm64 build of the runtime and re-create the virtualenv or `node_modules` from scratch. Reinstalling packages into the existing one keeps the x86_64 artefacts that are already there.
 
 
 ## `containers/`
