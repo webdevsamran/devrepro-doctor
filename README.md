@@ -201,7 +201,7 @@ Environment   env  ports  git-health  network  envmanagers
 Snapshots     snapshot  diff  history  drift  sign-snapshot  verify-snapshot  bundle
 Remediation   plan  fix  rules  explain  plugins
 Reports       report  export
-Services      serve  self-test  server-backup  server-restore
+Services      serve  self-test  bench  server-backup  server-restore
 ```
 
 All major commands support `--json` and stable exit codes (`0` ready,

@@ -1,4 +1,4 @@
-"""Service commands: serve, self-test, server-backup, server-restore."""
+"""Service commands: serve, self-test, bench, server-backup, server-restore."""
 
 from __future__ import annotations
 
@@ -48,6 +48,76 @@ def register(app: typer.Typer) -> None:
         ok = all(v == "ok" for v in checks.values())
         emit(checks, json_out)
         raise typer.Exit(ExitCode.READY if ok else ExitCode.INTERNAL_ERROR)
+
+    @app.command()
+    def bench(
+        json_out: bool = JsonOption,
+        parallel: bool = typer.Option(
+            False,
+            "--parallel",
+            help="Measure what a user waits for, instead of what each probe costs.",
+        ),
+        scan: bool = typer.Option(
+            False, "--scan", help="Time a whole scan by phase instead of probe by probe."
+        ),
+        path: Path = typer.Option(Path(), "--path", help="Project directory to scan."),
+    ) -> None:
+        """Measure where a scan spends its time, probe by probe.
+
+        This project has already lost the speed argument once: a scan took 26
+        seconds, of which 16 were resolving PATH, and finding that took an
+        afternoon because nothing in the tool could say which part was slow.
+
+        Sequential by default, which is the measurement that can be attributed:
+        run in parallel, eight probes share a thread pool and their wall times
+        overlap, so no single number is a probe's actual cost. `--parallel`
+        reports the wall time a user actually waits for and leaves the
+        per-probe figures at zero rather than printing plausible ones that are
+        wrong.
+
+        Read-only, like every other default here -- it runs the same probes a
+        scan runs, and reports nothing a scan would not.
+        """
+        from devrepro.bench import bench_probes, bench_scan
+        from devrepro.core.runner import SubprocessRunner
+        from devrepro.probes.base import ProbeContext
+        from devrepro.probes.registry import build_default_probes
+
+        if scan:
+            report = bench_scan(path)
+        else:
+            ctx = ProbeContext.capture(SubprocessRunner(), project_dir=path)
+            report = bench_probes(build_default_probes(ctx), parallel=parallel)
+
+        if json_out:
+            emit(report.as_dict(), True)
+            raise typer.Exit(ExitCode.READY)
+
+        if report.probes:
+            typer.echo(f"{'probe':<26} {'time':>9} {'cmds':>6} {'findings':>9}")
+            typer.echo("-" * 53)
+            for timing in sorted(report.probes, key=lambda t: t.seconds, reverse=True):
+                commands = "-" if timing.commands is None else str(timing.commands)
+                typer.echo(
+                    f"{timing.probe_id:<26} {timing.milliseconds:>7.0f}ms "
+                    f"{commands:>6} {timing.findings:>9}"
+                )
+                if timing.error:
+                    typer.echo(f"{'':<26} {timing.error}")
+
+        for phase in report.phases:
+            typer.echo(f"{phase.name:<26} {phase.seconds * 1000:>7.0f}ms")
+
+        typer.echo("-" * 53)
+        typer.echo(f"{'total (wall clock)':<26} {report.total_seconds * 1000:>7.0f}ms")
+        slowest = report.slowest
+        if slowest and slowest.seconds > 0:
+            share = slowest.seconds / report.total_seconds * 100 if report.total_seconds else 0
+            typer.echo(f"slowest: {slowest.probe_id} ({share:.0f}% of the run)")
+        for note in report.notes:
+            typer.echo(note)
+
+        raise typer.Exit(ExitCode.READY)
 
     @app.command("server-backup")
     def server_backup_cmd(

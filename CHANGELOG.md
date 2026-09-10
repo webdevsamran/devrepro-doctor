@@ -9,6 +9,35 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - `devrepro bench`: where a scan spends its time
+
+- This project lost the speed argument once already. A scan took 26 seconds, of
+  which 16 were resolving PATH, and `docs/MCP-EXPOSURE.md` names exactly that
+  cost as a reason not to expose a scan to an agent. The fix was one line;
+  finding it took an afternoon, because nothing in the tool could say which
+  part was slow.
+- `devrepro bench` times each probe separately and counts the subprocess calls
+  it makes. The count is what explains a slow probe -- process startup
+  dominates, so twelve calls and one call differ by more than the work inside
+  them. `--scan` times a whole scan by phase instead, and `--json` emits the
+  same numbers for a regression report.
+- Sequential by default, because that is the measurement that can be
+  attributed. `--parallel` reports the wall time a user actually waits for and
+  leaves the per-probe figures at **zero**: eight probes sharing a thread pool
+  produce overlapping wall times that sum to more than the elapsed time, and
+  printing them would look like a measurement. On this machine the two numbers
+  are 20s sequential and 4.2s parallel, which is the parallelism earning its
+  keep rather than a contradiction.
+- Not a gate. A threshold that fails a shared CI runner on a bad afternoon is a
+  threshold people delete; `tests/test_performance.py` still guards the one
+  algorithmic shape that actually regressed.
+- Two ways the measurement could lie are pinned by tests. The first version of
+  the counting runner assigned `ctx.runner` inside a `try` -- and `ProbeContext`
+  is frozen, "read-only by contract", so the swap silently did nothing and
+  every probe reported no subprocess calls at all. The test for it now asserts
+  from inside the probe, so it fails for that reason rather than for any other
+  way a count could come out wrong.
+
 ### Added - checkout readiness: the ways git leaves a working tree incomplete
 
 - `git_health` was reachable only through `devrepro git-health`. Nothing it
