@@ -29,7 +29,7 @@ Status legend: ✅ shipped · 🚧 in progress · 📋 planned
 - ✅ Full CLI (55 commands, `--json` everywhere)
 - ✅ Local sanitized history + drift view
 - ✅ Reports: terminal/JSON/Markdown/JUnit/HTML
-- ✅ React+TS+Vite frontend (32 pages), grouped sidebar, command palette, code-split routes
+- ✅ React+TS+Vite frontend (35 pages), grouped sidebar, command palette, code-split routes
 - ✅ Localhost-only server
 - ✅ Privacy engine + synthetic-secret tests
 - ✅ Fixture-driven tests + property-based tests
