@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  External Tools for JetBrains IDEs. See ../README.md for why this is XML
+  rather than a plugin.
+
+  `synchronizeAfterRun="false"` on every entry: none of these writes a file, so
+  asking the IDE to re-scan the project afterwards is work for nothing. The one
+  command in this tool that does write - `devrepro fix` - is deliberately absent,
+  because a menu item that runs remediations is one click away from running them
+  by accident, and the consent gate exists so a person agrees each time.
+-->
+<toolSet name="DevRepro">
+  <tool name="Scan this machine" showInMainMenu="true" showInEditor="false"
+        showInProject="true" showInSearchPopup="true" disabled="false"
+        useConsole="true" showConsoleOnStdOut="true" showConsoleOnStdErr="true"
+        synchronizeAfterRun="false">
+    <exec>
+      <option name="COMMAND" value="devrepro" />
+      <option name="PARAMETERS" value="doctor" />
+      <option name="WORKING_DIRECTORY" value="$ProjectFileDir$" />
+    </exec>
+  </tool>
+
+  <tool name="Check the environment contract" showInMainMenu="true" showInEditor="false"
+        showInProject="true" showInSearchPopup="true" disabled="false"
+        useConsole="true" showConsoleOnStdOut="true" showConsoleOnStdErr="true"
+        synchronizeAfterRun="false">
+    <exec>
+      <option name="COMMAND" value="devrepro" />
+      <option name="PARAMETERS" value="guard --scope changed" />
+      <option name="WORKING_DIRECTORY" value="$ProjectFileDir$" />
+    </exec>
+  </tool>
+
+  <tool name="Agent readiness" showInMainMenu="true" showInEditor="false"
+        showInProject="true" showInSearchPopup="true" disabled="false"
+        useConsole="true" showConsoleOnStdOut="true" showConsoleOnStdErr="true"
+        synchronizeAfterRun="false">
+    <exec>
+      <option name="COMMAND" value="devrepro" />
+      <option name="PARAMETERS" value="agent-check ." />
+      <option name="WORKING_DIRECTORY" value="$ProjectFileDir$" />
+    </exec>
+  </tool>
+
+  <tool name="Explain a rule id" showInMainMenu="true" showInEditor="true"
+        showInProject="true" showInSearchPopup="true" disabled="false"
+        useConsole="true" showConsoleOnStdOut="true" showConsoleOnStdErr="true"
+        synchronizeAfterRun="false">
+    <exec>
+      <option name="COMMAND" value="devrepro" />
+      <!-- $Prompt$ asks, so this works from the editor with a rule id selected
+           or typed, without a second tool per rule. -->
+      <option name="PARAMETERS" value="explain $Prompt$" />
+      <option name="WORKING_DIRECTORY" value="$ProjectFileDir$" />
+    </exec>
+  </tool>
+</toolSet>

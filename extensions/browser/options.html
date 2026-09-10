@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>DevRepro readiness</title>
+    <style>
+      body { font: 14px/1.5 system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
+      textarea { width: 100%; font-family: ui-monospace, monospace; font-size: 12px; }
+      .note { color: #57606a; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <h1>DevRepro readiness</h1>
+    <p class="note">
+      This extension makes <strong>no network requests</strong>. It renders badges you save here,
+      for repositories you choose. Nothing about the pages you visit leaves your browser.
+    </p>
+    <p>
+      For each repository, run <code>devrepro agent-check . --badge</code> and paste the JSON
+      against its <code>owner/repo</code>.
+    </p>
+    <label for="slug">Repository (owner/repo)</label>
+    <input id="slug" type="text" placeholder="webdevsamran/devrepro-doctor" style="width: 100%" />
+    <label for="badge">Badge JSON</label>
+    <textarea id="badge" rows="6" placeholder='{"schemaVersion":1,"label":"agent-ready","message":"92% ready","color":"brightgreen"}'></textarea>
+    <p><button id="save">Save</button> <span id="status" class="note"></span></p>
+    <h2>Saved</h2>
+    <ul id="list"></ul>
+    <script src="options.js"></script>
+  </body>
+</html>

@@ -9,6 +9,54 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - editor, browser and IDE surfaces, none of which needs a build
+
+- **`extensions/vscode/`** — plain CommonJS with JSDoc, no dependencies, no
+  compiler, no bundler, no pinned `vscode.d.ts`. Four moving parts avoided in a
+  project whose selling point is that it does not accumulate them, and the
+  folder loads directly with `--extensionDevelopmentPath`. It does **not** scan
+  on startup: an extension that spawns processes while you open a file is one
+  you disable in week two. Only findings whose evidence names a
+  repository-relative path become squiggles — a stopped Docker daemon is not a
+  property of any line of code, and absolute paths are refused because a
+  diagnostic inside somebody's home directory is a username on screen during a
+  screen-share. A non-zero exit is the contract working, not a failure.
+- **`extensions/browser/`** — a readiness badge on GitHub that makes **no
+  network requests at all**. The obvious implementation fetches a score for
+  every repository you visit, which means an endpoint and a log of your browsing
+  on somebody's server; this project exists to be the opposite of that shape, so
+  you save badges locally from `agent-check --badge`. A test asserts the source
+  contains no `fetch`, `XMLHttpRequest`, `WebSocket` or `sendBeacon`, because a
+  privacy claim nothing enforces is one that decays. The badge is drawn beside
+  the repository name, never injected into the README — that is somebody else's
+  content.
+- **`extensions/jetbrains/`** — External Tools XML rather than a plugin. A
+  plugin is a Kotlin/Gradle project, a compatibility range, a Marketplace
+  listing and a signing key, maintained by a project that ships no compiled
+  artefacts anywhere else; this works in every JetBrains IDE today. No surface
+  offers `devrepro fix`: a menu item that runs remediations is one click from
+  running them by accident, and the `--yes` gate exists so a person agrees each
+  time.
+- **`web/src/i18n.ts`** — a catalogue, a lookup, locale resolution and plurals
+  through `Intl.PluralRules`, with no library. It localises the **chrome, not
+  the content**: findings come from the Python side, are generated per machine
+  across 159 rule ids, and a half-translated diagnostic is worse than a
+  consistent English one. Rule ids are never translated — an identifier that
+  changes by locale is not an identifier.
+
+### Changed - two catalogue items recorded as decisions
+
+- **An interactive TUI** is deferred with a reason. Every cross-platform TUI
+  toolkit is a dependency (`curses` is absent on Windows), and what one buys is
+  triage — which the web console does today, offline, over a sanitized report.
+  For somebody on SSH with no browser, `--json` piped into `jq` is the honest
+  answer and needs nothing from us.
+- **CDP runtime profiling** is not built. That is `react-doctor`'s territory,
+  it does it well, and driving CDP means attaching a debugger to somebody's
+  running process — the furthest thing from read-only in this project — to
+  answer a question about application performance rather than about the machine.
+  `docs/interop.md` links there instead.
+
 ### Added - a snapshot viewer, an export, a gallery and a tour
 
 - **Snapshot viewer.** Somebody's build fails, a colleague asks for `devrepro

@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "DevRepro readiness",
+  "version": "0.1.0",
+  "description": "Shows a repository's agent-readiness badge on GitHub, from a file you point it at.",
+  "//permissions": "No host permissions beyond github.com, and no network access at all. The badge data comes from a local file the user chooses.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://github.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://github.com/*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_page": "options.html",
+  "action": { "default_title": "DevRepro readiness" }
+}

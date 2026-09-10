@@ -1,0 +1,35 @@
+{
+  "name": "devrepro-doctor",
+  "displayName": "DevRepro Doctor",
+  "description": "Why this machine cannot build this repository, in the editor",
+  "version": "0.1.0",
+  "publisher": "webdevsamran",
+  "license": "Apache-2.0",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Other"],
+  "main": "./extension.js",
+  "//": "No dependencies and no build step. See extension.js for why.",
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {
+    "commands": [
+      { "command": "devrepro.scan", "title": "DevRepro: Scan this machine", "category": "DevRepro" },
+      { "command": "devrepro.explain", "title": "DevRepro: Explain a rule id", "category": "DevRepro" },
+      { "command": "devrepro.agentCheck", "title": "DevRepro: Check agent readiness", "category": "DevRepro" }
+    ],
+    "configuration": {
+      "title": "DevRepro Doctor",
+      "properties": {
+        "devrepro.executable": {
+          "type": "string",
+          "default": "devrepro",
+          "description": "Path to the devrepro executable."
+        },
+        "devrepro.scanOnStartup": {
+          "type": "boolean",
+          "default": false,
+          "description": "Scan when a window opens. Off by default: a scan takes seconds and nobody asked for it while they were opening a file."
+        }
+      }
+    }
+  }
+}
