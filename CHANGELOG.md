@@ -9,6 +9,37 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - `generate agents-md`: a manifest that starts out agreeing with CI
+
+- Every `AGENTS.md` this project has examined drifts from the workflow that
+  gates its repository, always in the same direction: the file lists a subset,
+  so an agent runs everything it was told to, sees green, and is failed by the
+  pull request for reasons the file never mentioned. Three of three
+  repositories on this machine had it.
+- The cause is structural rather than careless. Someone writes the file once,
+  from memory, and then CI grows a gate; nothing connects the two, so nothing
+  notices. `devrepro generate agents-md` drafts the file *from* the workflows
+  using the same reader `agent-check` uses to find drift, so a freshly
+  generated manifest scores 3/3 on `matches-ci` by construction and any later
+  gap is CI having moved -- which is the case worth reporting.
+- A test asserts that round trip against this repository's own workflows, not
+  only a synthetic fixture: matrices, `working-directory` and a second workflow
+  file are exactly where a line-based YAML reader goes wrong, and if the
+  generator and the checker ever disagree about what counts as a gate, it
+  fails.
+- Installation steps are separated from checks. Calling `pip install -e
+  ".[dev]"` a gate is wrong in a way an agent acts on -- it reads a successful
+  install as a passing check, and has no way to learn that the install is the
+  prerequisite for everything after it.
+- What a generator cannot know is left as a marked TODO rather than filled with
+  plausible prose. The conventions section especially: it is the part an agent
+  most needs and the part no directory listing can supply, and a confident
+  paragraph of invented house style is worse than an empty heading, because
+  nobody edits what looks finished.
+- Repeated matrix commands appear once. A twelve-leg matrix really does run
+  `pytest` twelve times, and a file that says so twelve times reads as a
+  mistake.
+
 ### Added - whether a prebuilt binary can actually load here
 
 - Package managers choose which compiled artefact to download from three facts

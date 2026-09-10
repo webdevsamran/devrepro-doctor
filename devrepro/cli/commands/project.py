@@ -224,7 +224,9 @@ def register(app: typer.Typer) -> None:
 
     @app.command()
     def generate(
-        what: str = typer.Argument(..., help="devrepro-toml | mise | asdf | devcontainer"),
+        what: str = typer.Argument(
+            ..., help="devrepro-toml | mise | asdf | devcontainer | agents-md"
+        ),
         path: Path = typer.Argument(Path(), help="Project root."),
         # Keyword-only: these are flags, never positional, and it keeps the
         # signature honest about how the command is actually called.
@@ -248,7 +250,17 @@ def register(app: typer.Typer) -> None:
         It reaches the registry through the local docker CLI, so it is opt-in
         for the same reason `network --allow-network` is: a scan does not use
         the network unless asked.
+
+        `agents-md` drafts an `AGENTS.md` from this repository's CI workflows
+        rather than from memory, which is the only way one starts out agreeing
+        with them. Every `AGENTS.md` this project has examined drifts from its
+        own CI, always in the same direction -- the file lists a subset, so an
+        agent runs everything it was told to, sees green, and is failed by the
+        pull request for reasons the file never mentioned. The draft leaves the
+        parts a generator cannot know as marked TODOs rather than filling them
+        with plausible prose, because nobody edits what looks finished.
         """
+        from devrepro.agents.author import detect_project_shape, generate_agents_md
         from devrepro.generators import (
             generate_devcontainer,
             generate_devrepro_toml,
@@ -278,6 +290,7 @@ def register(app: typer.Typer) -> None:
             "mise": lambda: generate_tool_versions(requirements, style="mise"),
             "asdf": lambda: generate_tool_versions(requirements, style="asdf"),
             "devcontainer": lambda: generate_devcontainer(requirements=requirements, digest=digest),
+            "agents-md": lambda: generate_agents_md(detect_project_shape(path)),
         }
         builder = builders.get(what)
         if builder is None:
@@ -289,6 +302,7 @@ def register(app: typer.Typer) -> None:
             "mise": ".mise.toml",
             "asdf": ".tool-versions",
             "devcontainer": ".devcontainer/devcontainer.json",
+            "agents-md": "AGENTS.md",
         }
         target = path / filenames[what]
         if not write:

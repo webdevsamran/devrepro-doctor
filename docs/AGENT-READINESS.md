@@ -44,6 +44,36 @@ Shell plumbing is filtered out. A `run: |` block is full of `grep`, `sed` and
 variable assignments; none of that is a gate, and listing it would bury the
 findings that matter.
 
+### Starting from a manifest that already agrees
+
+```bash
+devrepro generate agents-md            # print the draft
+devrepro generate agents-md --write    # write it (refuses to overwrite)
+```
+
+The drift above is structural rather than careless: someone writes the manifest
+once, from memory, and then CI grows a gate. Nothing connects the two, so
+nothing notices. Three of three repositories examined during this project's
+development had it, all in the same direction.
+
+`generate agents-md` drafts the file from the workflows instead, using the same
+reader `agent-check` uses to find drift — so a freshly generated manifest
+scores 3/3 on this factor by construction, and any later gap is CI having moved,
+which is the case worth reporting. A test asserts that round trip against this
+repository's own workflows, so the generator and the checker cannot quietly
+disagree about what counts as a gate.
+
+Installation steps are separated from checks. Calling `pip install -e ".[dev]"`
+a gate is wrong in a way an agent acts on: it reads a successful install as a
+passing check, and has no way to learn that the install is the prerequisite for
+everything after it.
+
+What a generator cannot know is left as a marked TODO rather than filled with
+plausible prose — the conventions section especially, which is the part an agent
+most needs and the part no directory listing can supply. A confident paragraph
+of invented house style is worse than an empty heading, because nobody edits
+what looks finished.
+
 ## 3. Are the declared commands still real?
 
 `npm` resolving says nothing about whether `npm run build` names a script this
