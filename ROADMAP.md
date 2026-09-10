@@ -35,6 +35,38 @@ Status legend: ✅ shipped · 🚧 in progress · 📋 planned
 - ✅ Fixture-driven tests + property-based tests
 - ✅ CI matrix (Windows/Linux/macOS), CodeQL, Dependabot, SBOM
 
+## What shipped since 0.2 was written
+
+The 0.2 list below was written before the work in `CHANGELOG.md`. Rather than
+silently editing it into agreement -- a roadmap that always claims to be on
+plan is a roadmap nobody reads -- here is what actually landed, and the list
+below stays as it was.
+
+- ✅ Agent readiness end to end: `agent-check` with blast radius, a readiness
+  score, a session `--gate`, hooks, a shields badge, and a token-cost estimate
+- ✅ MCP server (`devrepro mcp`), read-only, with the three prerequisites
+  `docs/MCP-EXPOSURE.md` set before it could ship
+- ✅ Reproduction: `devrepro reproduce` into five formats plus three sandbox
+  adapters, `devrepro bisect` with delta-debugging minimisation, and
+  `repro-rate` recording how often any of it works
+- ✅ Compliance evidence: in-toto attestations, CRA/SSDF/SLSA control mapping,
+  a toolchain licence inventory, an offline advisory set, and hash-chained
+  snapshot history
+- ✅ Twelve rule packs, including framework introspection (Next.js, Django,
+  Spring Boot) and build-cache health
+- ✅ Fleet governance: onboarding analytics, policy simulation, team-scoped
+  baselines, MDM scripts, chat payloads
+- ✅ Editor and browser surfaces: VS Code, JetBrains External Tools, a browser
+  badge that makes no network requests, and i18n scaffolding
+- ✅ A published consumer contract (`devrepro contract`), GitHub annotations,
+  toolchain-pin bot coverage, and a contract watcher
+
+**And two corrections worth more than any of it.** A default scan was opening
+TLS connections to three third-party hosts, against this project's headline
+invariant -- found by `devrepro bench`, not by reading. And `--fg-subtle` failed
+WCAG AA on the surfaces it was actually used on, in both themes, after a
+previous fix had measured it against the page background only.
+
 ## 0.2 — Depth
 
 - 📋 More rule packs: bazel, nix, android, ios, embedded toolchains
