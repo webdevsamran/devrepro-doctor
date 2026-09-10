@@ -30,6 +30,8 @@ theme:
 
 nav:
   - Home: index.md
+  - Install: INSTALL.md
+  - Troubleshooting: TROUBLESHOOTING.md
   - Architecture: architecture.md
   - Roadmap: roadmap.md
   - Interoperability: interop.md
@@ -49,6 +51,7 @@ nav:
       - Exit codes: EXIT-CODES.md
       - MCP exposure: MCP-EXPOSURE.md
       - Releasing: release.md
+      - Upstream playbook: UPSTREAM-PLAYBOOK.md
   - Project:
       - Contributing: contributing.md
       - Security policy: security.md

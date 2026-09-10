@@ -9,6 +9,54 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - what a rule-pack author needs, and honest install docs
+
+- **`devrepro rules-test <module>`** checks a rule pack for the four things
+  that make one wrong, each of which an author infers from reading the
+  built-ins: a finding with no evidence (the model refuses to build one, so it
+  arrives as an exception in somebody else's CI), a rule id under a built-in
+  prefix (`devrepro explain` then describes somebody else's rule), side effects
+  (checked **statically** -- a pack that only writes under some condition passes
+  a runtime check on every machine except the one it fails on), and an uncaught
+  exception (the engine turns it into `rulepack/<name>/failed`, so an author
+  never sees their own crash). It says out loud that it is importing and running
+  your module.
+- **`templates/rule-pack/`** is a working pack to copy: a directory rather than
+  a cookiecutter, because a template you can read start to finish teaches the
+  contract better than a generator that hides it. Its own tests run in this
+  project's CI, because a template nobody runs teaches the wrong contract -- the
+  first version of this one read `ctx.env`, which `RuleContext` does not have.
+- **`docs/PLUGINS.md`** now says what a pack actually receives. It never did,
+  which is how the example came to read a field that does not exist. And why
+  there is no environment in `RuleContext`: probes read variables and hand the
+  engine conclusions, so a pack able to read raw values would be a pack able to
+  put them in a report.
+- **`docs/TROUBLESHOOTING.md`** maps symptoms to causes, ordered by how often a
+  symptom sends people to the wrong place -- exit code 137 is the OOM killer and
+  not a compiler crash; an expired certificate is usually a drifted clock; "no
+  kernel image is available" is a compute-capability mismatch in a message that
+  does not contain the words.
+- **`docs/INSTALL.md`** documents every install path **and opens by saying none
+  of them works yet**, because the name is unclaimed on PyPI. That beats what
+  this project shipped for months: a README opening with a command that returns
+  404. `uvx` leads, since a diagnostic is usually run once on a machine that is
+  misbehaving and installing into the environment you are debugging changes the
+  thing you are measuring.
+- **`packaging/`** carries Homebrew, Scoop and winget templates with visible
+  `PLACEHOLDER`s, and `scripts/check_packaging.py` fails a manifest that is
+  halfway between template and real -- the state that looks finished and fails on
+  the first install anybody attempts.
+- **`docs/UPSTREAM-PLAYBOOK.md`** writes down how this project earns attention,
+  including the test that separates it from spam: if the tool did not exist,
+  would the comment still be worth posting?
+
+### Changed
+
+- A hosted rule-pack registry is recorded in `PRODUCT_GAPS.md` as **deferred
+  with a reason**. Entry points already are the registration mechanism, and a
+  registry would currently list zero packs -- worse than none, because it
+  advertises an empty ecosystem.
+
 ### Added - fleet governance, and the line each feature stops at
 
 Five of these are one step from something a person could reasonably object to,

@@ -61,6 +61,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python scripts/check_action_pins.py
+      - name: Packaging manifests are templates or real, never halfway
+        # A manifest with one field filled in looks finished and fails on the
+        # first install anybody attempts from it.
+        run: python scripts/check_packaging.py
+      - name: The rule-pack template still passes its own harness
+        # A template nobody runs teaches the wrong contract. The first version
+        # of this one read a RuleContext field that does not exist.
+        run: python -m pytest tests/test_rulepack_template.py -q
       - name: Landscape table matches the fetched competitor data
         # The table states its own method ("fetched via the GitHub API")
         # but was typed by hand. In a sibling repo that drifted into

@@ -109,6 +109,67 @@ def register(app: typer.Typer) -> None:
             typer.echo("`devrepro explain <rule-id>` for the long form.")
         raise typer.Exit(ExitCode.READY)
 
+    @app.command("rules-test")
+    def rules_test(
+        module: str = typer.Argument(..., help="Import path of the pack module, e.g. mypack.rules"),
+        attribute: str = typer.Option(
+            "evaluate", "--attribute", help="Callable inside the module to run."
+        ),
+        json_out: bool = JsonOption,
+    ) -> None:
+        """Check a rule pack for the four things that make one wrong.
+
+        Findings with no evidence, ids that collide with a built-in prefix,
+        packs that mutate the machine, and packs that raise -- the engine turns
+        the last into a `rulepack/<name>/failed` finding, which is right for a
+        user and means an author never sees their own crash.
+
+        **This imports and runs your module**, which is executing code. It takes
+        an explicit import path rather than discovering installed packs and
+        running them all, so it is always clear whose code is about to run.
+        """
+        import importlib
+
+        from devrepro.core.models import PlatformInfo
+        from devrepro.plugins.testkit import check_pack
+        from devrepro.rules.base import PACK_NAMES, RuleContext
+
+        secho(f"Importing {module} -- this executes it.", fg="yellow", err=True)
+        try:
+            loaded = importlib.import_module(module)
+        except ImportError as exc:
+            secho(f"cannot import {module}: {exc}", fg="red", err=True)
+            raise typer.Exit(ExitCode.USAGE_ERROR) from exc
+
+        evaluate = getattr(loaded, attribute, None)
+        if not callable(evaluate):
+            secho(f"{module} has no callable {attribute!r}", fg="red", err=True)
+            raise typer.Exit(ExitCode.USAGE_ERROR)
+
+        # A minimal context: empty rather than invented. A harness that supplied
+        # a plausible machine would test the pack against a fiction, and the
+        # interesting bugs in a rule pack are all about unusual state.
+        ctx = RuleContext(
+            platform_info=PlatformInfo(os_name="Linux", os_version="0", arch="x86_64")
+        )
+        # The reserved-prefix check is for third-party packs. Run against a
+        # built-in it would flag the pack for using its own name, which is
+        # confusing rather than useful -- the harness is here to help authors,
+        # and its first output should not be a false positive.
+        reserved = () if module.startswith("devrepro.") else PACK_NAMES
+        report = check_pack(evaluate, ctx, reserved_prefixes=reserved)
+
+        if json_out:
+            emit(report.as_dict(), True)
+        elif report.ok:
+            typer.echo(f"ok     {report.findings_produced} finding(s), no problems")
+        else:
+            for problem in report.problems:
+                secho("  " + problem.describe(), fg="red")
+            typer.echo("")
+            typer.echo("See docs/PLUGINS.md for what each of these does to a user.")
+        raise typer.Exit(ExitCode.READY if report.ok else ExitCode.READY_WITH_WARNINGS)
+
     @app.command()
     def explain(
         rule_id: str = typer.Argument(..., help="Rule id, e.g. node/version-mismatch."),

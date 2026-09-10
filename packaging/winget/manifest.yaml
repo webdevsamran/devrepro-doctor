@@ -1,0 +1,19 @@
+# winget manifest. Template: see packaging/README.md.
+#
+# Also a to-do rather than only a template: winget's community repository wants
+# a signed installer and a manifest review, which is a submission process rather
+# than a file to publish.
+PackageIdentifier: webdevsamran.DevReproDoctor
+PackageVersion: PLACEHOLDER_VERSION
+PackageName: DevRepro Doctor
+Publisher: webdevsamran
+License: Apache-2.0
+ShortDescription: Diagnose why this machine cannot build this repository
+PackageUrl: https://github.com/webdevsamran/devrepro-doctor
+Installers:
+  - Architecture: x64
+    InstallerType: nullsoft
+    InstallerUrl: PLACEHOLDER_INSTALLER_URL
+    InstallerSha256: PLACEHOLDER_INSTALLER_SHA256
+ManifestType: singleton
+ManifestVersion: 1.6.0

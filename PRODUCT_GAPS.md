@@ -39,6 +39,7 @@ planned behind the same `ServerDB` call sites.
 | Shell-agnostic script runners (devenv processes) | Out of scope; we validate their config, not run them. |
 | Cloud workspace streaming (DevPod providers) | Different product category; no diagnostic value for us. |
 | Telemetry-driven version recommendations | Conflicts with our no-telemetry privacy stance. |
+| A hosted rule-pack registry | Deferred with a reason, not built. Entry points already are the registration mechanism: install a package and `devrepro plugins` lists it, with nothing to submit to and nobody to approve it. A registry adds a service to run, a moderation policy to write and a supply-chain surface to defend -- and would currently list zero packs, which is worse than no registry because it advertises an empty ecosystem. `templates/rule-pack/` and `devrepro rules-test` are what an author actually needs first. |
 | Attributed CI footprint / carbon reporting | Cut, not deferred. Measuring the seconds a scan adds to a CI run is easy; the honest number is a fraction of one job, and presenting it as a headline turns a diagnostic tool into a dashboard about itself. `devrepro bench` already reports where a scan spends its time, for the case where that number actually matters -- somebody deciding whether to run it on every push. |
 
 ## Where we are ahead

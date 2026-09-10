@@ -228,7 +228,7 @@ Snapshots     snapshot  diff  history  drift  sign-snapshot  verify-snapshot  bu
 Reproduce     reproduce  bisect  repro-rate
 Compliance    attest  evidence  advisories
 Integration   contract  pins  watch  onboard  monitor  notify
-Remediation   plan  fix  rules  explain  plugins
+Remediation   plan  fix  rules  rules-test  explain  plugins
 Reports       report  export
 Services      serve  self-test  bench  mcp  server-backup  server-restore
 ```

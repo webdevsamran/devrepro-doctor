@@ -1,0 +1,20 @@
+{
+  "//": "Scoop manifest. Template: see packaging/README.md.",
+  "version": "PLACEHOLDER_VERSION",
+  "description": "Diagnose why this machine cannot build this repository",
+  "homepage": "https://github.com/webdevsamran/devrepro-doctor",
+  "license": "Apache-2.0",
+  "url": "PLACEHOLDER_WHEEL_URL",
+  "hash": "PLACEHOLDER_WHEEL_SHA256",
+  "depends": "python",
+  "installer": {
+    "script": "python -m pip install --no-deps --target \"$dir\" \"$dir\\PLACEHOLDER_WHEEL_NAME\""
+  },
+  "bin": [["python", "devrepro", "-m devrepro"]],
+  "checkver": {
+    "github": "https://github.com/webdevsamran/devrepro-doctor"
+  },
+  "autoupdate": {
+    "url": "PLACEHOLDER_WHEEL_URL_PATTERN"
+  }
+}
