@@ -465,6 +465,34 @@ class ScanReport(_FrozenModel):
         }
     )
 
+    def active_versions(self) -> dict[str, str | None]:
+        """Tool name to version, preferring the installation that has one.
+
+        A dict comprehension over `is_active` tools looks equivalent and is
+        not. A machine routinely reports the same tool more than once with only
+        one readable version -- on Windows, `python` resolves to both a real
+        interpreter and the App Execution Alias, a stub that exits without
+        printing anything, and both are marked active. Last-one-wins then maps
+        `python` to `None`, and `None` reads downstream as "not installed".
+
+        That mistake shipped in three places at once, because the comprehension
+        was copied. `devrepro onboard` told a machine running 3.14.7 to install
+        Python.
+
+        An installation whose version could not be read is not evidence that
+        the tool is absent, so a readable version always wins over an
+        unreadable one; the name is still present with a `None` value when
+        nothing readable exists, because "installed, version unknown" is a real
+        answer this project reports elsewhere.
+        """
+        versions: dict[str, str | None] = {}
+        for tool in self.tools:
+            if not tool.is_active:
+                continue
+            if versions.get(tool.name) is None:
+                versions[tool.name] = tool.version
+        return versions
+
     def worst_state(self) -> FindingState:
         order = [
             FindingState.BLOCKED,

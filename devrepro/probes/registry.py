@@ -23,6 +23,7 @@ def build_default_probes(ctx: ProbeContext) -> list[Probe]:
     from devrepro.probes.network import NetworkTlsProbe
     from devrepro.probes.path_env import PathProbe
     from devrepro.probes.ports import PortsServicesProbe
+    from devrepro.probes.projecttools import ProjectToolingProbe
     from devrepro.probes.registries import RegistryProbe
     from devrepro.probes.sdks import SdkProbe
     from devrepro.probes.shell_profiles import ShellProfileProbe
@@ -51,6 +52,7 @@ def build_default_probes(ctx: ProbeContext) -> list[Probe]:
         HygieneProbe,
         RegistryProbe,
         HostPerfProbe,
+        ProjectToolingProbe,
     ]
     probes: list[Probe] = []
     for cls in classes:

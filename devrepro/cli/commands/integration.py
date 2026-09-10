@@ -13,7 +13,7 @@ from pathlib import Path
 
 import typer
 
-from devrepro.cli.common import JsonOption, emit, secho
+from devrepro.cli.common import JsonOption, PolicyOption, emit, load_policy_or_none, secho
 from devrepro.core.exit_codes import ExitCode
 
 
@@ -187,4 +187,65 @@ def register(app: typer.Typer) -> None:
         except KeyboardInterrupt:
             typer.echo("")
             typer.echo("Stopped.")
+        raise typer.Exit(ExitCode.READY)
+
+    @app.command()
+    def onboard(
+        policy_path: Path | None = PolicyOption,
+        output: Path | None = typer.Option(None, "-o", "--output"),
+        json_out: bool = JsonOption,
+    ) -> None:
+        """A setup script for what THIS machine is missing. Nothing is executed.
+
+        Onboarding documents rot because they describe a machine nobody has:
+        they list every dependency, including the eleven a new starter already
+        had, and the one that matters is on line 40. This emits the difference
+        between what the policy requires and what the scan found, which on most
+        machines is two lines.
+
+        The script is output, not an action. Commands that pipe a remote script
+        into a shell are printed commented out, because that is a decision and
+        a generated file should not make it on somebody's behalf.
+        """
+        from devrepro.cli.pipeline import run_scan
+        from devrepro.generators.onboarding import (
+            missing_requirements,
+            render_onboarding_script,
+        )
+        from devrepro.probes.base import current_platform
+
+        policy = load_policy_or_none(policy_path)
+        if policy is None:
+            secho(
+                "onboard needs a policy: it emits the gap between what the project "
+                "requires and what this machine has, and without a policy there is no "
+                "first half. Run `devrepro init` to scaffold a .devrepro.toml.",
+                fg="red",
+            )
+            raise typer.Exit(ExitCode.USAGE_ERROR)
+
+        report = run_scan(policy=policy)
+        script = render_onboarding_script(
+            report,
+            policy,
+            platform=current_platform(),
+            generated_at=report.created_at.isoformat(),
+        )
+
+        if output is not None:
+            output.write_text(script, encoding="utf-8")
+
+        if json_out:
+            emit(
+                {
+                    "missing": [
+                        {"name": m.name, "required": m.required, "detected": m.detected}
+                        for m in missing_requirements(report, policy)
+                    ],
+                    "script": script,
+                },
+                True,
+            )
+        else:
+            typer.echo(script if output is None else f"wrote {output}")
         raise typer.Exit(ExitCode.READY)

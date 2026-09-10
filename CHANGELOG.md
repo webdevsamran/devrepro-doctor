@@ -9,6 +9,75 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - four things somebody already wrote down and nobody re-reads
+
+- **`<tool>/cache-credential-committed`.** `nx.json` takes an
+  `nxCloudAccessToken`, `.bazelrc` takes `--remote_header=Authorization=...`,
+  and both get committed without a second thought because they read like
+  configuration rather than like secrets. A read-write build-cache credential is
+  a supply-chain secret: whoever holds it writes cache entries that every
+  developer and every CI run then treats as trusted build output. The finding
+  reports **the field's presence and never its value** -- that is the whole of
+  what anybody needs to act. `buildtools/detected` reports which orchestrator is
+  in use and whether it has a remote cache at all, because a team that believes
+  it has a shared cache and does not is wrong about why CI is slow.
+- **`editor/style-conflict`.** `.editorconfig` says two spaces, prettier says
+  four, and the result is forty lines of whitespace on a two-line change that a
+  reviewer blames on the author. Both tools are behaving exactly as configured,
+  which is why nobody finds the cause. Only the three settings both sides
+  genuinely model are compared, and **no defaults are filled in**: a project
+  that never configured a width has not disagreed with anything, and reporting
+  prettier's default 80 as a conflict would put an opinion in its mouth.
+- **`kubectl/context-not-local`.** The current context is global to your user,
+  survives reboots, and appears in no normal prompt. Every regretted `kubectl
+  delete` was typed into a shell whose context the person believed was something
+  else -- the same blast-radius question `agent-check` already asks about
+  writable paths. Read from the kubeconfig, never from a cluster: `cluster-info`
+  would be an authenticated request to a production cluster from a diagnostic
+  command. The production guess is name-based and says so.
+- **`shell/slow-startup`.** Four or more subshell-spawning initialisations in a
+  profile -- pyenv, nvm, direnv, conda -- is one to three seconds on every new
+  terminal, every git hook that spawns a login shell and every `bash -lc` in CI.
+  Nobody attributes it; a shell that takes two seconds reads as a slow machine.
+  Counted, not timed, because timing a shell start means running the user's own
+  configuration.
+
+### Added - `devrepro onboard`
+
+A setup script for what **this** machine is missing. Onboarding documents rot
+because they describe a machine nobody has: they list every dependency,
+including the eleven a new starter already had, and the one that matters is on
+line 40. This emits the difference between policy and scan, which on most
+machines is two lines.
+
+Nothing is executed. Commands that pipe a remote script into a shell are
+printed **commented out** -- that is a decision, and a generated file should not
+make it on somebody's behalf -- and where no install command is known the tool
+is named rather than guessed at, because a wrong command in a setup script is
+worse than an absent one.
+
+### Fixed - three call sites told a machine with Python 3.14 to install Python
+
+Found by running `devrepro onboard` against this repository. Every consumer of
+the tool list had copied the same comprehension:
+
+    {t.name: t.version for t in report.tools if t.is_active}
+
+A machine routinely reports the same tool more than once with only one readable
+version -- on Windows, `python` resolves to both a real interpreter and the App
+Execution Alias, a stub that exits without printing anything, and both are
+marked active. Last-one-wins mapped `python` to `None`, and `None` reads
+downstream as "not installed".
+
+`onboard` printed an install command for a tool that was present. `advisories`
+skipped the version comparison for a tool it had data about. `attest` recorded a
+null version in a document meant to be signed.
+
+`ScanReport.active_versions()` does the resolution once: a readable version wins
+over an unreadable duplicate, and the name is still present with `None` when
+nothing readable exists, because "installed, version unknown" is a real answer
+this project reports elsewhere.
+
 ### Fixed - a default scan was opening connections to three third-party hosts
 
 `devrepro bench` put `network/tls` at 11.4 of 37.5 sequential seconds while

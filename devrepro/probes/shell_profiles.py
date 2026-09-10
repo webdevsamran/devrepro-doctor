@@ -13,6 +13,7 @@ import re
 from pathlib import Path
 
 from devrepro.core.models import Evidence, FindingState, VirtualenvInfo
+from devrepro.platforms.shellcost import ProfileCost, analyse_profile
 from devrepro.probes.base import Probe, ProbeResult
 from devrepro.probes.helpers import read_text_safe
 
@@ -57,7 +58,7 @@ def _redact_home(text: str, home: Path) -> str:
 
 class ShellProfileProbe(Probe):
     id = "shell/profiles"
-    version = "1"
+    version = "2"
 
     def run(self) -> ProbeResult:
         findings = []
@@ -65,11 +66,16 @@ class ShellProfileProbe(Probe):
         virtualenvs: list[VirtualenvInfo] = []
         home = Path.home()
 
+        costs: list[ProfileCost] = []
         for path in _profile_files(self.ctx.platform):
             text = read_text_safe(path)
             if text is None:
                 continue
             sanitized = _redact_home(text, home)
+            # Counted here rather than in a probe of its own: these files are
+            # already open, and reading them twice on a scan whose cost has
+            # been measured is not a trade worth making.
+            costs.append(analyse_profile(_redact_home(str(path), home), sanitized))
             for manager, patterns in _MANAGER_INIT_PATTERNS.items():
                 hits = [
                     ln.strip()
@@ -124,6 +130,46 @@ class ShellProfileProbe(Probe):
                         "(LOW risk; edit your own profile).",
                     )
                 )
+
+        # Shell startup cost. Every new terminal, every git hook that spawns a
+        # login shell and every `bash -lc` in CI pays this, and nobody
+        # attributes it -- a shell that takes two seconds reads as a slow
+        # machine rather than as a profile with four version managers in it.
+        for cost in costs:
+            if not cost.slow:
+                continue
+            findings.append(
+                self.finding(
+                    "shell/slow-startup",
+                    FindingState.WARN,
+                    (
+                        f"{cost.path} runs {cost.count} subshell-spawning "
+                        "initialisation(s) before every prompt: "
+                        + ", ".join(label for label, _ in cost.initialisations)
+                        + "."
+                    ),
+                    evidence=(
+                        Evidence(
+                            source="file",
+                            path=cost.path,
+                            excerpt="; ".join(
+                                f"{label}: {why}" for label, why in cost.initialisations
+                            ),
+                        ),
+                    ),
+                    detected=str(cost.count),
+                    component="shell",
+                    remediation_hint=(
+                        "Each of these forks a process on every shell start, including "
+                        "the ones git hooks and CI steps spawn. Most support lazy "
+                        "initialisation -- a shim that runs the real init the first time "
+                        "the tool is called -- which costs nothing until it is used. "
+                        "This is a count, not a measurement: timing it would mean "
+                        "running your own configuration, which is not a read-only thing "
+                        "to do."
+                    ),
+                )
+            )
 
         summary = ", ".join(sorted(managers_seen)) or "none"
         findings.append(

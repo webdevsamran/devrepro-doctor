@@ -226,7 +226,7 @@ Agents        agent-check
 Environment   env  ports  git-health  network  envmanagers
 Snapshots     snapshot  diff  history  drift  sign-snapshot  verify-snapshot  bundle
 Compliance    attest  evidence  advisories
-Integration   contract  pins  watch
+Integration   contract  pins  watch  onboard
 Remediation   plan  fix  rules  explain  plugins
 Reports       report  export
 Services      serve  self-test  bench  mcp  server-backup  server-restore

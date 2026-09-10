@@ -43,7 +43,12 @@ def evaluate(ctx: RuleContext, bundle: AdvisoryBundle | None = None) -> list[Fin
     review of it.
     """
     active = bundle or bundled_bundle()
-    installed = {t.name: t.version for t in ctx.tools if t.is_active}
+    # Same resolution as `ScanReport.active_versions`, on the rule context's
+    # own tool tuple: a readable version wins over an unreadable duplicate.
+    installed: dict[str, str | None] = {}
+    for tool in ctx.tools:
+        if tool.is_active and installed.get(tool.name) is None:
+            installed[tool.name] = tool.version
     hits = affected_tools(installed, active)
 
     findings: list[Finding] = [

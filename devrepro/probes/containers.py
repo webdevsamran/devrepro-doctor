@@ -30,6 +30,7 @@ from devrepro.containers.engine import (
     parse_system_df,
 )
 from devrepro.core.models import ContainerState, Evidence, Finding, FindingState
+from devrepro.platforms.kubecontext import classify_context, parse_contexts
 from devrepro.probes.base import Probe, ProbeResult
 from devrepro.probes.helpers import resolve_all_on_path
 
@@ -138,6 +139,23 @@ class ContainerProbe(Probe):
                 m = re.search(r"v?Client Version.*?v([\w.\-]+)", kres2.stdout)
                 kubectl_version = m.group(1) if m else None
 
+        # --- which cluster kubectl is pointed at -----------------------------
+        #
+        # `kubectl config get-contexts` parses the local kubeconfig and makes no
+        # connection. `cluster-info` would contact the API server, which on a
+        # production cluster is an authenticated request that lands in an audit
+        # log -- from a diagnostic command nobody asked to reach anything.
+        #
+        # The context is global to the user, survives reboots, and does not
+        # appear in a normal prompt. That is the whole reason this is worth a
+        # finding: it is the one piece of blast-radius state a person is most
+        # likely to be wrong about.
+        context_verdict = None
+        if kubectl_version:
+            ctx_result = r.run(("kubectl", "config", "get-contexts"), timeout=10)
+            if ctx_result.ok:
+                context_verdict = classify_context(parse_contexts(ctx_result.stdout))
+
         # --- which engine, and where ----------------------------------------
         #
         # `docker context inspect` answers whether or not the daemon is up, and
@@ -213,6 +231,33 @@ class ContainerProbe(Probe):
                     f"Docker healthy: CLI {docker_cli_version}, {described}.",
                     evidence=(self.cmd_evidence(("docker", "info"), "server responded"),),
                     component="docker",
+                )
+            )
+
+        if context_verdict is not None and context_verdict.warn:
+            current_name = context_verdict.current.name if context_verdict.current else "unknown"
+            findings.append(
+                self.finding(
+                    "kubectl/context-not-local",
+                    FindingState.WARN,
+                    context_verdict.detail,
+                    evidence=(
+                        Evidence(
+                            source="command",
+                            command=("kubectl", "config", "get-contexts"),
+                            excerpt=f"current context: {current_name}",
+                        ),
+                    ),
+                    detected=current_name,
+                    component="kubernetes",
+                    remediation_hint=(
+                        "This is a name-based guess, not a fact about the cluster -- "
+                        "reading the cluster to be sure would mean an authenticated "
+                        "request to it. Confirm with `kubectl config current-context`, "
+                        "and consider a prompt segment that shows it: every regretted "
+                        "`kubectl delete` was typed into a shell whose context the "
+                        "person believed was something else."
+                    ),
                 )
             )
 

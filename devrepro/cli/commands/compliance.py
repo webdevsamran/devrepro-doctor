@@ -188,7 +188,7 @@ def register(app: typer.Typer) -> None:
             raise typer.Exit(ExitCode.USAGE_ERROR) from exc
 
         report = run_scan(policy=load_policy_or_none(policy_path))
-        installed = {t.name: t.version for t in report.tools if t.is_active}
+        installed = report.active_versions()
         hits = affected_tools(installed, bundle)
 
         payload = {

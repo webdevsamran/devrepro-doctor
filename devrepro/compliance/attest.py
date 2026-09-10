@@ -130,18 +130,23 @@ def _tool_entries(report: ScanReport) -> list[dict[str, Any]]:
     installation on the machine describes the machine, and what a build cares
     about is the one that wins.
     """
+    # `active_versions` rather than a pass over `report.tools`, because a
+    # machine reports the same tool more than once with only one readable
+    # version -- and an attestation listing `python` twice, once as null, is a
+    # signed document that says something false.
+    resolved = report.active_versions()
+    sources = {t.name: t.install_source for t in report.tools if t.is_active and t.install_source}
+
     entries: list[dict[str, Any]] = []
-    for tool in report.tools:
-        if not tool.is_active:
-            continue
-        entry: dict[str, Any] = {"name": tool.name, "version": tool.version}
-        purl = purl_for(tool.name, tool.version)
+    for name, version in sorted(resolved.items()):
+        entry: dict[str, Any] = {"name": name, "version": version}
+        purl = purl_for(name, version)
         if purl:
             entry["purl"] = purl
-        if tool.install_source:
-            entry["installSource"] = tool.install_source
+        if sources.get(name):
+            entry["installSource"] = sources[name]
         entries.append(entry)
-    return sorted(entries, key=lambda item: (item["name"], item.get("version") or ""))
+    return entries
 
 
 def _verdict_counts(report: ScanReport) -> dict[str, int]:

@@ -57,6 +57,21 @@ _COMPOSED: dict[str, tuple[str, str, str, str]] = {
         "longer real. Check `devrepro which <tool>` first -- the tool may be "
         "installed but shadowed or off PATH in this shell.",
     ),
+    "cache-credential-committed": (
+        "A build-cache credential is in a committed configuration file",
+        "`nx.json`, `turbo.json` or `.bazelrc` sets a field that holds a "
+        "remote-cache token or an Authorization header. The field's presence is "
+        "reported; its value is never read.",
+        "A read-write cache credential is a supply-chain secret: whoever holds "
+        "it can write cache entries that every developer and every CI run then "
+        "treats as trusted build output, without any of them fetching the "
+        "source it supposedly came from. These files get committed without a "
+        "second thought because they read like configuration rather than like "
+        "secrets -- `.bazelrc` especially, which looks like a flags file.",
+        "Move it to an environment variable, which all three tools read, and "
+        "rotate it: it is in the git history whether or not you delete the line "
+        "now.",
+    ),
     "known-advisory": (
         "The installed tool version is covered by a published advisory",
         "The version of this build tool matches an entry in the offline "
@@ -943,6 +958,61 @@ _LITERAL: dict[str, tuple[str, str, str, str]] = {
         "`wsl <command>` fails, and tools that shell into WSL fail with it.",
         "`wsl --set-default <distro>`.",
     ),
+    "buildtools/detected": (
+        "A monorepo orchestrator is in use",
+        "Nx, Turborepo, Bazel or a similar tool is configured in this "
+        "repository, together with whether it uses a remote cache.",
+        "Reported so that a cache is visible rather than assumed. A team that "
+        "believes it has a shared cache and does not is wrong about why CI is "
+        "slow, and a remote cache that is configured but unreachable costs "
+        "more than none -- every task pays a lookup, fails it, and runs anyway.",
+        "Nothing to fix. Read from configuration files only; no orchestrator "
+        "is invoked, because `nx show projects` and `bazel info` both start a "
+        "long-lived daemon.",
+    ),
+    "editor/style-conflict": (
+        "The editor and the formatter have been told different things",
+        "`.editorconfig` declares an indent style, width or line length that a "
+        "configured formatter (prettier, ruff) contradicts.",
+        "The editor formats one way as you type and the formatter rewrites it "
+        "the other way on save or in a hook. The result is a whitespace diff "
+        "nobody can attribute, on a two-line change, and the reviewer blames "
+        "the author. Both tools are behaving exactly as configured, which is "
+        "why nobody finds the cause.",
+        "Pick one and make the other match. Whichever tool runs in CI is the "
+        "one that decides, so `.editorconfig` should usually change to match "
+        "the formatter rather than the reverse. Settings neither side has "
+        "configured are not compared: a default is not a disagreement.",
+    ),
+    "kubectl/context-not-local": (
+        "kubectl's current context may point at a production cluster",
+        "The current kubeconfig context is not one of the local clusters this "
+        "machine runs, and its name contains a marker like `prod` or `live`.",
+        "The context is global to your user, persists across shells and "
+        "reboots, and does not appear in a normal prompt. Every regretted "
+        "`kubectl delete` was typed into a shell whose context the person "
+        "believed was something else. This is blast radius, in the same sense "
+        "`agent-check` uses the term.",
+        "Confirm with `kubectl config current-context`, and consider a prompt "
+        "segment that shows it. Note this is a guess from the context *name*: "
+        "reading the cluster to be certain would mean an authenticated request "
+        "to a production cluster from a diagnostic command, which is not a "
+        "trade this tool makes.",
+    ),
+    "shell/slow-startup": (
+        "A shell profile runs several subshell-spawning initialisations",
+        "Four or more version managers or prompt tools initialise in a profile "
+        "file, each forking at least one process before the prompt appears.",
+        "Every new terminal pays this, and so does every git hook that spawns "
+        "a login shell and every `bash -lc` in CI. Four of them together is "
+        "one to three seconds, and nobody attributes it -- a shell that takes "
+        "two seconds reads as a slow machine.",
+        "Most of these support lazy initialisation: a shim that runs the real "
+        "init the first time the tool is called, costing nothing until then. "
+        "This is a count rather than a measurement, because timing a shell "
+        "start means running your own configuration, which is not a read-only "
+        "thing for a diagnostic to do.",
+    ),
     "network/checks-skipped": (
         "Endpoint and TLS checks did not run, because they open connections",
         "A scan reports proxy configuration -- read from environment variables, "
@@ -1152,6 +1222,11 @@ SHIM_BYPASS_EXAMPLES = ("python", "node", "ruby", "java")
 #: above. `tests/test_rule_catalog.py` holds it against the bundled data.
 ADVISORY_TOOLS = ("git", "openssl", "python")
 
+#: `f"{tool}/cache-credential-committed"` in probes/projecttools.py. The prefix
+#: is the orchestrator's name, and the set of orchestrators this project reads
+#: configuration for is fixed and short.
+CACHE_CREDENTIAL_TOOLS = ("nx", "turborepo", "bazel")
+
 MULTIPLE_INSTALL_EXAMPLES = (
     "python",
     "node",
@@ -1178,6 +1253,7 @@ def known_rule_ids() -> list[str]:
     ids |= {f"{tool}/multiple-installations" for tool in MULTIPLE_INSTALL_EXAMPLES}
     ids |= {f"{tool}/shim-bypassed" for tool in SHIM_BYPASS_EXAMPLES}
     ids |= {f"{tool}/known-advisory" for tool in ADVISORY_TOOLS}
+    ids |= {f"{tool}/cache-credential-committed" for tool in CACHE_CREDENTIAL_TOOLS}
     return sorted(ids)
 
 

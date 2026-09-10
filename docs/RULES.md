@@ -5,7 +5,7 @@
 > `devrepro explain <rule-id>` prints any one of these.
 > `devrepro rules --catalog` lists them all.
 
-Every finding carries a rule id. There are **149** documented ids.
+Every finding carries a rule id. There are **156** documented ids.
 
 Two shapes exist. Most are written out in full where they are emitted.
 Some are composed at runtime from a tool or ecosystem name:
@@ -88,6 +88,32 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* An offline advisory set that is silent about a tool has given no answer, and silence reads as a clean result. Reporting coverage explicitly is the only thing that keeps those two apart. The date matters for the same reason: an old bundle is not a clean machine.
 
 *How to fix it.* Nothing to fix. To use a different or newer set, run `devrepro advisories --db <bundle.json>`; an external bundle needs a signature beside it and `DEVREPRO_ADVISORY_KEY` set.
+
+
+## `bazel/`
+
+### `bazel/cache-credential-committed`
+
+**A build-cache credential is in a committed configuration file**
+
+*What it means.* `nx.json`, `turbo.json` or `.bazelrc` sets a field that holds a remote-cache token or an Authorization header. The field's presence is reported; its value is never read.
+
+*Why it matters.* A read-write cache credential is a supply-chain secret: whoever holds it can write cache entries that every developer and every CI run then treats as trusted build output, without any of them fetching the source it supposedly came from. These files get committed without a second thought because they read like configuration rather than like secrets -- `.bazelrc` especially, which looks like a flags file.
+
+*How to fix it.* Move it to an environment variable, which all three tools read, and rotate it: it is in the git history whether or not you delete the line now.
+
+
+## `buildtools/`
+
+### `buildtools/detected`
+
+**A monorepo orchestrator is in use**
+
+*What it means.* Nx, Turborepo, Bazel or a similar tool is configured in this repository, together with whether it uses a remote cache.
+
+*Why it matters.* Reported so that a cache is visible rather than assumed. A team that believes it has a shared cache and does not is wrong about why CI is slow, and a remote cache that is configured but unreachable costs more than none -- every task pays a lookup, fails it, and runs anyway.
+
+*How to fix it.* Nothing to fix. Read from configuration files only; no orchestrator is invoked, because `nx show projects` and `bazel info` both start a long-lived daemon.
 
 
 ## `caches/`
@@ -513,6 +539,19 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* The requirement cannot be checked either way, so this is reported as unknown rather than passing. A silent pass here would be a lie.
 
 *How to fix it.* Run the tool's version command by hand and open an issue with the output, so the parser can learn the shape.
+
+
+## `editor/`
+
+### `editor/style-conflict`
+
+**The editor and the formatter have been told different things**
+
+*What it means.* `.editorconfig` declares an indent style, width or line length that a configured formatter (prettier, ruff) contradicts.
+
+*Why it matters.* The editor formats one way as you type and the formatter rewrites it the other way on save or in a hook. The result is a whitespace diff nobody can attribute, on a two-line change, and the reviewer blames the author. Both tools are behaving exactly as configured, which is why nobody finds the cause.
+
+*How to fix it.* Pick one and make the other match. Whichever tool runs in CI is the one that decides, so `.editorconfig` should usually change to match the formatter rather than the reverse. Settings neither side has configured are not compared: a default is not a disagreement.
 
 
 ## `env/`
@@ -996,6 +1035,19 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *How to fix it.* Run the tool's version command by hand and open an issue with the output, so the parser can learn the shape.
 
 
+## `kubectl/`
+
+### `kubectl/context-not-local`
+
+**kubectl's current context may point at a production cluster**
+
+*What it means.* The current kubeconfig context is not one of the local clusters this machine runs, and its name contains a marker like `prod` or `live`.
+
+*Why it matters.* The context is global to your user, persists across shells and reboots, and does not appear in a normal prompt. Every regretted `kubectl delete` was typed into a shell whose context the person believed was something else. This is blast radius, in the same sense `agent-check` uses the term.
+
+*How to fix it.* Confirm with `kubectl config current-context`, and consider a prompt segment that shows it. Note this is a guess from the context *name*: reading the cluster to be certain would mean an authenticated request to a production cluster from a diagnostic command, which is not a trade this tool makes.
+
+
 ## `lockfiles/`
 
 ### `lockfiles/format-supported`
@@ -1236,6 +1288,19 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* The one that wins depends on PATH order, which differs between your shell, your editor's terminal, and CI. That is how the same command produces different versions in different windows on one machine.
 
 *How to fix it.* Run `devrepro which <tool>` to see every candidate and which one wins. Keep the installation you intend to use and remove or de-prefer the rest; `devrepro plan` proposes the PATH edit.
+
+
+## `nx/`
+
+### `nx/cache-credential-committed`
+
+**A build-cache credential is in a committed configuration file**
+
+*What it means.* `nx.json`, `turbo.json` or `.bazelrc` sets a field that holds a remote-cache token or an Authorization header. The field's presence is reported; its value is never read.
+
+*Why it matters.* A read-write cache credential is a supply-chain secret: whoever holds it can write cache entries that every developer and every CI run then treats as trusted build output, without any of them fetching the source it supposedly came from. These files get committed without a second thought because they read like configuration rather than like secrets -- `.bazelrc` especially, which looks like a flags file.
+
+*How to fix it.* Move it to an environment variable, which all three tools read, and rotate it: it is in the git history whether or not you delete the line now.
 
 
 ## `openssl/`
@@ -1501,6 +1566,16 @@ than exhaustive. `devrepro explain` resolves any prefix.
 
 *How to fix it.* No action needed.
 
+### `shell/slow-startup`
+
+**A shell profile runs several subshell-spawning initialisations**
+
+*What it means.* Four or more version managers or prompt tools initialise in a profile file, each forking at least one process before the prompt appears.
+
+*Why it matters.* Every new terminal pays this, and so does every git hook that spawns a login shell and every `bash -lc` in CI. Four of them together is one to three seconds, and nobody attributes it -- a shell that takes two seconds reads as a slow machine.
+
+*How to fix it.* Most of these support lazy initialisation: a shim that runs the real init the first time the tool is called, costing nothing until then. This is a count rather than a measurement, because timing a shell start means running your own configuration, which is not a read-only thing for a diagnostic to do.
+
 
 ## `system/`
 
@@ -1533,6 +1608,19 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* Determines which profile files matter for PATH and manager initialisation.
 
 *How to fix it.* No action needed.
+
+
+## `turborepo/`
+
+### `turborepo/cache-credential-committed`
+
+**A build-cache credential is in a committed configuration file**
+
+*What it means.* `nx.json`, `turbo.json` or `.bazelrc` sets a field that holds a remote-cache token or an Authorization header. The field's presence is reported; its value is never read.
+
+*Why it matters.* A read-write cache credential is a supply-chain secret: whoever holds it can write cache entries that every developer and every CI run then treats as trusted build output, without any of them fetching the source it supposedly came from. These files get committed without a second thought because they read like configuration rather than like secrets -- `.bazelrc` especially, which looks like a flags file.
+
+*How to fix it.* Move it to an environment variable, which all three tools read, and rotate it: it is in the git history whether or not you delete the line now.
 
 
 ## `virt/`

@@ -111,6 +111,7 @@ def test_literal_ids_appear_in_the_source() -> None:
         "multiple-installations",
         "shim-bypassed",
         "known-advisory",
+        "cache-credential-committed",
     }
     for rule_id in known_rule_ids():
         _, _, suffix = rule_id.partition("/")
@@ -172,3 +173,17 @@ def test_the_advisory_prefix_domain_matches_the_bundled_data() -> None:
     from devrepro.rules.catalog import ADVISORY_TOOLS
 
     assert set(ADVISORY_TOOLS) == set(bundled_bundle().covers)
+
+
+def test_the_cache_credential_prefix_domain_matches_the_detector() -> None:
+    """The catalogue's orchestrator list is a second copy of the detector's.
+
+    A second copy nothing checks is a second copy that drifts, and here the
+    drift means an emittable rule id quietly leaving the catalogue the moment
+    somebody adds support for another build tool.
+    """
+    from devrepro.project.buildtools import BUILD_TOOLS
+    from devrepro.rules.catalog import CACHE_CREDENTIAL_TOOLS
+
+    modelled = {tool for _config, tool in BUILD_TOOLS}
+    assert set(CACHE_CREDENTIAL_TOOLS) <= modelled
