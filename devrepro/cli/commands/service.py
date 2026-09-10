@@ -1,4 +1,4 @@
-"""Service commands: serve, self-test, bench, server-backup, server-restore."""
+"""Service commands: serve, self-test, bench, mcp, server-backup, server-restore."""
 
 from __future__ import annotations
 
@@ -118,6 +118,48 @@ def register(app: typer.Typer) -> None:
             typer.echo(note)
 
         raise typer.Exit(ExitCode.READY)
+
+    @app.command()
+    def mcp(
+        root: Path = typer.Option(
+            Path(),
+            "--root",
+            help="Directory the server may inspect. Every path argument is confined to it.",
+        ),
+        cache_seconds: float = typer.Option(
+            300.0,
+            "--cache-seconds",
+            help="How long a scan stays usable before a tool call re-scans.",
+        ),
+    ) -> None:
+        """Serve read-only diagnostics over MCP on stdin/stdout.
+
+        `docs/MCP-EXPOSURE.md` is the decision this implements. Read-only
+        commands only; `fix`, `serve` and `server-*` are refused by name, with
+        the reason returned to the caller rather than simply being absent --
+        a model that asks for `fix` should learn why the answer is no.
+
+        Three properties that decision made prerequisites:
+
+        Every result carries an explicit `verdict`. A process exit code does
+        not cross this boundary, and `BLOCKED = 2` means something different in
+        three sibling projects.
+
+        Reports are cached, because a five-second scan per tool call would
+        dominate a conversation. `refresh: true` on any call forces a new one.
+
+        Paths are confined to `--root`, resolved before the check so `..` and a
+        symlink fail the same way. Which directory to inspect is authority this
+        does not delegate to a model.
+
+        It speaks newline-delimited JSON-RPC on stdin and stdout, so it is
+        configured as a stdio server:
+
+            devrepro mcp --root /path/to/project
+        """
+        from devrepro.mcp import serve_stdio
+
+        raise typer.Exit(serve_stdio(root, cache_seconds=cache_seconds))
 
     @app.command("server-backup")
     def server_backup_cmd(

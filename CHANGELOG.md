@@ -9,6 +9,35 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - an MCP server, with the three prerequisites its own design doc set
+
+- `devrepro mcp --root <path>` speaks newline-delimited JSON-RPC 2.0 on stdin
+  and stdout. `docs/MCP-EXPOSURE.md` had been an assessment with three
+  conditions; all three are met rather than deferred.
+- **The verdict travels in the payload.** A process exit code does not cross
+  this boundary, and `BLOCKED = 2` means something else entirely in three
+  sibling projects. Every result carries `verdict` and the `exit_code` it would
+  have been, so a caller wiring this alongside the CLI sees the two agree.
+- **Reports are cached with an explicit refresh.** Five seconds per tool call
+  would dominate a conversation with a model that asks several times while
+  reasoning. Each result says whether it came from the cache and when it was
+  taken; `refresh: true` forces a new scan.
+- **The root is configured, not argued.** Every path is resolved against
+  `--root` before the check, so `..` and a symlink fail identically. Which
+  directory to inspect is authority this does not delegate to a model.
+- `fix`, `serve`, `server-backup`, `server-restore`, `init` and `generate` are
+  refused **with their reasons**, not merely absent. A model that asks for
+  `fix` and gets "no such tool" concludes the server is incomplete and works
+  around it; one that gets the paragraph about the `--yes` gate learns
+  something true about the boundary.
+- No SDK dependency. The protocol is JSON-RPC with three methods that matter,
+  and a server you must install a second package to run is one most people will
+  not run. A notification gets no response at all -- answering one is a
+  protocol violation some clients treat as fatal -- and neither malformed JSON
+  nor a crashing tool call ends the session.
+- The "agent skill installer" is now a documented decision not to build: one
+  protocol beats five vendor manifest formats to keep in step.
+
 ### Added - whether the build caches are earning their place
 
 - A compiler cache with a 15% hit rate is not saving time, it is spending it:
