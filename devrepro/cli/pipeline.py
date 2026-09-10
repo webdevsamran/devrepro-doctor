@@ -51,13 +51,24 @@ def run_scan(
     project_dir: Path | None = None,
     policy: Policy | None = None,
     runner: CommandRunner | None = None,
+    allow_network: bool = False,
 ) -> ScanReport:
-    """Full read-only scan. Never raises for probe failures."""
+    """Full read-only scan. Never raises for probe failures.
+
+    `allow_network` defaults to false and every caller but `devrepro network`
+    leaves it that way. It gates the probe that opens sockets; nothing else in
+    a scan makes a connection.
+    """
+    import dataclasses
+
     from devrepro.probes.base import ProbeContext, ProbeEngine
     from devrepro.probes.registry import build_default_probes, load_plugin_probes
 
     cmd_runner = runner or SubprocessRunner()
     ctx = ProbeContext.capture(cmd_runner, project_dir=project_dir)
+    # ProbeContext is frozen, which is the point of it -- a probe cannot reach
+    # back and change what the next probe sees.
+    ctx = dataclasses.replace(ctx, extra={**ctx.extra, "allow_network": allow_network})
 
     probes = build_default_probes(ctx) + load_plugin_probes(ctx)
     engine = ProbeEngine(probes)

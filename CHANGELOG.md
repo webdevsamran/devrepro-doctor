@@ -9,6 +9,89 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Fixed - a default scan was opening connections to three third-party hosts
+
+`devrepro bench` put `network/tls` at 11.4 of 37.5 sequential seconds while
+running **zero subprocess commands**, which for a probe means it is blocking
+in-process. It was: a TLS handshake to `github.com`, `registry.npmjs.org` and
+`pypi.org`, plus an HTTPS request to read a `Date` header for the clock-skew
+check -- on every `doctor`, `scan`, `preflight`, `guard` and `snapshot`.
+
+`devrepro/network/diagnostics.py` gates every one of those on
+`allow_network=True`, and `devrepro network` passes the flag correctly. The
+probe went around both.
+
+Nothing about the machine was transmitted -- these were reachability handshakes,
+not uploads -- but three third-party hosts, and any corporate proxy in the path,
+could see that the machine had connected. That is a disclosure, and this
+project's headline invariant says nothing leaves the machine unless the user
+asks. `docs/PRIVACY.md` said so too, and `devrepro contract`, added earlier in
+this same release, publishes it as a guarantee.
+
+- Endpoint reachability and TLS now need `--allow-network`, on `devrepro
+  doctor` as well as `devrepro network`. Without it a scan opens no sockets.
+- Proxy configuration is still reported in every scan: that is read from
+  environment variables and `git config`, with credentials redacted, and needs
+  no connection.
+- The skip is reported as `network/checks-skipped` rather than left silent -- a
+  scan that says nothing about network health reads as one that found it fine.
+- `docs/PRIVACY.md` gains a "What is sent, and when" section that states the
+  correction rather than quietly moving on, plus a table of what each opt-in
+  flag reveals to whom.
+
+Scan wall-clock: 17.5s to 8s.
+
+### Added - three host facts that make builds slow or wrong
+
+- **`host/slow-filesystem`.** A WSL shell working under `/mnt/c`, or a project
+  on an SMB or NFS mount, pays a millisecond per file operation instead of a
+  microsecond. A dependency install performs hundreds of thousands of them, and
+  no profiler points at it because nothing is failing -- it reads as a slow
+  build tool. This classifies the mount rather than benchmarking it: a number
+  nobody can act on is worth less than "your tree is on /mnt/c", which names the
+  cause and the fix at once.
+- **`host/antivirus-scans-build-dirs`.** On Windows, Defender's real-time
+  protection inspects every file a build opens, synchronously. The finding
+  reports which of the project's dependency and output directories are not
+  excluded -- including in a workspace one level down -- and carries the exact
+  command. It is stated as a **trade, not a recommendation**: excluding a source
+  tree whose install scripts execute code you did not read is a genuine
+  reduction in protection, and whether it is worth it is not this tool's call.
+  Nothing is changed; `Set-MpPreference` appears nowhere, and a test parses the
+  module to prove it.
+- **`host/clock-unsynchronised`.** Clock skew was already detected, and skew is
+  the symptom. This asks whether anything is correcting the clock at all,
+  because a machine with no time source is not skewed *yet*. When it drifts, the
+  first symptom is usually a TLS error blaming a certificate that is fine.
+
+Two faults in that probe were found by running it rather than reading it:
+`w32tm` reports a stopped Windows Time service by *failing*, so a probe reading
+only successful output stayed silent on exactly the machines the check exists
+for; and a workspace keeps its `node_modules` one directory down, so a
+root-only search missed the largest directory in this repository.
+
+### Added - the CUDA triple, instead of a presence check
+
+`gpu/cuda-driver-too-old`, `gpu/cuda-compatible`, `gpu/cuda-toolkit-absent` and
+`gpu/mixed-architectures`. Nothing about a broken CUDA setup is discovered by
+checking whether a GPU exists -- the GPU exists. What fails is the relationship
+between the driver's runtime ceiling, the installed toolkit and the framework
+build, and the error names none of the three.
+
+- The driver ceiling is **read from `nvidia-smi`**, not looked up in a bundled
+  table that would be wrong within a release. The old probe collected that
+  number into a note and discarded it.
+- Minor-version compatibility is honoured: CUDA 12.4 on a driver reporting 12.2
+  is fine, and a naive `toolkit <= ceiling` check reports a working machine as
+  broken -- after which somebody upgrades a driver that was not the problem.
+- Devices are enumerated, because two cards with different compute capabilities
+  produce `no kernel image is available for execution on the device` at runtime,
+  on whichever device the scheduler happened to pick.
+- Which CUDA a framework wheel was built for is deliberately **not** checked:
+  finding out means importing torch, which takes seconds and can initialise a
+  context on a device somebody else is training on. The hint names the one-line
+  command instead.
+
 ### Added - the surfaces other software consumes
 
 - **`devrepro contract`** publishes what a caller may rely on, as data rather

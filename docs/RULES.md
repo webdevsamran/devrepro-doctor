@@ -5,7 +5,7 @@
 > `devrepro explain <rule-id>` prints any one of these.
 > `devrepro rules --catalog` lists them all.
 
-Every finding carries a rule id. There are **139** documented ids.
+Every finding carries a rule id. There are **149** documented ids.
 
 Two shapes exist. Most are written out in full where they are emitted.
 Some are composed at runtime from a tool or ecosystem name:
@@ -716,6 +716,16 @@ than exhaustive. `devrepro explain` resolves any prefix.
 
 ## `gpu/`
 
+### `gpu/cuda-compatible`
+
+**The CUDA toolkit and the driver agree**
+
+*What it means.* The installed toolkit falls inside the major version the driver supports.
+
+*Why it matters.* Nothing to do. Reported so that a working CUDA setup is visible rather than inferred from the absence of a complaint.
+
+*How to fix it.* No action needed.
+
 ### `gpu/cuda-driver-old`
 
 **Driver too old for the installed CUDA toolkit**
@@ -726,6 +736,26 @@ than exhaustive. `devrepro explain` resolves any prefix.
 
 *How to fix it.* Update the driver to one that supports the toolkit, or install a toolkit matching the driver.
 
+### `gpu/cuda-driver-too-old`
+
+**The installed CUDA toolkit needs a newer driver than this one**
+
+*What it means.* The CUDA toolkit's major version is ahead of the highest CUDA runtime the installed NVIDIA driver can run, as the driver itself reports it.
+
+*Why it matters.* Anything built with nvcc fails at launch with 'CUDA driver version is insufficient for CUDA runtime version', which names neither version. People reinstall the toolkit, or the driver, more or less at random.
+
+*How to fix it.* Update the NVIDIA driver, or install a toolkit inside the major version the driver supports. Note that CUDA 11+ guarantees minor-version compatibility, so 12.4 on a driver reporting 12.2 is fine and is not what this reports. To see what a framework build expects: `python -c "import torch; print(torch.version.cuda)"`.
+
+### `gpu/cuda-toolkit-absent`
+
+**A driver is present and nvcc is not**
+
+*What it means.* `nvidia-smi` answered but no CUDA toolkit is on PATH, so the compiler half of the stack is unknown.
+
+*Why it matters.* Reported as information, not as a fault. A framework wheel ships its own CUDA runtime and never calls nvcc; the toolkit matters only if you compile CUDA code yourself.
+
+*How to fix it.* Install the CUDA toolkit only if you build CUDA sources. Otherwise nothing is missing.
+
 ### `gpu/cuda-toolkit-missing`
 
 **NVIDIA GPU present, CUDA toolkit absent**
@@ -735,6 +765,16 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* Frameworks fall back to CPU, usually without saying so clearly. The symptom is a job that runs but takes a hundred times longer.
 
 *How to fix it.* Install a CUDA toolkit compatible with the driver, or use a framework build that bundles its own runtime.
+
+### `gpu/mixed-architectures`
+
+**The GPUs in this machine have different compute capabilities**
+
+*What it means.* Two or more devices report different `sm_XX` architectures.
+
+*Why it matters.* A build targeting one architecture produces kernels the other card cannot execute, and the failure -- 'no kernel image is available for execution on the device' -- names neither the device nor the architecture. It also arrives at runtime, on whichever device the scheduler happened to pick, so it looks intermittent.
+
+*How to fix it.* Build for every architecture present (TORCH_CUDA_ARCH_LIST or CMAKE_CUDA_ARCHITECTURES covering them all), or pin the job to one device with CUDA_VISIBLE_DEVICES.
 
 ### `gpu/no-accelerator`
 
@@ -765,6 +805,59 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* Reported as unknown rather than absent.
 
 *How to fix it.* Run `nvidia-smi` or the equivalent for your vendor by hand.
+
+
+## `host/`
+
+### `host/antivirus-not-defender`
+
+**Defender's real-time protection is off, so its exclusions mean nothing**
+
+*What it means.* Defender answered and reported real-time protection disabled. On a machine that is not unprotected this usually means another antivirus product registered itself and Defender stood down.
+
+*Why it matters.* That other product's exclusion list is not visible from here, so this check cannot speak for whatever is actually scanning your build directories -- and scanning is a common cause of a Windows build being several times slower than the same build elsewhere.
+
+*How to fix it.* Nothing to fix here. If Windows builds are slow, check your antivirus product's own exclusion list for the project's dependency and output directories.
+
+### `host/antivirus-scans-build-dirs`
+
+**Real-time scanning inspects this project's build directories**
+
+*What it means.* Windows Defender's real-time protection is on and its exclusion list does not cover the dependency and output directories this project actually has.
+
+*Why it matters.* Every file a build opens is scanned synchronously, on files written seconds earlier by a tool the machine already trusts. This is routinely the largest single factor in a Windows build taking several times longer than the same build elsewhere, and it is invisible: nothing fails and nothing logs.
+
+*How to fix it.* Excluding them is a trade, not a fix: it is a genuine reduction in protection on a tree whose install scripts execute code you did not write. Whether it is worth it depends on the machine and on your organisation's rules. DevRepro changes nothing -- the finding carries the exact command if you decide it is.
+
+### `host/antivirus-unknown`
+
+**Defender's configuration could not be read from this shell**
+
+*What it means.* `Get-MpComputerStatus` or `Get-MpPreference` did not answer. This is almost always a permissions result rather than an absent Defender.
+
+*Why it matters.* Reported rather than assumed, because from a non-elevated shell 'could not read the exclusions' and 'there are no exclusions' look identical and lead to opposite conclusions.
+
+*How to fix it.* Run `devrepro doctor` from an elevated shell to see which build directories real-time scanning inspects.
+
+### `host/clock-unsynchronised`
+
+**Nothing is correcting this machine's clock**
+
+*What it means.* No time-synchronisation service is running, or the configured source is the machine's own hardware clock -- which is synchronising with itself and correcting nothing.
+
+*Why it matters.* The clock has not drifted yet; it will. When it does, the first symptom is usually a TLS error blaming a certificate that is fine ('not yet valid', 'expired'), and somebody spends an afternoon on the certificate. It also breaks Kerberos outright and makes build tools rebuild -- or refuse to rebuild -- for reasons no log explains. This is the cause; clock skew is the symptom, detected separately and later.
+
+*How to fix it.* Windows: `w32tm /config /syncfromflags:domhier /update` on a domain machine, or point it at time.windows.com and start the Windows Time service. Linux: enable systemd-timesyncd or chrony.
+
+### `host/slow-filesystem`
+
+**The project is on a filesystem where every file operation is slow**
+
+*What it means.* The source tree sits on a WSL/Windows crossing, a network share or another mount where each file operation costs a millisecond instead of a microsecond.
+
+*Why it matters.* A dependency install performs hundreds of thousands of file operations. Three orders of magnitude on each is the difference between twenty seconds and twenty minutes -- and nothing is failing, so no profiler anybody runs will point at it. It reads as a slow build tool, which is where people go looking.
+
+*How to fix it.* Move the tree onto local storage. Inside WSL that means somewhere under ~, opened from the editor's WSL integration rather than through /mnt/c. On a network share, at minimum keep the dependency directory local -- most package managers accept a store or cache path outside the project.
 
 
 ## `hygiene/`
@@ -987,6 +1080,16 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* The runtime falls back to its default trust store and the override does nothing, silently. Whoever set it believes the corporate CA is trusted, and it is not.
 
 *How to fix it.* Correct the path, or unset the variable so the fallback is deliberate rather than accidental.
+
+### `network/checks-skipped`
+
+**Endpoint and TLS checks did not run, because they open connections**
+
+*What it means.* A scan reports proxy configuration -- read from environment variables, which needs no connection -- and stops there. Reachability and TLS checks require opening sockets to github.com, the npm registry and PyPI, and a scan does not do that unless asked.
+
+*Why it matters.* Reported rather than left silent, because a scan that says nothing about network health reads as a scan that found network health fine. Until this was fixed, these checks ran on every scan: three third-party hosts, and any proxy in the path, learned that this machine had run this tool.
+
+*How to fix it.* Run `devrepro doctor --allow-network`, or `devrepro network --allow-network` for the fuller DNS, TLS and registry diagnostics.
 
 ### `network/clock-skew`
 

@@ -23,6 +23,33 @@ data ever leaves your machine.
 - File contents beyond project manifests
 - Emails, browser history, telemetry beacons
 
+## What is sent, and when
+
+**Nothing, unless a flag asks for it by name.** A default scan opens no
+sockets. That includes the endpoint and TLS checks, which need `--allow-network`
+on either `devrepro doctor` or `devrepro network`.
+
+This was not always true, and the correction is worth stating plainly rather
+than quietly: until the fix landed, the scan probe opened TLS connections to
+`github.com`, `registry.npmjs.org` and `pypi.org` on every `doctor`, `scan`,
+`preflight`, `guard` and `snapshot`, and made an HTTPS request to read a `Date`
+header for the clock-skew check. Nothing about the machine was *transmitted* --
+these were reachability handshakes, not uploads -- but three third-party hosts,
+and any corporate proxy in the path, could see that the machine had connected.
+That is a disclosure, and it contradicted this page.
+
+What a connection reveals, when you do ask for one:
+
+| Flag | Reaches | What the far end learns |
+| --- | --- | --- |
+| `doctor --allow-network` | github.com, registry.npmjs.org, pypi.org | Your IP connected and completed a TLS handshake. No request body, no identifying header. |
+| `network --allow-network` | The above, plus `--host` and any registries you request | The same, plus a DNS lookup per host. |
+| `network --registries` | Configured package registries | That your IP asked whether they answer. |
+
+Proxy configuration is reported in every scan and needs no connection: it is
+read from environment variables and from `git config`, with credentials in a
+proxy URL redacted before the value is recorded.
+
 ## Enforcement
 
 - `devrepro/privacy/gate.py` runs a redaction pass over every report/snapshot

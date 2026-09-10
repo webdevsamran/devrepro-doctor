@@ -246,8 +246,28 @@ class WslState(_FrozenModel):
     errors: tuple[str, ...] = ()
 
 
+class GpuDeviceInfo(_FrozenModel):
+    """One physical accelerator, enumerated rather than summarised.
+
+    Present because a *mixed* pair is a real failure mode: a build targeting
+    the compute capability of device 0 produces kernels the other card cannot
+    execute, and the runtime error names neither the device nor the
+    architecture.
+    """
+
+    index: int
+    name: str
+    memory_mib: int | None = None
+    compute_capability: str | None = None
+
+
 class GpuStack(_FrozenModel):
     nvidia_driver: str | None = None
+    #: The highest CUDA *runtime* the installed driver can run, as nvidia-smi
+    #: reports it. Not the installed toolkit; confusing the two is the single
+    #: most common CUDA misdiagnosis.
+    max_cuda_runtime: str | None = None
+    devices: tuple[GpuDeviceInfo, ...] = ()
     cuda_toolkit: str | None = None
     rocm: str | None = None
     oneapi: str | None = None

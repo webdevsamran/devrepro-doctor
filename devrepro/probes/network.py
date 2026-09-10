@@ -54,8 +54,22 @@ def classify_http_failure(status_or_error: str) -> str:
 
 
 class NetworkTlsProbe(Probe):
+    """Proxy configuration always; anything that opens a socket only on request.
+
+    The split is the point. Reading `HTTPS_PROXY` out of the environment is a
+    local fact and belongs in every scan. Connecting to github.com to see
+    whether it answers is a network side effect -- it tells that host, and any
+    proxy in the path, that this machine ran this tool -- and this project's
+    rule is that side effects are asked for by name.
+
+    `ctx.extra["allow_network"]` carries the answer, set from the same
+    `--allow-network` flag `devrepro network` already had. It defaults to
+    false, so `doctor`, `scan`, `preflight`, `guard` and `snapshot` make no
+    connections at all.
+    """
+
     id = "network/tls"
-    version = "1"
+    version = "2"
 
     def run(self) -> ProbeResult:
         findings = []
@@ -65,6 +79,36 @@ class NetworkTlsProbe(Probe):
         proxies = {k: self.ctx.env[k] for k in _PROXY_ENV_KEYS if self.ctx.env.get(k)}
         redacted_proxies = {k: re.sub(r"//[^@/]+@", "//***@", v) for k, v in proxies.items()}
         data["proxies"] = redacted_proxies
+
+        # Everything below this line opens a socket, and this project's rule is
+        # that a side effect is asked for by name. Reading proxy environment
+        # variables is local; reaching github.com to see whether it answers is
+        # not, and it tells that host -- and every proxy in between -- that this
+        # machine ran this tool.
+        allow_network = bool(self.ctx.extra.get("allow_network", False))
+        data["network_checks_opt_in"] = allow_network
+        if not allow_network:
+            findings.append(
+                self.finding(
+                    "network/checks-skipped",
+                    FindingState.INFO,
+                    "Endpoint reachability and TLS were not checked: they open "
+                    "connections, and this scan did not ask for them.",
+                    evidence=(
+                        Evidence(
+                            source="system",
+                            excerpt="allow_network=False",
+                        ),
+                    ),
+                    component="network",
+                    remediation_hint=(
+                        "Run `devrepro network --allow-network` to check DNS, TLS and "
+                        "registry reachability. Proxy configuration above was read from "
+                        "environment variables and needed no connection."
+                    ),
+                )
+            )
+            return ProbeResult(self.id, findings=tuple(findings), data=data)
 
         # -- clock skew -------------------------------------------------------
         skew = self._clock_skew_seconds()

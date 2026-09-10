@@ -18,6 +18,7 @@ def build_default_probes(ctx: ProbeContext) -> list[Probe]:
     from devrepro.probes.env_probe import EnvAuditProbe
     from devrepro.probes.git_checkout import GitCheckoutProbe
     from devrepro.probes.gpu import GpuAiProbe
+    from devrepro.probes.hostperf import HostPerfProbe
     from devrepro.probes.hygiene import HygieneProbe
     from devrepro.probes.network import NetworkTlsProbe
     from devrepro.probes.path_env import PathProbe
@@ -49,6 +50,7 @@ def build_default_probes(ctx: ProbeContext) -> list[Probe]:
         PortsServicesProbe,
         HygieneProbe,
         RegistryProbe,
+        HostPerfProbe,
     ]
     probes: list[Probe] = []
     for cls in classes:

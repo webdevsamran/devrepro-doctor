@@ -943,6 +943,131 @@ _LITERAL: dict[str, tuple[str, str, str, str]] = {
         "`wsl <command>` fails, and tools that shell into WSL fail with it.",
         "`wsl --set-default <distro>`.",
     ),
+    "network/checks-skipped": (
+        "Endpoint and TLS checks did not run, because they open connections",
+        "A scan reports proxy configuration -- read from environment variables, "
+        "which needs no connection -- and stops there. Reachability and TLS "
+        "checks require opening sockets to github.com, the npm registry and "
+        "PyPI, and a scan does not do that unless asked.",
+        "Reported rather than left silent, because a scan that says nothing "
+        "about network health reads as a scan that found network health fine. "
+        "Until this was fixed, these checks ran on every scan: three "
+        "third-party hosts, and any proxy in the path, learned that this "
+        "machine had run this tool.",
+        "Run `devrepro doctor --allow-network`, or `devrepro network "
+        "--allow-network` for the fuller DNS, TLS and registry diagnostics.",
+    ),
+    "host/slow-filesystem": (
+        "The project is on a filesystem where every file operation is slow",
+        "The source tree sits on a WSL/Windows crossing, a network share or "
+        "another mount where each file operation costs a millisecond instead of "
+        "a microsecond.",
+        "A dependency install performs hundreds of thousands of file "
+        "operations. Three orders of magnitude on each is the difference "
+        "between twenty seconds and twenty minutes -- and nothing is failing, so "
+        "no profiler anybody runs will point at it. It reads as a slow build "
+        "tool, which is where people go looking.",
+        "Move the tree onto local storage. Inside WSL that means somewhere "
+        "under ~, opened from the editor's WSL integration rather than through "
+        "/mnt/c. On a network share, at minimum keep the dependency directory "
+        "local -- most package managers accept a store or cache path outside "
+        "the project.",
+    ),
+    "host/antivirus-scans-build-dirs": (
+        "Real-time scanning inspects this project's build directories",
+        "Windows Defender's real-time protection is on and its exclusion list "
+        "does not cover the dependency and output directories this project "
+        "actually has.",
+        "Every file a build opens is scanned synchronously, on files written "
+        "seconds earlier by a tool the machine already trusts. This is "
+        "routinely the largest single factor in a Windows build taking several "
+        "times longer than the same build elsewhere, and it is invisible: "
+        "nothing fails and nothing logs.",
+        "Excluding them is a trade, not a fix: it is a genuine reduction in "
+        "protection on a tree whose install scripts execute code you did not "
+        "write. Whether it is worth it depends on the machine and on your "
+        "organisation's rules. DevRepro changes nothing -- the finding carries "
+        "the exact command if you decide it is.",
+    ),
+    "host/antivirus-not-defender": (
+        "Defender's real-time protection is off, so its exclusions mean nothing",
+        "Defender answered and reported real-time protection disabled. On a "
+        "machine that is not unprotected this usually means another antivirus "
+        "product registered itself and Defender stood down.",
+        "That other product's exclusion list is not visible from here, so this "
+        "check cannot speak for whatever is actually scanning your build "
+        "directories -- and scanning is a common cause of a Windows build being "
+        "several times slower than the same build elsewhere.",
+        "Nothing to fix here. If Windows builds are slow, check your antivirus "
+        "product's own exclusion list for the project's dependency and output "
+        "directories.",
+    ),
+    "host/antivirus-unknown": (
+        "Defender's configuration could not be read from this shell",
+        "`Get-MpComputerStatus` or `Get-MpPreference` did not answer. This is "
+        "almost always a permissions result rather than an absent Defender.",
+        "Reported rather than assumed, because from a non-elevated shell "
+        "'could not read the exclusions' and 'there are no exclusions' look "
+        "identical and lead to opposite conclusions.",
+        "Run `devrepro doctor` from an elevated shell to see which build "
+        "directories real-time scanning inspects.",
+    ),
+    "host/clock-unsynchronised": (
+        "Nothing is correcting this machine's clock",
+        "No time-synchronisation service is running, or the configured source "
+        "is the machine's own hardware clock -- which is synchronising with "
+        "itself and correcting nothing.",
+        "The clock has not drifted yet; it will. When it does, the first "
+        "symptom is usually a TLS error blaming a certificate that is fine "
+        "('not yet valid', 'expired'), and somebody spends an afternoon on the "
+        "certificate. It also breaks Kerberos outright and makes build tools "
+        "rebuild -- or refuse to rebuild -- for reasons no log explains. This is "
+        "the cause; clock skew is the symptom, detected separately and later.",
+        "Windows: `w32tm /config /syncfromflags:domhier /update` on a domain "
+        "machine, or point it at time.windows.com and start the Windows Time "
+        "service. Linux: enable systemd-timesyncd or chrony.",
+    ),
+    "gpu/cuda-driver-too-old": (
+        "The installed CUDA toolkit needs a newer driver than this one",
+        "The CUDA toolkit's major version is ahead of the highest CUDA runtime "
+        "the installed NVIDIA driver can run, as the driver itself reports it.",
+        "Anything built with nvcc fails at launch with 'CUDA driver version is "
+        "insufficient for CUDA runtime version', which names neither version. "
+        "People reinstall the toolkit, or the driver, more or less at random.",
+        "Update the NVIDIA driver, or install a toolkit inside the major "
+        "version the driver supports. Note that CUDA 11+ guarantees minor-"
+        "version compatibility, so 12.4 on a driver reporting 12.2 is fine and "
+        "is not what this reports. To see what a framework build expects: "
+        '`python -c "import torch; print(torch.version.cuda)"`.',
+    ),
+    "gpu/cuda-compatible": (
+        "The CUDA toolkit and the driver agree",
+        "The installed toolkit falls inside the major version the driver supports.",
+        "Nothing to do. Reported so that a working CUDA setup is visible rather "
+        "than inferred from the absence of a complaint.",
+        "No action needed.",
+    ),
+    "gpu/cuda-toolkit-absent": (
+        "A driver is present and nvcc is not",
+        "`nvidia-smi` answered but no CUDA toolkit is on PATH, so the compiler "
+        "half of the stack is unknown.",
+        "Reported as information, not as a fault. A framework wheel ships its "
+        "own CUDA runtime and never calls nvcc; the toolkit matters only if you "
+        "compile CUDA code yourself.",
+        "Install the CUDA toolkit only if you build CUDA sources. Otherwise nothing is missing.",
+    ),
+    "gpu/mixed-architectures": (
+        "The GPUs in this machine have different compute capabilities",
+        "Two or more devices report different `sm_XX` architectures.",
+        "A build targeting one architecture produces kernels the other card "
+        "cannot execute, and the failure -- 'no kernel image is available for "
+        "execution on the device' -- names neither the device nor the "
+        "architecture. It also arrives at runtime, on whichever device the "
+        "scheduler happened to pick, so it looks intermittent.",
+        "Build for every architecture present (TORCH_CUDA_ARCH_LIST or "
+        "CMAKE_CUDA_ARCHITECTURES covering them all), or pin the job to one "
+        "device with CUDA_VISIBLE_DEVICES.",
+    ),
     "advisories/coverage": (
         "What the advisory set covers, and when it was reviewed",
         "Names the advisory data in use, the date it was last reviewed, and "

@@ -173,7 +173,7 @@ def register(app: typer.Typer) -> None:
         raise SystemExit(exit_for(states))
 
     @app.command()
-    def doctor(
+    def doctor(  # noqa: PLR0917 -- CLI options, not a call signature
         json_out: bool = JsonOption,
         policy_path: Path | None = PolicyOption,
         project_dir: Path | None = typer.Option(None, "--project", help="Project root."),
@@ -181,6 +181,11 @@ def register(app: typer.Typer) -> None:
             False,
             "--fix-plan",
             help="Print a commented shell script of the remediations, without running any.",
+        ),
+        allow_network: bool = typer.Option(
+            False,
+            "--allow-network",
+            help="OPT-IN: also check endpoint reachability and TLS. Opens connections.",
         ),
         quiet: bool = QuietOption,
     ) -> None:
@@ -190,11 +195,20 @@ def register(app: typer.Typer) -> None:
         edit and run yourself. Nothing is executed: the script is output, not
         an action, which keeps the decision with the person who has to live
         with the consequences.
+
+        `--allow-network` adds the endpoint and TLS checks, which open
+        connections to github.com, the npm registry and PyPI. Without it a
+        scan makes no connections at all -- proxy configuration is still
+        reported, because that is read from environment variables.
         """
         from devrepro.cli.pipeline import run_scan
 
         try:
-            report = run_scan(project_dir=project_dir, policy=load_policy_or_none(policy_path))
+            report = run_scan(
+                project_dir=project_dir,
+                policy=load_policy_or_none(policy_path),
+                allow_network=allow_network,
+            )
         except DevReproError as exc:
             typer.secho(f"error: {exc.message}", fg=typer.colors.RED, err=True)
             raise typer.Exit(exc.exit_code.value) from exc

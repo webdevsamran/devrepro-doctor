@@ -444,6 +444,50 @@
       "title": "FindingState",
       "type": "string"
     },
+    "GpuDeviceInfo": {
+      "additionalProperties": false,
+      "description": "One physical accelerator, enumerated rather than summarised.\n\nPresent because a *mixed* pair is a real failure mode: a build targeting\nthe compute capability of device 0 produces kernels the other card cannot\nexecute, and the runtime error names neither the device nor the\narchitecture.",
+      "properties": {
+        "compute_capability": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Compute Capability"
+        },
+        "index": {
+          "title": "Index",
+          "type": "integer"
+        },
+        "memory_mib": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Memory Mib"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "index",
+        "name"
+      ],
+      "title": "GpuDeviceInfo",
+      "type": "object"
+    },
     "GpuStack": {
       "additionalProperties": false,
       "properties": {
@@ -459,10 +503,30 @@
           "default": null,
           "title": "Cuda Toolkit"
         },
+        "devices": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/GpuDeviceInfo"
+          },
+          "title": "Devices",
+          "type": "array"
+        },
         "directml": {
           "default": false,
           "title": "Directml",
           "type": "boolean"
+        },
+        "max_cuda_runtime": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Cuda Runtime"
         },
         "metal": {
           "anyOf": [
