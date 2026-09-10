@@ -235,6 +235,59 @@ _LITERAL: dict[str, tuple[str, str, str, str]] = {
         "Credential Manager stores the same tokens encrypted. devrepro reports "
         "the setting and never reads the file.",
     ),
+    "dotnet/global-json-sdk-missing": (
+        "global.json pins a .NET SDK that is not installed",
+        "The repository's `global.json` requests an SDK version, and no "
+        "installed SDK satisfies it under the file's `rollForward` policy.",
+        '`dotnet build` fails with "A compatible .NET SDK was not found", '
+        "while `dotnet --version` prints one of the SDKs that *is* installed "
+        "and every other check passes -- which is why this reads as a working "
+        "installation right up until the build. With `rollForward` unset the "
+        "pin is exact to the feature band, so 8.0.100 and 8.0.404 are not "
+        "interchangeable.",
+        "Install the pinned SDK, or set `rollForward` in `global.json` if a "
+        "newer one is genuinely acceptable. Deleting the pin works and gives "
+        "up the reason it was added.",
+    ),
+    "dotnet/global-json-satisfied": (
+        "An installed .NET SDK satisfies global.json",
+        "One of the SDKs on this machine matches the pin under its `rollForward` policy.",
+        "Recorded as a PASS because the absence of a finding and a verified "
+        "match are different states, and a report that only lists problems "
+        "cannot tell you which of the two it means.",
+        "Nothing to do.",
+    ),
+    "dotnet/sdk-list-unavailable": (
+        "The installed .NET SDKs could not be listed",
+        "`global.json` pins an SDK, but `dotnet --list-sdks` did not answer.",
+        "Whether the pin is satisfiable here is genuinely unknown, and "
+        "reporting it as a blocker would be a guess. This is UNKNOWN rather "
+        "than BLOCKED for that reason.",
+        "Install the .NET SDK if this project is built on this machine. If it "
+        "is not, nothing here needs changing.",
+    ),
+    "java/home-path-mismatch": (
+        "JAVA_HOME and the java on PATH are different JDKs",
+        "The JDK that `JAVA_HOME` points at reports a different version from "
+        "the `java` the shell resolves.",
+        "Maven and Gradle use `JAVA_HOME`; a shell script that calls `java` "
+        "directly uses PATH. When they disagree, the build compiles against "
+        "one JDK and runs on another, and the failure is an "
+        "`UnsupportedClassVersionError` that names neither of them.",
+        "Point `JAVA_HOME` at the JDK you intend to use and put its `bin` "
+        "first on PATH. A toolchain block in the build file overrides both, so "
+        "check that too if one is declared.",
+    ),
+    "java/multiple-jdks": (
+        "Several JDKs are installed",
+        "More than one JDK was found in the usual installation directories.",
+        "Not a fault -- most Java developers need several. It is worth knowing "
+        "because which one a build uses depends on `JAVA_HOME`, on PATH, and "
+        "on whichever toolchain block the build file declares: three settings "
+        "that are frequently out of step, and none of which announces itself.",
+        "Nothing, unless a build behaves unexpectedly. `java -version` and "
+        "`echo $JAVA_HOME` together tell you which two of the three agree.",
+    ),
     "abi/translated-process": (
         "This process runs under Rosetta translation",
         "The interpreter is an x86_64 build running on Apple silicon, with "

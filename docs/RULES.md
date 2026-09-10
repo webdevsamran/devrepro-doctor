@@ -5,7 +5,7 @@
 > `devrepro explain <rule-id>` prints any one of these.
 > `devrepro rules --catalog` lists them all.
 
-Every finding carries a rule id. There are **124** documented ids.
+Every finding carries a rule id. There are **129** documented ids.
 
 Two shapes exist. Most are written out in full where they are emitted.
 Some are composed at runtime from a tool or ecosystem name:
@@ -358,6 +358,26 @@ than exhaustive. `devrepro explain` resolves any prefix.
 
 ## `dotnet/`
 
+### `dotnet/global-json-satisfied`
+
+**An installed .NET SDK satisfies global.json**
+
+*What it means.* One of the SDKs on this machine matches the pin under its `rollForward` policy.
+
+*Why it matters.* Recorded as a PASS because the absence of a finding and a verified match are different states, and a report that only lists problems cannot tell you which of the two it means.
+
+*How to fix it.* Nothing to do.
+
+### `dotnet/global-json-sdk-missing`
+
+**global.json pins a .NET SDK that is not installed**
+
+*What it means.* The repository's `global.json` requests an SDK version, and no installed SDK satisfies it under the file's `rollForward` policy.
+
+*Why it matters.* `dotnet build` fails with "A compatible .NET SDK was not found", while `dotnet --version` prints one of the SDKs that *is* installed and every other check passes -- which is why this reads as a working installation right up until the build. With `rollForward` unset the pin is exact to the feature band, so 8.0.100 and 8.0.404 are not interchangeable.
+
+*How to fix it.* Install the pinned SDK, or set `rollForward` in `global.json` if a newer one is genuinely acceptable. Deleting the pin works and gives up the reason it was added.
+
 ### `dotnet/known-bad-version`
 
 **Version explicitly forbidden by policy**
@@ -377,6 +397,16 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* Any command that needs it fails immediately, usually with a confusing 'not recognized' or 'command not found' rather than a note about the declared requirement.
 
 *How to fix it.* Install it, or remove the requirement from the manifest if it is no longer real. Check `devrepro which <tool>` first -- the tool may be installed but shadowed or off PATH in this shell.
+
+### `dotnet/sdk-list-unavailable`
+
+**The installed .NET SDKs could not be listed**
+
+*What it means.* `global.json` pins an SDK, but `dotnet --list-sdks` did not answer.
+
+*Why it matters.* Whether the pin is satisfiable here is genuinely unknown, and reporting it as a blocker would be a guess. This is UNKNOWN rather than BLOCKED for that reason.
+
+*How to fix it.* Install the .NET SDK if this project is built on this machine. If it is not, nothing here needs changing.
 
 ### `dotnet/version-mismatch`
 
@@ -696,6 +726,16 @@ than exhaustive. `devrepro explain` resolves any prefix.
 
 ## `java/`
 
+### `java/home-path-mismatch`
+
+**JAVA_HOME and the java on PATH are different JDKs**
+
+*What it means.* The JDK that `JAVA_HOME` points at reports a different version from the `java` the shell resolves.
+
+*Why it matters.* Maven and Gradle use `JAVA_HOME`; a shell script that calls `java` directly uses PATH. When they disagree, the build compiles against one JDK and runs on another, and the failure is an `UnsupportedClassVersionError` that names neither of them.
+
+*How to fix it.* Point `JAVA_HOME` at the JDK you intend to use and put its `bin` first on PATH. A toolchain block in the build file overrides both, so check that too if one is declared.
+
 ### `java/known-bad-version`
 
 **Version explicitly forbidden by policy**
@@ -725,6 +765,16 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* The one that wins depends on PATH order, which differs between your shell, your editor's terminal, and CI. That is how the same command produces different versions in different windows on one machine.
 
 *How to fix it.* Run `devrepro which <tool>` to see every candidate and which one wins. Keep the installation you intend to use and remove or de-prefer the rest; `devrepro plan` proposes the PATH edit.
+
+### `java/multiple-jdks`
+
+**Several JDKs are installed**
+
+*What it means.* More than one JDK was found in the usual installation directories.
+
+*Why it matters.* Not a fault -- most Java developers need several. It is worth knowing because which one a build uses depends on `JAVA_HOME`, on PATH, and on whichever toolchain block the build file declares: three settings that are frequently out of step, and none of which announces itself.
+
+*How to fix it.* Nothing, unless a build behaves unexpectedly. `java -version` and `echo $JAVA_HOME` together tell you which two of the three agree.
 
 ### `java/shim-bypassed`
 

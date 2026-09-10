@@ -9,6 +9,32 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - which SDKs are installed, not just which one answers first
+
+- `dotnet --version` and `java -version` report the one the shell resolves,
+  which is the wrong question for two ecosystems that install several side by
+  side and select between them per project.
+- **`global.json` pins an exact .NET SDK.** With `rollForward` unset the pin is
+  exact to the feature band, so a machine carrying 9.0.101 and a repository
+  asking for 8.0.100 fails at `dotnet build` with "A compatible .NET SDK was
+  not found" -- while `dotnet --version` prints 9.0.101 and every other check
+  passes. The new `sdk/installed` probe compares the pin against
+  `dotnet --list-sdks` and honours `rollForward`.
+- The resolution model is deliberately partial and deliberately permissive
+  where it is unsure. `rollForward` has eight documented policies; three decide
+  the common cases and an unrecognised one is treated as "something newer will
+  do", because a missing finding is a better failure than blocking a build that
+  works.
+- **`JAVA_HOME` and the `java` on PATH are separate settings.** Maven and
+  Gradle use the first, a shell script calling `java` uses the second, and when
+  they disagree the build compiles against one JDK and runs on another -- an
+  `UnsupportedClassVersionError` that names neither. Compared by *version*
+  rather than by path, because one being a symlink to the other is the normal
+  case.
+- Only versions are recorded. `dotnet --list-sdks` prints an install path
+  beside each version, and on Windows that path is frequently under a user
+  profile.
+
 ### Added - policy inheritance, and which layer said what
 
 - A platform team publishes a paved road; a repository has its own needs. In
