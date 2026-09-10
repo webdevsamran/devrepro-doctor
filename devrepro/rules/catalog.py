@@ -72,6 +72,54 @@ _COMPOSED: dict[str, tuple[str, str, str, str]] = {
         "rotate it: it is in the git history whether or not you delete the line "
         "now.",
     ),
+    "runtime-too-old": (
+        "A framework needs a newer runtime than this machine has",
+        "The framework this project depends on requires a runtime floor its "
+        "own manifest does not state -- Next.js pins a Node version per major, "
+        "Django pins a Python version, Spring Boot pins a JDK.",
+        "This is the case where every declared range is satisfied and the build "
+        "still fails, because the requirement is one layer below the manifest. "
+        "It also fails with a message that names something other than the "
+        "cause: a syntax error rather than a Node version, a bytecode "
+        "class-version number rather than a JDK.",
+        "Install a runtime at or above the floor named in the finding, and "
+        "consider stating it in the project's own manifest -- `engines` in "
+        "package.json, `requires-python` in pyproject.toml -- so the next person "
+        "learns it from the file rather than from a build failure.",
+    ),
+    "runtime-ok": (
+        "The framework's runtime floor is met",
+        "The installed runtime satisfies the floor this project's framework requires.",
+        "Nothing to do. Reported so a satisfied requirement is visible rather "
+        "than inferred from the absence of a complaint.",
+        "No action needed.",
+    ),
+    "runtime-missing": (
+        "A framework needs a runtime that does not resolve here",
+        "The project depends on a framework requiring a runtime, and that "
+        "runtime is not on PATH at all.",
+        "Nothing about this project will build. Reported separately from a "
+        "version mismatch because the fix is different: one is an upgrade, the "
+        "other is an install -- or a PATH problem, which `devrepro which` "
+        "answers.",
+        "Install the runtime, then check `devrepro which <tool>`: it is often "
+        "installed and shadowed, which looks identical from here.",
+    ),
+    "needs-toolchain": (
+        "A declared dependency compiles from source on this machine",
+        "The project declares a package whose installation needs a compiler, a "
+        "client library or a system dependency -- `psycopg2`, `mysqlclient`, "
+        "`sharp`, `canvas` and their relatives.",
+        "Reported as information rather than a problem: a machine with a "
+        "working toolchain, or one where a prebuilt binary matches, installs it "
+        "without noticing. It matters when neither is true, and then the "
+        "failure is a wall of compiler output that names a header file. Note "
+        "`psycopg2` and `psycopg2-binary` are one character apart and land on "
+        "opposite sides of this.",
+        "Either install what the finding names, or switch to the prebuilt "
+        "variant where one exists. On a container base image this is usually "
+        "the difference between a five-second install and a ten-minute one.",
+    ),
     "known-advisory": (
         "The installed tool version is covered by a published advisory",
         "The version of this build tool matches an entry in the offline "
@@ -1254,6 +1302,16 @@ SHIM_BYPASS_EXAMPLES = ("python", "node", "ruby", "java")
 #: whichever tool the advisory set names, so the domain is exactly the set of
 #: tools the bundled data covers -- narrow and enumerable, unlike the families
 #: above. `tests/test_rule_catalog.py` holds it against the bundled data.
+#: `f"{framework}/runtime-*"` in rules/packs/frameworks.py. The prefix is the
+#: framework's own name, and the set of frameworks this project models is fixed
+#: and short -- three, deeply, rather than ten shallowly.
+#: `tests/test_rule_catalog.py` holds this against the detector.
+FRAMEWORK_NAMES = ("next", "django", "spring-boot")
+
+#: `f"{package}/needs-toolchain"` in the same pack. The prefix is the package
+#: name, so the domain is exactly the native-dependency table.
+NATIVE_PACKAGES = ("psycopg2", "mysqlclient", "sharp", "node-gyp", "canvas", "better-sqlite3")
+
 ADVISORY_TOOLS = ("git", "openssl", "python")
 
 #: `f"{tool}/cache-credential-committed"` in probes/projecttools.py. The prefix
@@ -1288,6 +1346,12 @@ def known_rule_ids() -> list[str]:
     ids |= {f"{tool}/shim-bypassed" for tool in SHIM_BYPASS_EXAMPLES}
     ids |= {f"{tool}/known-advisory" for tool in ADVISORY_TOOLS}
     ids |= {f"{tool}/cache-credential-committed" for tool in CACHE_CREDENTIAL_TOOLS}
+    ids |= {
+        f"{framework}/{suffix}"
+        for framework in FRAMEWORK_NAMES
+        for suffix in ("runtime-too-old", "runtime-ok", "runtime-missing")
+    }
+    ids |= {f"{package}/needs-toolchain" for package in NATIVE_PACKAGES}
     return sorted(ids)
 
 

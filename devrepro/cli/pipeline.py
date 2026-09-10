@@ -70,6 +70,22 @@ def run_scan(
     # back and change what the next probe sees.
     ctx = dataclasses.replace(ctx, extra={**ctx.extra, "allow_network": allow_network})
 
+    # Framework requirements are a property of the project, so they are read
+    # here alongside the other project facts rather than by a probe -- a probe
+    # scans the machine, and `package.json` is not on the machine's side of that
+    # line.
+    from devrepro.project.frameworks import detect_frameworks, native_dependencies
+
+    project_root = project_dir or Path.cwd()
+    ctx = dataclasses.replace(
+        ctx,
+        extra={
+            **ctx.extra,
+            "framework_requirements": tuple(detect_frameworks(project_root)),
+            "native_dependencies": tuple(native_dependencies(project_root)),
+        },
+    )
+
     probes = build_default_probes(ctx) + load_plugin_probes(ctx)
     engine = ProbeEngine(probes)
     results = engine.run_all()

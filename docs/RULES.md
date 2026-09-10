@@ -5,7 +5,7 @@
 > `devrepro explain <rule-id>` prints any one of these.
 > `devrepro rules --catalog` lists them all.
 
-Every finding carries a rule id. There are **159** documented ids.
+Every finding carries a rule id. There are **174** documented ids.
 
 Two shapes exist. Most are written out in full where they are emitted.
 Some are composed at runtime from a tool or ecosystem name:
@@ -103,6 +103,19 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *How to fix it.* Move it to an environment variable, which all three tools read, and rotate it: it is in the git history whether or not you delete the line now.
 
 
+## `better-sqlite3/`
+
+### `better-sqlite3/needs-toolchain`
+
+**A declared dependency compiles from source on this machine**
+
+*What it means.* The project declares a package whose installation needs a compiler, a client library or a system dependency -- `psycopg2`, `mysqlclient`, `sharp`, `canvas` and their relatives.
+
+*Why it matters.* Reported as information rather than a problem: a machine with a working toolchain, or one where a prebuilt binary matches, installs it without noticing. It matters when neither is true, and then the failure is a wall of compiler output that names a header file. Note `psycopg2` and `psycopg2-binary` are one character apart and land on opposite sides of this.
+
+*How to fix it.* Either install what the finding names, or switch to the prebuilt variant where one exists. On a container base image this is usually the difference between a five-second install and a ten-minute one.
+
+
 ## `buildtools/`
 
 ### `buildtools/detected`
@@ -177,6 +190,19 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* Usually deliberate and reported for one reason: a cache redirected onto a network share, an external volume, or a directory a cleanup job empties overnight is a common cause of "builds are slow on this machine only", with nothing in the build output that would explain it.
 
 *How to fix it.* Nothing, if the redirection was intended. If it was not, unset the variable; the default location is on the fastest disk the machine has, which is normally the point.
+
+
+## `canvas/`
+
+### `canvas/needs-toolchain`
+
+**A declared dependency compiles from source on this machine**
+
+*What it means.* The project declares a package whose installation needs a compiler, a client library or a system dependency -- `psycopg2`, `mysqlclient`, `sharp`, `canvas` and their relatives.
+
+*Why it matters.* Reported as information rather than a problem: a machine with a working toolchain, or one where a prebuilt binary matches, installs it without noticing. It matters when neither is true, and then the failure is a wall of compiler output that names a header file. Note `psycopg2` and `psycopg2-binary` are one character apart and land on opposite sides of this.
+
+*How to fix it.* Either install what the finding names, or switch to the prebuilt variant where one exists. On a container base image this is usually the difference between a five-second install and a ten-minute one.
 
 
 ## `containers/`
@@ -443,6 +469,39 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* The requirement cannot be checked either way, so this is reported as unknown rather than passing. A silent pass here would be a lie.
 
 *How to fix it.* Run the tool's version command by hand and open an issue with the output, so the parser can learn the shape.
+
+
+## `django/`
+
+### `django/runtime-missing`
+
+**A framework needs a runtime that does not resolve here**
+
+*What it means.* The project depends on a framework requiring a runtime, and that runtime is not on PATH at all.
+
+*Why it matters.* Nothing about this project will build. Reported separately from a version mismatch because the fix is different: one is an upgrade, the other is an install -- or a PATH problem, which `devrepro which` answers.
+
+*How to fix it.* Install the runtime, then check `devrepro which <tool>`: it is often installed and shadowed, which looks identical from here.
+
+### `django/runtime-ok`
+
+**The framework's runtime floor is met**
+
+*What it means.* The installed runtime satisfies the floor this project's framework requires.
+
+*Why it matters.* Nothing to do. Reported so a satisfied requirement is visible rather than inferred from the absence of a complaint.
+
+*How to fix it.* No action needed.
+
+### `django/runtime-too-old`
+
+**A framework needs a newer runtime than this machine has**
+
+*What it means.* The framework this project depends on requires a runtime floor its own manifest does not state -- Next.js pins a Node version per major, Django pins a Python version, Spring Boot pins a JDK.
+
+*Why it matters.* This is the case where every declared range is satisfied and the build still fails, because the requirement is one layer below the manifest. It also fails with a message that names something other than the cause: a syntax error rather than a Node version, a bytecode class-version number rather than a JDK.
+
+*How to fix it.* Install a runtime at or above the floor named in the finding, and consider stating it in the project's own manifest -- `engines` in package.json, `requires-python` in pyproject.toml -- so the next person learns it from the file rather than from a build failure.
 
 
 ## `docker/`
@@ -1121,6 +1180,19 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *How to fix it.* Regenerate it with its package manager rather than hand-editing. If the cause was a merge conflict, resolve the manifest first and then re-lock; resolving conflict markers inside a lockfile by hand produces a file that parses and is still wrong.
 
 
+## `mysqlclient/`
+
+### `mysqlclient/needs-toolchain`
+
+**A declared dependency compiles from source on this machine**
+
+*What it means.* The project declares a package whose installation needs a compiler, a client library or a system dependency -- `psycopg2`, `mysqlclient`, `sharp`, `canvas` and their relatives.
+
+*Why it matters.* Reported as information rather than a problem: a machine with a working toolchain, or one where a prebuilt binary matches, installs it without noticing. It matters when neither is true, and then the failure is a wall of compiler output that names a header file. Note `psycopg2` and `psycopg2-binary` are one character apart and land on opposite sides of this.
+
+*How to fix it.* Either install what the finding names, or switch to the prebuilt variant where one exists. On a container base image this is usually the difference between a five-second install and a ten-minute one.
+
+
 ## `network/`
 
 ### `network/ca-bundle-missing`
@@ -1192,6 +1264,52 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* Every runtime keeps its own trust store: Node reads `NODE_EXTRA_CA_CERTS`, Python `REQUESTS_CA_BUNDLE`, Go `SSL_CERT_FILE`, git `GIT_SSL_CAINFO`. Behind a TLS-intercepting proxy, configuring one means `npm install` works and `pip install` fails on the same machine, with an error that blames the certificate rather than the missing variable.
 
 *How to fix it.* Set the corresponding variable for each ecosystem you use. There is no single setting that covers them all, which is the whole difficulty.
+
+
+## `next/`
+
+### `next/runtime-missing`
+
+**A framework needs a runtime that does not resolve here**
+
+*What it means.* The project depends on a framework requiring a runtime, and that runtime is not on PATH at all.
+
+*Why it matters.* Nothing about this project will build. Reported separately from a version mismatch because the fix is different: one is an upgrade, the other is an install -- or a PATH problem, which `devrepro which` answers.
+
+*How to fix it.* Install the runtime, then check `devrepro which <tool>`: it is often installed and shadowed, which looks identical from here.
+
+### `next/runtime-ok`
+
+**The framework's runtime floor is met**
+
+*What it means.* The installed runtime satisfies the floor this project's framework requires.
+
+*Why it matters.* Nothing to do. Reported so a satisfied requirement is visible rather than inferred from the absence of a complaint.
+
+*How to fix it.* No action needed.
+
+### `next/runtime-too-old`
+
+**A framework needs a newer runtime than this machine has**
+
+*What it means.* The framework this project depends on requires a runtime floor its own manifest does not state -- Next.js pins a Node version per major, Django pins a Python version, Spring Boot pins a JDK.
+
+*Why it matters.* This is the case where every declared range is satisfied and the build still fails, because the requirement is one layer below the manifest. It also fails with a message that names something other than the cause: a syntax error rather than a Node version, a bytecode class-version number rather than a JDK.
+
+*How to fix it.* Install a runtime at or above the floor named in the finding, and consider stating it in the project's own manifest -- `engines` in package.json, `requires-python` in pyproject.toml -- so the next person learns it from the file rather than from a build failure.
+
+
+## `node-gyp/`
+
+### `node-gyp/needs-toolchain`
+
+**A declared dependency compiles from source on this machine**
+
+*What it means.* The project declares a package whose installation needs a compiler, a client library or a system dependency -- `psycopg2`, `mysqlclient`, `sharp`, `canvas` and their relatives.
+
+*Why it matters.* Reported as information rather than a problem: a machine with a working toolchain, or one where a prebuilt binary matches, installs it without noticing. It matters when neither is true, and then the failure is a wall of compiler output that names a header file. Note `psycopg2` and `psycopg2-binary` are one character apart and land on opposite sides of this.
+
+*How to fix it.* Either install what the finding names, or switch to the prebuilt variant where one exists. On a container base image this is usually the difference between a five-second install and a ten-minute one.
 
 
 ## `node/`
@@ -1373,6 +1491,19 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* The service will fail to start, usually with an 'address already in use' that does not say what is holding it.
 
 *How to fix it.* Stop the process holding the port, or change the port the project declares.
+
+
+## `psycopg2/`
+
+### `psycopg2/needs-toolchain`
+
+**A declared dependency compiles from source on this machine**
+
+*What it means.* The project declares a package whose installation needs a compiler, a client library or a system dependency -- `psycopg2`, `mysqlclient`, `sharp`, `canvas` and their relatives.
+
+*Why it matters.* Reported as information rather than a problem: a machine with a working toolchain, or one where a prebuilt binary matches, installs it without noticing. It matters when neither is true, and then the failure is a wall of compiler output that names a header file. Note `psycopg2` and `psycopg2-binary` are one character apart and land on opposite sides of this.
+
+*How to fix it.* Either install what the finding names, or switch to the prebuilt variant where one exists. On a container base image this is usually the difference between a five-second install and a ten-minute one.
 
 
 ## `python/`
@@ -1587,6 +1718,19 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *How to fix it.* Warm the dependency cache in an image layer, or vendor the dependencies, so the isolated run needs nothing from outside.
 
 
+## `sharp/`
+
+### `sharp/needs-toolchain`
+
+**A declared dependency compiles from source on this machine**
+
+*What it means.* The project declares a package whose installation needs a compiler, a client library or a system dependency -- `psycopg2`, `mysqlclient`, `sharp`, `canvas` and their relatives.
+
+*Why it matters.* Reported as information rather than a problem: a machine with a working toolchain, or one where a prebuilt binary matches, installs it without noticing. It matters when neither is true, and then the failure is a wall of compiler output that names a header file. Note `psycopg2` and `psycopg2-binary` are one character apart and land on opposite sides of this.
+
+*How to fix it.* Either install what the finding names, or switch to the prebuilt variant where one exists. On a container base image this is usually the difference between a five-second install and a ten-minute one.
+
+
 ## `shell/`
 
 ### `shell/managers-initialized`
@@ -1608,6 +1752,39 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* Every new terminal pays this, and so does every git hook that spawns a login shell and every `bash -lc` in CI. Four of them together is one to three seconds, and nobody attributes it -- a shell that takes two seconds reads as a slow machine.
 
 *How to fix it.* Most of these support lazy initialisation: a shim that runs the real init the first time the tool is called, costing nothing until then. This is a count rather than a measurement, because timing a shell start means running your own configuration, which is not a read-only thing for a diagnostic to do.
+
+
+## `spring-boot/`
+
+### `spring-boot/runtime-missing`
+
+**A framework needs a runtime that does not resolve here**
+
+*What it means.* The project depends on a framework requiring a runtime, and that runtime is not on PATH at all.
+
+*Why it matters.* Nothing about this project will build. Reported separately from a version mismatch because the fix is different: one is an upgrade, the other is an install -- or a PATH problem, which `devrepro which` answers.
+
+*How to fix it.* Install the runtime, then check `devrepro which <tool>`: it is often installed and shadowed, which looks identical from here.
+
+### `spring-boot/runtime-ok`
+
+**The framework's runtime floor is met**
+
+*What it means.* The installed runtime satisfies the floor this project's framework requires.
+
+*Why it matters.* Nothing to do. Reported so a satisfied requirement is visible rather than inferred from the absence of a complaint.
+
+*How to fix it.* No action needed.
+
+### `spring-boot/runtime-too-old`
+
+**A framework needs a newer runtime than this machine has**
+
+*What it means.* The framework this project depends on requires a runtime floor its own manifest does not state -- Next.js pins a Node version per major, Django pins a Python version, Spring Boot pins a JDK.
+
+*Why it matters.* This is the case where every declared range is satisfied and the build still fails, because the requirement is one layer below the manifest. It also fails with a message that names something other than the cause: a syntax error rather than a Node version, a bytecode class-version number rather than a JDK.
+
+*How to fix it.* Install a runtime at or above the floor named in the finding, and consider stating it in the project's own manifest -- `engines` in package.json, `requires-python` in pyproject.toml -- so the next person learns it from the file rather than from a build failure.
 
 
 ## `system/`

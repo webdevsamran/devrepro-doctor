@@ -41,6 +41,7 @@ PACK_NAMES: tuple[str, ...] = (
     "ai-gpu",
     "lockfiles",
     "advisories",
+    "frameworks",
 )
 
 
@@ -223,6 +224,7 @@ def load_builtin_packs(engine: RuleEngine) -> None:
     from devrepro.rules.packs.containers import evaluate as containers
     from devrepro.rules.packs.cpp import evaluate as cpp
     from devrepro.rules.packs.dotnet import evaluate as dotnet
+    from devrepro.rules.packs.frameworks import evaluate as frameworks
     from devrepro.rules.packs.go import evaluate as go
     from devrepro.rules.packs.java import evaluate as java
     from devrepro.rules.packs.lockfiles import evaluate as lockfiles
@@ -243,3 +245,4 @@ def load_builtin_packs(engine: RuleEngine) -> None:
     engine.register("ai-gpu", ai_gpu)
     engine.register("lockfiles", lockfiles)
     engine.register("advisories", advisories)
+    engine.register("frameworks", frameworks)

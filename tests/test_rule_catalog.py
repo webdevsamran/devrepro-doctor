@@ -112,6 +112,10 @@ def test_literal_ids_appear_in_the_source() -> None:
         "shim-bypassed",
         "known-advisory",
         "cache-credential-committed",
+        "runtime-too-old",
+        "runtime-ok",
+        "runtime-missing",
+        "needs-toolchain",
     }
     for rule_id in known_rule_ids():
         _, _, suffix = rule_id.partition("/")
@@ -187,3 +191,29 @@ def test_the_cache_credential_prefix_domain_matches_the_detector() -> None:
 
     modelled = {tool for _config, tool in BUILD_TOOLS}
     assert set(CACHE_CREDENTIAL_TOOLS) <= modelled
+
+
+def test_the_framework_prefix_domain_matches_the_detector() -> None:
+    """The catalogue's framework list is a second copy of the detector's.
+
+    Three frameworks, deeply, rather than ten shallowly -- which makes the list
+    short enough to enumerate and exactly long enough to drift.
+    """
+    from devrepro.project.frameworks import (
+        DJANGO_PYTHON_FLOOR,
+        NEXT_NODE_FLOOR,
+        SPRING_BOOT_JDK_FLOOR,
+    )
+    from devrepro.rules.catalog import FRAMEWORK_NAMES
+
+    assert set(FRAMEWORK_NAMES) == {"next", "django", "spring-boot"}
+    # Each modelled framework must actually have floors behind it, or the
+    # catalogue advertises a rule id nothing can emit.
+    assert NEXT_NODE_FLOOR and DJANGO_PYTHON_FLOOR and SPRING_BOOT_JDK_FLOOR
+
+
+def test_the_native_package_domain_matches_the_table() -> None:
+    from devrepro.project.frameworks import NATIVE_BUILD_DEPENDENCIES
+    from devrepro.rules.catalog import NATIVE_PACKAGES
+
+    assert set(NATIVE_PACKAGES) == set(NATIVE_BUILD_DEPENDENCIES)

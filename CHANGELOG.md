@@ -9,6 +9,50 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - framework introspection: what a manifest cannot tell you
+
+The `frameworks` rule pack, the twelfth. Every other pack compares a declared
+range against an installed version. This one asks the question a layer down, and
+the reason it matters is that **the manifest is internally consistent when it
+goes wrong**: `package.json` says `"node": ">=18"` and `"next": "^15"`, every
+range is satisfied, and the build fails on Node 18.0 with a syntax error.
+
+Three frameworks, deeply, rather than ten shallowly. Each was chosen for the
+same property — a machine requirement in no manifest, failing with a message
+that names something other than the cause:
+
+- **Next.js** pins a Node floor per major (15 → 18.18) that a generated
+  project's `engines` field does not state. The failure is a syntax error.
+- **Spring Boot** pins a JDK floor per major (3.x → 17), read from a Gradle
+  plugin declaration or a Maven parent. The failure is a bytecode class-version
+  number.
+- **Django** pins a Python floor per release (5.x → 3.10). This one produces no
+  error at all: pip quietly resolves an older Django, and the project silently
+  runs a version it did not declare.
+
+Plus `<package>/needs-toolchain` for dependencies whose *installation* needs
+something no manifest mentions — and the pair that motivated it: **`psycopg2`
+compiles and `psycopg2-binary` does not**. One character, opposite sides of "do
+you need a C compiler", and a requirements file gives no hint which one you are
+reading. Matched on a word boundary, so the binary wheel is never reported as
+needing a toolchain — which would send somebody installing build-essential they
+did not need.
+
+Reported as INFO rather than a problem: a machine with a working toolchain, or
+one where a prebuilt binary matches, installs it without noticing.
+
+Nothing is invoked. `next info`, `manage.py check` and `gradlew --version` all
+start a runtime and two of them execute the project's own configuration, so
+every floor is read from a file. An unrecognised framework version claims **no**
+floor — a guessed requirement produces a confident wrong finding, which is worse
+than silence.
+
+`pyproject.toml` is parsed as TOML rather than searched, and both PEP 621 and
+Poetry declarations are read. The first version used one line-anchored regex for
+every file and missed `dependencies = ["Django==4.2.11"]` entirely; loosening
+the anchor to reach it would then have matched the word "Django" in a
+description or a URL.
+
 ### Added - editor, browser and IDE surfaces, none of which needs a build
 
 - **`extensions/vscode/`** — plain CommonJS with JSDoc, no dependencies, no
