@@ -34,6 +34,8 @@ python scripts/generate_schemas.py --check
 python scripts/validate_schemas.py
 python scripts/secret_scan.py
 python scripts/check_action_pins.py
+python scripts/check_packaging.py
+python -m pytest tests/test_rulepack_template.py -q
 python scripts/generate_landscape.py --check
 python scripts/generate_rule_docs.py --check
 python scripts/capture_readme_example.py --check
@@ -44,6 +46,12 @@ cd web && npm ci && npm run lint && npm run typecheck && npm test && npm run bui
 cd web && npm audit --audit-level=high
 cd web && npx playwright install --with-deps chromium && npm run e2e
 ```
+
+This list has now drifted twice, and the second time `devrepro agent-check .`
+reported it before a pull request did -- two gates added to `ci.yml` during a
+feature program never reached this file, and `matches-ci` scored 0/3 until they
+did. That is the check this repository exists to provide, run against this
+repository.
 
 Every line above is a required check. The list was previously a subset: it
 omitted `scripts/` from both ruff invocations and left out five gates
