@@ -9,6 +9,38 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Fixed - a CI matrix is a set of versions, not a wildcard
+
+- `${{ matrix.python-version }}` is a template rather than a version, and the
+  workflow parser normalised every template to `"*"`. So this repository's own
+  matrix -- three operating systems by four Python versions -- reached the
+  local-vs-CI check as "CI declares anything", and the check that exists to
+  explain "CI passes, my machine fails" said nothing about the twelve legs most
+  likely to explain it.
+- `parse_workflow_matrices` reads the axes out of a workflow, so a reference
+  resolves to the versions it stands for. Both YAML sequence styles are
+  handled, along with `include:` legs that add versions outside the
+  cross-product -- a Python tested only there is still a Python CI tests.
+  `runs-on: ${{ matrix.os }}` resolves too, so the platform hint on a finding
+  names the runners rather than the template.
+- A reference the parser cannot resolve -- an axis built by `fromJSON`, or one
+  defined in a reusable workflow -- stays a wildcard. "This is templated and we
+  could not read it" is not the same claim as "this accepts any version", and
+  guessing would make the tool confidently wrong on exactly the workflows it
+  understands least.
+- `devrepro ci-diff .` on this repository now reports the four Pythons instead
+  of `*`, and a test holds that against the real workflow, so narrowing the
+  matrix shows up in a diff rather than as a silently weaker check.
+- Along the way: `_unquote` stripped quotes before whitespace. Splitting
+  `["3.11", "3.12"]` on commas produces ` "3.12"`, whose first character is a
+  space, so only the trailing quote came off and the value became `"3.12`.
+  Every caller passing the right-hand side of a `split(":", 1)` had the same
+  latent fault.
+- `AGENTS.md` now declares the `npm run e2e` gate. The tool caught this itself:
+  adding a CI job put the repository back into the drift state its own
+  `agent-check` exists to find, and `matches-ci` dropped to 0/3 until the
+  manifest was updated.
+
 ### Added - what is actually behind `docker`, and what shape it is in
 
 - The container probe answered one question -- is a daemon responding -- which

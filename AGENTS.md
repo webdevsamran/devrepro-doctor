@@ -42,12 +42,18 @@ mkdocs build --strict
 python scripts/check_docs_site.py --site site
 cd web && npm ci && npm run lint && npm run typecheck && npm test && npm run build
 cd web && npm audit --audit-level=high
+cd web && npx playwright install --with-deps chromium && npm run e2e
 ```
 
 Every line above is a required check. The list was previously a subset: it
 omitted `scripts/` from both ruff invocations and left out five gates
 entirely, so an agent could run everything here, see it pass, and still be
 failed by CI for reasons this file never mentioned.
+
+`npm run e2e` downloads a browser on first use, which is why the install step
+sits on the same line. It is slow and it is not optional: it is the only gate
+that lays anything out, and every accessibility and responsive-layout failure
+this project has found came from it rather than from the jsdom suite.
 
 `fail_under = 70` is in `pyproject.toml` as well as on the CI command line, so
 a local `pytest --cov` enforces the same floor CI does.
