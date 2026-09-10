@@ -26,6 +26,7 @@ const rulesPage = () => import('./pages/rules')
 const environment = () => import('./pages/environment')
 const platform = () => import('./pages/platform')
 const enterprise = () => import('./pages/enterprise')
+const tools = () => import('./pages/tools')
 
 function reportPage<M extends Record<string, unknown>>(
   load: () => Promise<M>,
@@ -69,6 +70,9 @@ export const PLAIN_PAGES: Record<string, PlainPage> = {
   githealth: plainPage(environment, 'GitHealthPage'),
   network: plainPage(environment, 'NetworkTlsPage'),
   fleet: plainPage(environment, 'FleetDashboardPage'),
+  snapshotviewer: plainPage(tools, 'SnapshotViewerPage'),
+  gallery: plainPage(tools, 'GalleryPage'),
+  tour: plainPage(tools, 'TourPage'),
 
   gpustack: plainPage(platform, 'GpuAiStackPage'),
   shellstartup: plainPage(platform, 'ShellStartupPage'),

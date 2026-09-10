@@ -24,7 +24,13 @@
     --grey-200: #dbe1e8;
     --grey-300: #c3ccd6;
     --grey-400: #97a3b0;
+    /* The dark-mode counterpart of `--grey-550`, for the same reason. */
+    --grey-450: #a1acb8;
     --grey-500: #6b7784;
+    /* Between 500 and 600, and it exists for one reason: `--fg-subtle`
+       has to clear 4.5:1 on `--surface-3`, not merely on the page
+       background. See the token comment below for the measurements. */
+    --grey-550: #57626e;
     --grey-600: #4d5765;
     --grey-700: #363e4a;
     --grey-800: #232a34;
@@ -50,14 +56,20 @@
 
     --fg: var(--grey-900);
     /* Both of these are *text* tokens, so both have to clear WCAG AA (4.5:1)
-       at body size. `--fg-subtle` was `--grey-400`, which is 2.56:1 on white --
-       below even the 3:1 large-text bar, so it could not legitimately be used
-       for any text at all. An axe sweep caught it on the sidebar group
-       headings; the token was the bug, not that one usage. The tier moved down
-       one step each, which keeps three distinct levels and puts the weakest at
-       4.57:1. */
+       at body size -- and the measurement that matters is against the DEEPEST
+       surface the token can land on, not against the page background.
+
+       This has now been wrong twice for that reason. First `--fg-subtle` was
+       `--grey-400`: 2.56:1 on white, below even the 3:1 large-text bar. It
+       moved to `--grey-500`, which is 4.57:1 on white and passes -- and 3.88:1
+       inside a card on `--surface-2`, and 3.47:1 in an empty state on
+       `--surface-3`, which is where subtle text actually lives. An axe sweep of
+       the snapshot viewer caught the second one.
+
+       `--grey-550` measures 6.22:1 on white, 5.28:1 on `--surface-2` and
+       4.72:1 on `--surface-3`. Every surface, not just the easy one. */
     --fg-muted: var(--grey-600);
-    --fg-subtle: var(--grey-500);
+    --fg-subtle: var(--grey-550);
     --fg-on-accent: #ffffff;
 
     --accent: var(--accent-600);
@@ -143,9 +155,11 @@
 
       --fg: var(--grey-50);
       /* Dark inverts the same reasoning: `--grey-500` on `--grey-900` is 3.75:1,
-         so the tiers step up rather than down. */
+         so the tiers step up rather than down -- and it had the same
+         deepest-surface bug. `--grey-400` is 6.68:1 on `--surface` and 4.21:1
+         on `--surface-3`. `--grey-450` is 7.43:1 and 4.68:1. */
       --fg-muted: var(--grey-300);
-      --fg-subtle: var(--grey-400);
+      --fg-subtle: var(--grey-450);
 
       --accent: var(--accent-400);
       --accent-hover: var(--accent-300);
@@ -185,7 +199,8 @@
     /* Dark inverts the same reasoning: `--grey-500` on `--grey-900` is 3.75:1,
        so the tiers step up rather than down. */
     --fg-muted: var(--grey-300);
-    --fg-subtle: var(--grey-400);
+    /* Same measurement as the media-query block above. */
+    --fg-subtle: var(--grey-450);
 
     --accent: var(--accent-400);
     --accent-hover: var(--accent-300);
@@ -1243,4 +1258,47 @@
 
 @media (max-width: 640px) {
   .heatmap-row { grid-template-columns: 1fr; }
+}
+
+/* ------------------------------------------------------- export and tools --
+ * The print rules matter more than they look: "Save as PDF" is the browser's
+ * own print dialogue, so this stylesheet *is* the PDF renderer. Without it the
+ * export carries the sidebar, the command palette hint and a dark background
+ * nobody asked to print.
+ */
+.export-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
+.export-note { flex: 1 1 20rem; font-size: 0.8rem; }
+
+.snapshot-input {
+  width: 100%;
+  margin-top: 8px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.8rem;
+  background: var(--surface-2);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+}
+
+.gallery-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+
+.tour { display: flex; flex-direction: column; gap: 16px; padding-left: 1.2rem; }
+.tour-step h2 { font-size: 1rem; margin: 0 0 4px; }
+.tour-step p { margin: 0 0 4px; }
+
+@media print {
+  /* Chrome: without this the exported PDF drops every background colour, and
+   * the severity ramp is the one thing a printed report needs to keep. */
+  :root { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+
+  .sidebar, .topbar, .export-bar, .palette, .skip-link { display: none !important; }
+  .content, .layout { display: block; margin: 0; padding: 0; max-width: none; }
+  .card { break-inside: avoid; border: 1px solid #ccc; }
+  a[href^="http"]::after {
+    /* A printed link is a dead end unless the URL is on the page. */
+    content: " (" attr(href) ")";
+    font-size: 0.75em;
+    color: #555;
+  }
 }

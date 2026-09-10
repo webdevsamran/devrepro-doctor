@@ -9,6 +9,63 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - a snapshot viewer, an export, a gallery and a tour
+
+- **Snapshot viewer.** Somebody's build fails, a colleague asks for `devrepro
+  snapshot`, and now there is a 200 KB JSON file in a chat thread nobody can
+  read. Every tool that solves this solves it with an upload -- and a snapshot
+  describes a developer's machine, so an upload is the one thing this project
+  will not add. `FileReader` and `JSON.parse`, in the page, with no endpoint
+  behind it, and the page says so where somebody about to paste a colleague's
+  machine state will read it.
+- **Markdown export**, because the reason to export a diagnostic is to paste it
+  into an issue -- and an image of a table is a table nobody can search, quote or
+  diff. Blockers first and capped, since a comment opening with forty INFO rows
+  is one nobody scrolls past. Pipes in a summary are escaped rather than
+  breaking the table.
+- **PDF via the browser's own print dialogue**, driven by a print stylesheet.
+  No library: a PDF renderer is several hundred kilobytes to reproduce, worse,
+  something every browser already does. **PNG is deliberately not offered** --
+  DOM-to-canvas needs a ~200 KB dependency, reproduces the layout approximately,
+  and produces the least useful artefact of the three.
+- **A component gallery route** instead of Storybook. Storybook is ~40 MB of
+  devDependencies, its own build and a second place for the theme tokens to be
+  defined, for a design system of about a dozen components -- and a component
+  rendered in the real shell inherits the real tokens, so a story that looks
+  right here *is* right. A Storybook story renders in an iframe with its own
+  decorators, which is exactly where token drift hides.
+- **Visual regression** on that one route, in both themes, on the existing
+  Playwright suite. Baselines are per-platform and are **not** committed from a
+  developer's machine: a Windows screenshot differs from a Linux one in font
+  rasterisation alone, and committing one would fail every CI run on the other
+  and teach everybody to ignore the suite. The test skips with a loud reason
+  where no baseline exists, and the print-media assertion beside it never skips.
+- **A tour that never launches itself.** Product tours are disliked for a
+  consistent reason: they interrupt somebody who came to do something specific,
+  on their first visit, when they have the least patience for it. This one sits
+  in the navigation, reads in a minute, and names *where* each thing is rather
+  than dragging you there.
+
+### Fixed - `--fg-subtle` failed WCAG AA on the surfaces it is used on
+
+An axe sweep of the new snapshot-viewer route caught `.subtle` at **3.88:1**.
+
+This token has now been wrong twice for the same reason. It was `--grey-400`
+(2.56:1 on white, below even the large-text bar); the fix moved it to
+`--grey-500` and measured it **against the page background**, where it is
+4.57:1 and passes. Subtle text is rarely on the page background -- it is inside
+a card on `--surface-2` (3.88:1) and in an empty state on `--surface-3`
+(3.47:1).
+
+Dark mode had the identical bug and nobody had measured it: `--grey-400` is
+6.68:1 on `--surface` and **4.21:1** on `--surface-3`.
+
+The rule is not "clear AA on the background" but "clear AA on the deepest
+surface the token can land on". `--grey-550` (light) and `--grey-450` (dark)
+clear 4.5:1 on every surface in their theme, and both stay distinct from
+`--fg-muted`, so the three-tier ramp survives instead of collapsing to two. The
+measurements are in the stylesheet so the next person does not re-derive them.
+
 ### Added - what a rule-pack author needs, and honest install docs
 
 - **`devrepro rules-test <module>`** checks a rule pack for the four things

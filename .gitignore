@@ -45,6 +45,13 @@ web/public/report.json
 
 # Playwright
 web/test-results/
+# Visual-regression baselines are per-platform: a screenshot taken on Windows
+# differs from one taken on Linux in font rasterisation alone. Committing one
+# platform's would fail every CI run on another and teach everybody to ignore
+# the suite. Generate them on the platform that will compare them --
+#   npx playwright test e2e/visual.spec.ts --update-snapshots
+# -- and commit them from there if you want the check enforced.
+web/e2e/*.spec.ts-snapshots/
 web/playwright-report/
 web/blob-report/
 web/.playwright/

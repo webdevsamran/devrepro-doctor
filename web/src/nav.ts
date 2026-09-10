@@ -69,6 +69,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: 'drifttimeline', label: 'Drift Timeline', icon: '⌁', keywords: 'history changes over time' },
       { id: 'baseline', label: 'Baseline', icon: '▦', keywords: 'approved expected manifest' },
       { id: 'history', label: 'History', icon: '⟲', keywords: 'previous scans' },
+      { id: 'snapshotviewer', label: 'Snapshot Viewer', icon: '⌸', keywords: 'paste open read colleague file offline' },
     ],
   },
   {
@@ -86,6 +87,8 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'About',
     items: [
+      { id: 'tour', label: 'Tour', icon: '➤', keywords: 'getting started guide help onboarding' },
+      { id: 'gallery', label: 'Component Gallery', icon: '◨', keywords: 'design system storybook states' },
       { id: 'docs', label: 'Docs', icon: '◫', keywords: 'documentation help' },
       { id: 'contributors', label: 'Contributors', icon: '☺', keywords: 'authors credits' },
       { id: 'about', label: 'About', icon: 'ⓘ', keywords: 'version license privacy' },
