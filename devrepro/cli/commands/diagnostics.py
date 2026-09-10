@@ -140,11 +140,14 @@ def register(app: typer.Typer) -> None:
     def scan(
         json_out: bool = JsonOption,
         output: Path | None = typer.Option(None, "-o", "--output", help="Write report to file."),
-        fmt: str = typer.Option("json", "--format", help="json|markdown|junit|html|sarif"),
+        fmt: str = typer.Option(
+            "json", "--format", help="json|markdown|junit|html|sarif|cyclonedx"
+        ),
         policy_path: Path | None = PolicyOption,
     ) -> None:
         """Run a scan and emit a report artifact (default format: json)."""
         from devrepro.cli.pipeline import run_scan
+        from devrepro.compliance.envbom import render_environment_bom
         from devrepro.reports.renderers import (
             render_html,
             render_json,
@@ -160,11 +163,14 @@ def register(app: typer.Typer) -> None:
             "junit": lambda: render_junit(report),
             "html": lambda: render_html(report),
             "sarif": lambda: render_sarif(report),
+            # The environment BOM: the toolchain a build ran on, not the
+            # dependencies it links against.
+            "cyclonedx": lambda: render_environment_bom(report),
         }
         renderer = renderers.get(fmt)
         if renderer is None:
             typer.secho(
-                f"unknown format {fmt!r}; choose json|markdown|junit|html|sarif",
+                f"unknown format {fmt!r}; choose json|markdown|junit|html|sarif|cyclonedx",
                 fg=typer.colors.RED,
                 err=True,
             )

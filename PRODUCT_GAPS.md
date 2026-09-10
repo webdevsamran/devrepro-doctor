@@ -65,4 +65,7 @@ planned behind the same `ServerDB` call sites.
   a colour below the contrast threshold, a scroll container no keyboard can
   reach and a layout that overflows at 390px all passed them; each of those was
   real and each was found the day the browser suite was added.
+- An environment bill of materials in CycloneDX: the toolchain a build ran on,
+  not the dependencies it links against, with executable paths deliberately
+  absent so the file can be handed to an auditor outside the company.
 - Remediation plans with risk, rollback and dry-run transactions — never one-click magic.

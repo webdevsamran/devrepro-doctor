@@ -18,10 +18,21 @@ def register(app: typer.Typer) -> None:
         input_file: Path = typer.Argument(
             ..., exists=True, readable=True, help="A saved JSON scan report."
         ),
-        fmt: str = typer.Option("markdown", "--format", help="markdown|junit|html|json|sarif"),
+        fmt: str = typer.Option(
+            "markdown",
+            "--format",
+            help="markdown|junit|html|json|sarif|cyclonedx",
+        ),
         output: Path | None = typer.Option(None, "-o", "--output"),
     ) -> None:
-        """Re-render a saved JSON report into another format."""
+        """Re-render a saved JSON report into another format.
+
+        `cyclonedx` emits a bill of materials for the *environment* -- the
+        toolchain a build ran on, not the dependencies it links against.
+        Every SBOM tool answers the second question and none answers the
+        first, which is the one a reproducibility argument turns on.
+        """
+        from devrepro.compliance.envbom import render_environment_bom
         from devrepro.core.models import ScanReport
         from devrepro.reports.renderers import (
             render_html,
@@ -38,6 +49,7 @@ def register(app: typer.Typer) -> None:
             "html": render_html,
             "json": render_json,
             "sarif": render_sarif,
+            "cyclonedx": render_environment_bom,
         }
         renderer = renderers.get(fmt)
         if renderer is None:

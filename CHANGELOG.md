@@ -9,6 +9,38 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - a CycloneDX bill of materials for the environment
+
+- `devrepro scan --format cyclonedx` (and `report --format cyclonedx`) emits a
+  BOM describing the *toolchain a build ran on*, not the dependencies it links
+  against. Every SBOM tool answers the second question; none answers the first,
+  and the first is what turns a reproducible build into an unreproducible one.
+  Two machines with byte-identical lockfiles diverge on glibc 2.17 vs 2.39, and
+  a dependency SBOM records neither.
+- CycloneDX 1.6 rather than a bespoke format, because an evidence file nobody's
+  tooling can read is not evidence. The Cyber Resilience Act's SBOM obligations
+  arrive in December 2027.
+- **Paths never appear.** An executable path names a user's home directory on
+  every platform, and a BOM is an artefact people attach to compliance tickets
+  and hand to auditors outside their company. The provenance is kept instead --
+  installed by the OS package manager, by rustup, by a version manager -- and
+  the document says in its own metadata why the path is absent, so someone
+  looking for it finds the reason rather than a gap. The host is called `host`
+  for the same reason: a hostname is frequently a person's name.
+- One component per tool, not per resolved path. Three Pythons on PATH is a
+  fact about PATH; the count is kept as a property, because "there were three
+  and this is the one that won" is what a reproducibility argument turns on.
+- Deterministic, serial number included. A random UUID would be conventional
+  and would make every regeneration a diff, which defeats an artefact whose
+  purpose is being compared -- across machines, or across time.
+- The provenance table's first draft invented its own vocabulary
+  (`system-package-manager`, `version-manager`), none of which the toolchain
+  probe emits, so every component described itself as "provenance could not be
+  determined" while the report beside it knew perfectly well. A test now holds
+  the table against the probe's own marker list.
+- `docs/ENVIRONMENT-BOM.md` explains the format, and what is deliberately left
+  out of it.
+
 ### Added - `generate agents-md`: a manifest that starts out agreeing with CI
 
 - Every `AGENTS.md` this project has examined drifts from the workflow that
