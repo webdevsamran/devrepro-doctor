@@ -5,10 +5,11 @@
  */
 import { useState } from 'react'
 import {
-  loadContainersWsl, loadDriftTimeline, loadGeneratedEnv, loadGpuAi,
+  loadDriftTimeline, loadGeneratedEnv, loadGpuAi,
   loadPlugins, loadShellStartup, useAsync2, type WithDemo,
 } from '../api/console'
-import { Card, EmptyState } from '../components/ui'
+import { Badge, Card, EmptyState } from '../components/ui'
+import type { ScanReport } from '../types'
 
 function Page({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -98,43 +99,240 @@ export function ShellStartupPage() {
 }
 
 /* --------------------------------------------------- Containers / WSL --- */
-export function ContainersWslPage() {
+/** Human-readable bytes, in the decimal units docker itself prints. */
+function bytes(value: number | null | undefined): string {
+  if (value === null || value === undefined) return '—'
+  const units = ['B', 'kB', 'MB', 'GB', 'TB']
+  let n = value
+  let i = 0
+  while (n >= 1000 && i < units.length - 1) {
+    n /= 1000
+    i += 1
+  }
+  return `${n.toFixed(i === 0 ? 0 : 1)} ${units[i]}`
+}
+
+/** The engine's own name for itself, expanded into something readable. */
+const BACKEND_LABELS: Record<string, string> = {
+  'docker-desktop': 'Docker Desktop',
+  colima: 'Colima',
+  'rancher-desktop': 'Rancher Desktop',
+  orbstack: 'OrbStack',
+  podman: 'Podman',
+  lima: 'Lima',
+  minikube: 'minikube',
+  native: 'native daemon',
+}
+
+function Row({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) {
+  return (
+    <div className="kv-row">
+      {/* The hint sits under the value, not beside the label: wedged into the
+          label column it pushed the value into a strip too narrow to hold a
+          version string without breaking it across three lines. */}
+      <dt className="kv-key">{label}</dt>
+      <dd className="kv-value">
+        <span>{value}</span>
+        {hint && <span className="kv-hint">{hint}</span>}
+      </dd>
+    </div>
+  )
+}
+
+/**
+ * Containers & WSL, from the scan report.
+ *
+ * This view ran on a demo fixture unconditionally: it fetched
+ * `/api/containers-wsl`, an endpoint the server does not implement, and fell
+ * back to invented values on every load. A diagnostics tool showing a
+ * plausible green container panel that describes nobody's machine is worse
+ * than showing nothing, so it now reads the report the console already has.
+ *
+ * The interesting fields are new. Daemon health was all a report carried, and
+ * "is the daemon up" is the one container question that answers itself the
+ * moment you try to use it. Which *engine* is answering, whether it is
+ * emulating another architecture, and how much of the disk is reclaimable are
+ * the ones that cost an afternoon.
+ */
+export function ContainersWslPage({ report }: { report: ScanReport }) {
+  const c = report.containers
+  const wsl = report.wsl
+  const emulated =
+    c?.server_arch && report.platform.arch
+      ? normaliseArch(c.server_arch) !== normaliseArch(report.platform.arch)
+      : false
+
   return (
     <Page title="Containers & WSL">
-      <AsyncDemo fn={loadContainersWsl} render={(d) => (
-        <>
-          <div className="grid grid-3">
-            <Card title="Docker">
-              {d.docker.error
-                ? <span className="sev sev-blocker">unavailable</span>
-                : <><code>{d.docker.server_version ?? '?'}</code> server</>}
-              <ul>
-                <li>Compose: {d.docker.compose ? 'yes' : 'no'}</li>
-                <li>BuildKit: {d.docker.buildkit ? 'enabled' : 'disabled'}</li>
-                {(d.docker.contexts ?? []).map((c) => <li key={c}>context: {c}</li>)}
-              </ul>
-            </Card>
-            <Card title="Podman">
-              {d.podman?.version
-                ? <ul><li><code>{d.podman.version}</code></li><li>docker-compat: {d.podman.docker_compatible ? 'yes' : 'no'}</li></ul>
-                : <EmptyState what="Podman installation" />}
-            </Card>
-            <Card title="WSL">
-              {d.wsl.available ? (
+      {!c ? (
+        <EmptyState
+          what="container state"
+          hint="This report predates container capture. Re-run `devrepro scan`."
+        />
+      ) : (
+        <div className="grid grid-pair">
+          <Card
+            title="Container engine"
+            hint={
+              c.backend
+                ? (BACKEND_LABELS[c.backend] ?? c.backend)
+                : 'engine not identified'
+            }
+          >
+            <dl className="kv">
+              <Row
+                label="Daemon"
+                value={
+                  c.docker_daemon_ok ? (
+                    <Badge state="PASS" />
+                  ) : (
+                    <Badge state={c.docker_cli_version ? 'BLOCKED' : 'INFO'} />
+                  )
+                }
+              />
+              <Row label="CLI" value={<code>{c.docker_cli_version ?? '—'}</code>} />
+              <Row label="Server" value={<code>{c.server_version ?? '—'}</code>} />
+              <Row
+                label="Context"
+                value={
+                  <>
+                    <code>{c.context_name ?? '—'}</code>
+                    {c.endpoint_kind && <span className="tiny subtle"> via {c.endpoint_kind}</span>}
+                  </>
+                }
+                hint="socket path is never collected"
+              />
+              <Row label="Compose" value={<code>{c.compose_version ?? '—'}</code>} />
+              <Row label="buildx" value={<code>{c.buildx_version ?? 'unavailable'}</code>} />
+            </dl>
+          </Card>
+
+          <Card title="Engine configuration">
+            <dl className="kv">
+              <Row
+                label="Architecture"
+                value={
+                  <>
+                    <code>{c.server_arch ?? '—'}</code>
+                    {emulated && (
+                      <span className="pill pill-critical" title="Builds run under emulation">
+                        emulated
+                      </span>
+                    )}
+                  </>
+                }
+              />
+              <Row
+                label="cgroups"
+                value={
+                  <>
+                    <code>{c.cgroup_version ? `v${c.cgroup_version}` : '—'}</code>
+                    {c.cgroup_driver && <span className="tiny subtle"> {c.cgroup_driver}</span>}
+                  </>
+                }
+              />
+              <Row label="Storage driver" value={<code>{c.storage_driver ?? '—'}</code>} />
+              <Row label="Rootless" value={c.rootless === null || c.rootless === undefined ? '—' : String(c.rootless)} />
+              <Row
+                label="Engine resources"
+                value={
+                  c.engine_cpus || c.engine_memory_bytes
+                    ? `${c.engine_cpus ?? '?'} CPU · ${bytes(c.engine_memory_bytes)}`
+                    : '—'
+                }
+                hint="what the VM was given, not the host"
+              />
+            </dl>
+          </Card>
+
+          <Card title="Disk" hint="reported by the daemon; nothing is pruned">
+            <dl className="kv">
+              <Row label="Reclaimable" value={bytes(c.reclaimable_bytes)} />
+              <Row label="Dangling images" value={c.dangling_images ?? '—'} />
+              <Row label="Unused volumes" value={c.unused_volumes ?? '—'} />
+            </dl>
+            {c.reclaimable_bytes ? (
+              <p className="tiny muted mb-0">
+                <code>docker system prune -a --volumes</code> reclaims it. This console never
+                runs it — pruning deletes data.
+              </p>
+            ) : null}
+          </Card>
+
+          <Card title="Other engines & WSL">
+            {c.other_runtimes && c.other_runtimes.length > 0 ? (
+              <>
+                <p className="small mb-0">Also installed:</p>
                 <ul>
-                  {d.wsl.kernel && <li>kernel: <code>{d.wsl.kernel}</code></li>}
-                  {d.wsl.distros.map((x) => (
-                    <li key={x.name}>{x.name} — {x.state}, WSL{x.version}</li>
+                  {c.other_runtimes.map((name) => (
+                    <li key={name}>{name}</li>
                   ))}
                 </ul>
-              ) : <EmptyState what="WSL distributions" />}
-            </Card>
-          </div>
-          <Card title="Guidance"><ul>{d.guidance.map((g) => <li key={g}>{g}</li>)}</ul></Card>
-        </>
-      )} />
+                {c.other_runtimes.length > 1 && (
+                  <p className="tiny muted">
+                    More than one engine makes <code>docker context</code> load-bearing: a
+                    context pointing at a stopped VM fails exactly like no daemon at all.
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="small muted">No alternative container engine on PATH.</p>
+            )}
+
+            <h4 className="mt-4">WSL</h4>
+            {wsl?.available ? (
+              <dl className="kv">
+                <Row label="Version" value={<code>{wsl.version ?? '—'}</code>} />
+                <Row label="Default" value={<code>{wsl.default_distro ?? '—'}</code>} />
+                <Row label="Distros" value={(wsl.distros ?? []).join(', ') || '—'} />
+                <Row
+                  label="Interop"
+                  value={
+                    wsl.interop_enabled === null || wsl.interop_enabled === undefined
+                      ? '—'
+                      : String(wsl.interop_enabled)
+                  }
+                />
+              </dl>
+            ) : (
+              <p className="small muted">WSL is not available on this machine.</p>
+            )}
+          </Card>
+        </div>
+      )}
+
+      <Card title="Findings">
+        {report.findings.filter((f) => f.rule_id.startsWith('containers/')).length === 0 ? (
+          <p className="small muted mb-0">No container findings in this report.</p>
+        ) : (
+          <ul className="reset">
+            {report.findings
+              .filter((f) => f.rule_id.startsWith('containers/'))
+              .map((f, i) => (
+                <li key={`${f.rule_id}::${i}`} className="row mb-0">
+                  <Badge state={f.state} />
+                  <code>{f.rule_id}</code>
+                  <span className="small">{f.summary}</span>
+                </li>
+              ))}
+          </ul>
+        )}
+      </Card>
     </Page>
   )
+}
+
+const ARCH_ALIASES: Record<string, string> = {
+  amd64: 'x86_64',
+  x86_64: 'x86_64',
+  x64: 'x86_64',
+  arm64: 'aarch64',
+  aarch64: 'aarch64',
+}
+
+/** Python reports `AMD64`, docker reports `x86_64`; compare them normalised. */
+function normaliseArch(arch: string): string {
+  return ARCH_ALIASES[arch.toLowerCase()] ?? arch.toLowerCase()
 }
 
 /* -------------------------------------------------------- GPU/AI stack -- */

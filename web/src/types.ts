@@ -75,6 +75,60 @@ export function scorePercent(score: Score): number {
   return Math.round((100 * score.total) / score.possible * 10) / 10
 }
 
+/**
+ * What is behind `docker`, and its configuration.
+ *
+ * Mirrors `ContainerState` in `devrepro/core/models.py`. The daemon endpoint is
+ * deliberately absent on the Python side too -- a Colima socket path contains
+ * the username, so only its scheme (`endpoint_kind`) crosses into a snapshot.
+ */
+export interface ContainerState {
+  docker_cli_version?: string | null
+  docker_daemon_ok: boolean
+  podman_version?: string | null
+  compose_version?: string | null
+  kubectl_version?: string | null
+  errors?: string[]
+  backend?: string | null
+  endpoint_kind?: string | null
+  context_name?: string | null
+  server_version?: string | null
+  server_os?: string | null
+  server_arch?: string | null
+  storage_driver?: string | null
+  cgroup_version?: string | null
+  cgroup_driver?: string | null
+  rootless?: boolean | null
+  engine_cpus?: number | null
+  engine_memory_bytes?: number | null
+  buildx_version?: string | null
+  reclaimable_bytes?: number | null
+  dangling_images?: number | null
+  unused_volumes?: number | null
+  other_runtimes?: string[]
+}
+
+export interface WslState {
+  available: boolean
+  version?: string | null
+  distros?: string[]
+  default_distro?: string | null
+  interop_enabled?: boolean | null
+  errors?: string[]
+}
+
+export interface GpuStack {
+  nvidia_driver?: string | null
+  cuda_toolkit?: string | null
+  rocm?: string | null
+  oneapi?: string | null
+  directml?: boolean
+  vulkan?: string | null
+  metal?: string | null
+  wsl_gpu_passthrough?: boolean | null
+  notes?: string[]
+}
+
 export interface ScanReport {
   schema_version: string
   devrepro_version: string
@@ -87,6 +141,12 @@ export interface ScanReport {
   score?: Score
   probe_errors: string[]
   privacy: Record<string, unknown>
+  // Carried since the scan pipeline stopped discarding them. The console had
+  // no way to show container state at all while these were absent, which is
+  // why the Containers view ran on demo fixtures.
+  containers?: ContainerState | null
+  wsl?: WslState | null
+  gpu?: GpuStack | null
 }
 
 export interface DiffEntry {

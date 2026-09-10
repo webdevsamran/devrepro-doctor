@@ -51,6 +51,7 @@ export const REPORT_PAGES: Record<string, ReportPage> = {
   rules: reportPage(core, 'RulesPage'),
   remediation: reportPage(core, 'RemediationPage'),
   about: reportPage(core, 'AboutPage'),
+  containers: reportPage(platform, 'ContainersWslPage'),
 }
 
 /** Views that fetch their own data or need none. */
@@ -68,7 +69,6 @@ export const PLAIN_PAGES: Record<string, PlainPage> = {
   network: plainPage(environment, 'NetworkTlsPage'),
   fleet: plainPage(environment, 'FleetDashboardPage'),
 
-  containers: plainPage(platform, 'ContainersWslPage'),
   gpustack: plainPage(platform, 'GpuAiStackPage'),
   shellstartup: plainPage(platform, 'ShellStartupPage'),
   drifttimeline: plainPage(platform, 'DriftTimelinePage'),

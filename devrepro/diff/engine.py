@@ -48,6 +48,70 @@ def _compare_optional(
     )
 
 
+#: Container-engine facts worth reporting when two snapshots disagree, with the
+#: reason the difference matters. `project_critical` is reserved for the ones
+#: that change whether a build *works* rather than how fast it runs -- a
+#: different engine and a different architecture change behaviour; a version
+#: number usually does not.
+_CONTAINER_AXES: tuple[tuple[str, str, str, str, bool], ...] = (
+    (
+        "engine-backend",
+        "backend",
+        "backend",
+        "A different container engine is behind `docker`. Bind-mount behaviour, "
+        "file-sharing performance and available host paths all differ between them.",
+        True,
+    ),
+    (
+        "engine-arch",
+        "server_arch",
+        "server_arch",
+        "The engines run different architectures; one of these is emulating, which "
+        "is correct and roughly ten times slower.",
+        True,
+    ),
+    (
+        "cgroup-version",
+        "cgroup_version",
+        "cgroup_version",
+        "cgroup versions differ. Memory and CPU limits behave differently, so a "
+        "container that is OOM-killed on one machine can pass on the other.",
+        True,
+    ),
+    (
+        "storage-driver",
+        "storage_driver",
+        "storage_driver",
+        "Storage drivers differ. Layer caching and build times differ with them, and "
+        "some drivers are removed in current engines.",
+        False,
+    ),
+    (
+        "engine-version",
+        "server_version",
+        "server_version",
+        "Container engine versions differ.",
+        False,
+    ),
+    (
+        "buildx-version",
+        "buildx_version",
+        "buildx_version",
+        "buildx versions differ. Multi-platform builds, build secrets and cache "
+        "mounts depend on it.",
+        False,
+    ),
+    (
+        "rootless",
+        "rootless",
+        "rootless",
+        "One engine runs rootless and the other does not. Port binding below 1024, "
+        "file ownership in bind mounts and some network modes differ.",
+        True,
+    ),
+)
+
+
 def diff_snapshots(a: Snapshot, b: Snapshot) -> EnvironmentDiff:
     if a.schema_version != b.schema_version:
         raise DiffError(
@@ -198,6 +262,32 @@ def diff_snapshots(a: Snapshot, b: Snapshot) -> EnvironmentDiff:
                 project_critical=True,
             )
         )
+
+    # Daemon health was the only container fact a diff could report, which made
+    # "Docker works there but not here" answerable only when one side was
+    # actually down. The engine's identity and configuration are what differ
+    # when both are up and the build still behaves differently.
+    if a.containers and b.containers:
+        for name, a_raw, b_raw, detail, critical in _CONTAINER_AXES:
+            va = getattr(a.containers, a_raw)
+            vb = getattr(b.containers, b_raw)
+            if va == vb or (va is None and vb is None):
+                continue
+            entries.append(
+                DiffEntry(
+                    component="container",
+                    name=name,
+                    classification=(
+                        DiffClassification.PROJECT_CRITICAL
+                        if critical
+                        else DiffClassification.VERSION_DRIFT
+                    ),
+                    a_value=str(va) if va is not None else None,
+                    b_value=str(vb) if vb is not None else None,
+                    detail=detail,
+                    project_critical=critical,
+                )
+            )
 
     # Docker CLI version drift is not build-breaking on its own, but it is the
     # first thing anyone asks about when an image builds on one machine only.

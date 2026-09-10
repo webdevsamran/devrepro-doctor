@@ -47,6 +47,12 @@ planned behind the same `ServerDB` call sites.
   filename, symlink-privilege and locale diagnostics -- all read-only, including
   case sensitivity, which is normally detected by writing two files.
 - Explainable PATH precedence ("why does this executable win?").
+- Container-engine identity and configuration: which of Docker Desktop, Colima,
+  Rancher Desktop, OrbStack, Podman or a native daemon is behind `docker`,
+  whether it is emulating another architecture, its cgroup version and storage
+  driver, and how much of its disk is reclaimable -- read without creating,
+  pruning or removing anything, and with the socket path classified rather than
+  collected.
 - Privacy-sanitized snapshots with field classification and secret-scan gates.
 - Semantic machine-to-machine diff with project-critical classification.
 - Local-vs-CI toolchain comparison.

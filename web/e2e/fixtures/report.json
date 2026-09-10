@@ -1,0 +1,552 @@
+{
+  "schema_version": "1.0",
+  "created_at": "2026-01-01T00:00:00Z",
+  "devrepro_version": "0.0.0-fixture",
+  "platform": {
+    "os_name": "Linux",
+    "os_version": "6.8.0",
+    "arch": "x86_64"
+  },
+  "findings": [
+    {
+      "rule_id": "lockfiles/format-supported",
+      "state": "PASS",
+      "summary": "npm 11.17.0 can use web/package-lock.json (format 3).",
+      "evidence": [
+        {
+          "source": "file",
+          "command": null,
+          "path": "web/package-lock.json",
+          "excerpt": "npm 7 or newer -- the legacy dependency tree is absent, so npm 6 rewrites the file",
+          "redacted": true
+        }
+      ],
+      "detected": "11.17.0",
+      "required": ">=7",
+      "component": "npm",
+      "remediation_hint": null,
+      "references": [],
+      "probe_id": null
+    },
+    {
+      "rule_id": "python/version-ok",
+      "state": "PASS",
+      "summary": "python 3.14.7 satisfies >=3.11.",
+      "evidence": [
+        {
+          "source": "command",
+          "command": null,
+          "path": null,
+          "excerpt": "python --version resolved via PATH",
+          "redacted": true
+        }
+      ],
+      "detected": "3.14.7",
+      "required": ">=3.11",
+      "component": "python",
+      "remediation_hint": null,
+      "references": [],
+      "probe_id": null
+    },
+    {
+      "rule_id": "system/os-detected",
+      "state": "INFO",
+      "summary": "OS: Windows 11 (AMD64)",
+      "evidence": [
+        {
+          "source": "system",
+          "command": null,
+          "path": null,
+          "excerpt": "Windows 11 AMD64",
+          "redacted": true
+        }
+      ],
+      "detected": "Windows 11",
+      "required": null,
+      "component": "os",
+      "remediation_hint": null,
+      "references": [],
+      "probe_id": "system/os"
+    },
+    {
+      "rule_id": "system/resources",
+      "state": "INFO",
+      "summary": "Resources: cpu_count=20; disk_free_gb=60.7",
+      "evidence": [
+        {
+          "source": "system",
+          "command": null,
+          "path": null,
+          "excerpt": "cpu_count=20; disk_free_gb=60.7",
+          "redacted": true
+        }
+      ],
+      "detected": null,
+      "required": null,
+      "component": "hardware",
+      "remediation_hint": null,
+      "references": [],
+      "probe_id": "system/resources"
+    },
+    {
+      "rule_id": "system/shell",
+      "state": "INFO",
+      "summary": "Shell: powershell",
+      "evidence": [
+        {
+          "source": "env",
+          "command": null,
+          "path": null,
+          "excerpt": "SHELL=powershell",
+          "redacted": true
+        }
+      ],
+      "detected": "powershell",
+      "required": null,
+      "component": "shell",
+      "remediation_hint": null,
+      "references": [],
+      "probe_id": "system/shell"
+    },
+    {
+      "rule_id": "path/duplicates",
+      "state": "WARN",
+      "summary": "7 duplicate PATH entries detected.",
+      "evidence": [
+        {
+          "source": "env",
+          "command": null,
+          "path": null,
+          "excerpt": "PATH duplicate entries detected",
+          "redacted": true
+        }
+      ],
+      "detected": "C:\\Program Files\\Git\\usr\\bin, C:\\Program Files\\Git\\mingw64\\bin, C:\\Program Files\\Git\\usr\\bin, C:\\Users\\<user>\\bin, C:\\Program Files\\nodejs",
+      "required": null,
+      "component": "path",
+      "remediation_hint": "Remove later duplicate entries from user/system PATH (SAFE: removing redundant duplicates does not change resolution).",
+      "references": [],
+      "probe_id": "path/entries"
+    },
+    {
+      "rule_id": "path/dead-entries",
+      "state": "WARN",
+      "summary": "7 PATH entries point to directories that do not exist.",
+      "evidence": [
+        {
+          "source": "env",
+          "command": null,
+          "path": null,
+          "excerpt": "PATH entries pointing to missing directories",
+          "redacted": true
+        }
+      ],
+      "detected": "C:\\Users\\<user>\\bin, C:\\Program Files\\Git\\usr\\local\\bin, C:\\Users\\<user>\\bin, C:\\Users\\<user>\\AppData\\Local\\Programs\\Jan\\resources\\bin, C:\\Users\\<user>\\go\\bin",
+      "required": null,
+      "component": "path",
+      "remediation_hint": "Dead PATH entries slow every process start; remove them (LOW risk).",
+      "references": [],
+      "probe_id": "path/entries"
+    },
+    {
+      "rule_id": "path/store-aliases",
+      "state": "INFO",
+      "summary": "Windows Store app-execution aliases are on PATH; they can shadow real installs.",
+      "evidence": [
+        {
+          "source": "env",
+          "command": null,
+          "path": null,
+          "excerpt": "WindowsApps alias directory on PATH",
+          "redacted": true
+        }
+      ],
+      "detected": "C:\\Users\\<user>\\AppData\\Local\\Microsoft\\WindowsApps",
+      "required": null,
+      "component": "path",
+      "remediation_hint": null,
+      "references": [],
+      "probe_id": "path/entries"
+    },
+    {
+      "rule_id": "env/credential-names-present",
+      "state": "INFO",
+      "summary": "1 credential-like variable names exist in this session (names only; values are never read or reported).",
+      "evidence": [
+        {
+          "source": "env",
+          "command": null,
+          "path": null,
+          "excerpt": "name-pattern scan only",
+          "redacted": true
+        }
+      ],
+      "detected": null,
+      "required": null,
+      "component": "environment",
+      "remediation_hint": null,
+      "references": [],
+      "probe_id": "env/names"
+    },
+    {
+      "rule_id": "bun/multiple-installations",
+      "state": "WARN",
+      "summary": "2 installations of 'bun' found with differing versions: 1.3.14, ?",
+      "evidence": [
+        {
+          "source": "command",
+          "command": [
+            "where.exe",
+            "<tool>"
+          ],
+          "path": null,
+          "excerpt": "multiple installations resolved across PATH",
+          "redacted": true
+        }
+      ],
+      "detected": "1.3.14, ?",
+      "required": null,
+      "component": "bun",
+      "remediation_hint": "Keep the installation your shell actually resolves first; remove or de-prefer the rest (plan available via `devrepro plan`).",
+      "references": [],
+      "probe_id": "toolchain/detect"
+    },
+    {
+      "rule_id": "docker/multiple-installations",
+      "state": "WARN",
+      "summary": "2 installations of 'docker' found with differing versions: 29.7.2, ?",
+      "evidence": [
+        {
+          "source": "command",
+          "command": [
+            "where.exe",
+            "<tool>"
+          ],
+          "path": null,
+          "excerpt": "multiple installations resolved across PATH",
+          "redacted": true
+        }
+      ],
+      "detected": "29.7.2, ?",
+      "required": null,
+      "component": "docker",
+      "remediation_hint": "Keep the installation your shell actually resolves first; remove or de-prefer the rest (plan available via `devrepro plan`).",
+      "references": [],
+      "probe_id": "toolchain/detect"
+    },
+    {
+      "rule_id": "git/multiple-installations",
+      "state": "INFO",
+      "summary": "2 installations of 'git' found",
+      "evidence": [
+        {
+          "source": "command",
+          "command": [
+            "where.exe",
+            "<tool>"
+          ],
+          "path": null,
+          "excerpt": "multiple installations resolved across PATH",
+          "redacted": true
+        }
+      ],
+      "detected": "2.55.0.windows.5",
+      "required": null,
+      "component": "git",
+      "remediation_hint": "Keep the installation your shell actually resolves first; remove or de-prefer the rest (plan available via `devrepro plan`).",
+      "references": [],
+      "probe_id": "toolchain/detect"
+    }
+  ],
+  "tools": [
+    {
+      "name": "python",
+      "version": "3.12.4",
+      "exe_path": "/usr/bin/python",
+      "install_source": "system",
+      "is_active": true,
+      "precedence": null
+    },
+    {
+      "name": "node",
+      "version": "22.4.0",
+      "exe_path": "/usr/bin/node",
+      "install_source": "system",
+      "is_active": true,
+      "precedence": null
+    },
+    {
+      "name": "npm",
+      "version": "10.8.1",
+      "exe_path": "/usr/bin/npm",
+      "install_source": "system",
+      "is_active": true,
+      "precedence": null
+    },
+    {
+      "name": "git",
+      "version": "2.45.2",
+      "exe_path": "/usr/bin/git",
+      "install_source": "system",
+      "is_active": true,
+      "precedence": null
+    },
+    {
+      "name": "docker",
+      "version": "27.1.1",
+      "exe_path": "/usr/bin/docker",
+      "install_source": "system",
+      "is_active": true,
+      "precedence": null
+    },
+    {
+      "name": "go",
+      "version": "1.22.5",
+      "exe_path": "/usr/bin/go",
+      "install_source": "system",
+      "is_active": true,
+      "precedence": null
+    },
+    {
+      "name": "cargo",
+      "version": "1.79.0",
+      "exe_path": "/usr/bin/cargo",
+      "install_source": "system",
+      "is_active": true,
+      "precedence": null
+    },
+    {
+      "name": "uv",
+      "version": "0.2.30",
+      "exe_path": "/usr/bin/uv",
+      "install_source": "system",
+      "is_active": true,
+      "precedence": null
+    }
+  ],
+  "path_analysis": {
+    "entries": [
+      {
+        "raw": "/usr/local/bin",
+        "normalized": "/usr/local/bin",
+        "exists": true,
+        "origin": "system",
+        "index": 0
+      },
+      {
+        "raw": "/usr/bin",
+        "normalized": "/usr/bin",
+        "exists": true,
+        "origin": "system",
+        "index": 1
+      },
+      {
+        "raw": "/bin",
+        "normalized": "/bin",
+        "exists": true,
+        "origin": "system",
+        "index": 2
+      },
+      {
+        "raw": "/usr/local/go/bin",
+        "normalized": "/usr/local/go/bin",
+        "exists": true,
+        "origin": "system",
+        "index": 3
+      }
+    ],
+    "duplicates": [],
+    "dead_entries": [
+      "/opt/missing/bin"
+    ],
+    "shadowed_executables": [],
+    "store_aliases": [
+      "C:\\Users\\<user>\\AppData\\Local\\Microsoft\\WindowsApps"
+    ],
+    "tool_manager_interference": [],
+    "profile_inconsistencies": []
+  },
+  "requirements": [
+    {
+      "ecosystem": "python",
+      "name": "python",
+      "spec": ">=3.11",
+      "kind": "runtime",
+      "source_file": "D:\\OpenSourceProjects\\DevRepro Doctor\\pyproject.toml",
+      "optional": false,
+      "note": null
+    },
+    {
+      "ecosystem": "python",
+      "name": "typer",
+      "spec": ">=0.12,<1.0",
+      "kind": "runtime",
+      "source_file": "D:\\OpenSourceProjects\\DevRepro Doctor\\pyproject.toml",
+      "optional": false,
+      "note": null
+    },
+    {
+      "ecosystem": "python",
+      "name": "rich",
+      "spec": ">=13.7,<16.0",
+      "kind": "runtime",
+      "source_file": "D:\\OpenSourceProjects\\DevRepro Doctor\\pyproject.toml",
+      "optional": false,
+      "note": null
+    },
+    {
+      "ecosystem": "python",
+      "name": "pydantic",
+      "spec": ">=2.6,<3.0",
+      "kind": "runtime",
+      "source_file": "D:\\OpenSourceProjects\\DevRepro Doctor\\pyproject.toml",
+      "optional": false,
+      "note": null
+    },
+    {
+      "ecosystem": "python",
+      "name": "tomli",
+      "spec": ">=2.0; python_version < '3.11'",
+      "kind": "runtime",
+      "source_file": "D:\\OpenSourceProjects\\DevRepro Doctor\\pyproject.toml",
+      "optional": false,
+      "note": null
+    },
+    {
+      "ecosystem": "python",
+      "name": "mkdocs-material",
+      "spec": ">=9.7.7,<9.8",
+      "kind": "runtime",
+      "source_file": "D:\\OpenSourceProjects\\DevRepro Doctor\\requirements-docs.txt",
+      "optional": false,
+      "note": null
+    },
+    {
+      "ecosystem": "node",
+      "name": "npm-lock@web",
+      "spec": "*",
+      "kind": "tool",
+      "source_file": "D:\\OpenSourceProjects\\DevRepro Doctor\\web\\package-lock.json",
+      "optional": false,
+      "note": "lockfile present"
+    },
+    {
+      "ecosystem": "python",
+      "name": "ci:python",
+      "spec": "[\"3.11\",",
+      "kind": "runtime",
+      "source_file": "D:\\OpenSourceProjects\\DevRepro Doctor\\.github\\workflows\\ci.yml",
+      "optional": false,
+      "note": null
+    }
+  ],
+  "policy_applied": false,
+  "score": {
+    "total": 4,
+    "possible": 9,
+    "points": [
+      {
+        "criterion": "declared-runtime-versions",
+        "earned": 2,
+        "possible": 2,
+        "explanation": "11 runtime version requirement(s) declared in manifests"
+      },
+      {
+        "criterion": "dependency-lock-coverage",
+        "earned": 1,
+        "possible": 2,
+        "explanation": "Lockfiles found: npm-lock@web. Lockfiles pin exact dependency trees."
+      },
+      {
+        "criterion": "compiler-runtime-determinism",
+        "earned": 0,
+        "possible": 1,
+        "explanation": "No .nvmrc/.tool-versions/rust-toolchain/global.json style pins; contributors may get different compiler/runtime versions."
+      },
+      {
+        "criterion": "container-devcontainer-definitions",
+        "earned": 0,
+        "possible": 2,
+        "explanation": "No devcontainer definition; consider adding .devcontainer/devcontainer.json."
+      },
+      {
+        "criterion": "tool-manager-files",
+        "earned": 0,
+        "possible": 1,
+        "explanation": "No tool-manager files committed (.tool-versions, mise.toml, ...)."
+      },
+      {
+        "criterion": "ci-parity",
+        "earned": 1,
+        "possible": 1,
+        "explanation": "CI workflows declare runtimes (ci:python, ci:node, ci:node, ci:python, ci:python)"
+      }
+    ]
+  },
+  "probe_errors": [],
+  "containers": {
+    "docker_cli_version": "27.1.1",
+    "docker_daemon_ok": true,
+    "podman_version": null,
+    "compose_version": "2.29.1",
+    "kubectl_version": "1.31.0",
+    "errors": [],
+    "backend": "native",
+    "endpoint_kind": "unix",
+    "context_name": "default",
+    "server_version": "27.1.1",
+    "server_os": "linux",
+    "server_arch": "x86_64",
+    "storage_driver": "overlay2",
+    "cgroup_version": "2",
+    "cgroup_driver": "systemd",
+    "rootless": false,
+    "engine_cpus": 8,
+    "engine_memory_bytes": 16719380480,
+    "buildx_version": "0.16.0",
+    "reclaimable_bytes": 4200000000,
+    "dangling_images": 3,
+    "unused_volumes": 1,
+    "other_runtimes": []
+  },
+  "wsl": {
+    "available": false,
+    "version": null,
+    "distros": [],
+    "default_distro": null,
+    "interop_enabled": null,
+    "errors": []
+  },
+  "gpu": {
+    "nvidia_driver": null,
+    "cuda_toolkit": null,
+    "rocm": null,
+    "oneapi": null,
+    "directml": false,
+    "vulkan": null,
+    "metal": null,
+    "wsl_gpu_passthrough": null,
+    "notes": []
+  },
+  "privacy": {
+    "redacted": true,
+    "secrets_blocked": true,
+    "collected": [
+      "os/arch/kernel",
+      "cpu/ram/disk totals",
+      "shell name",
+      "PATH entries (normalized)",
+      "tool names/versions/exe paths",
+      "declared project requirements",
+      "container/wsl/gpu state"
+    ],
+    "never_collected": [
+      "usernames",
+      "home directory absolute paths",
+      "tokens/secrets",
+      "file contents beyond manifests",
+      "browser history",
+      "emails"
+    ]
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "_readme": "Recorded `docker info --format '{{json .}}'` payloads, trimmed to the keys this project reads. Real output carries ~80 more keys; keeping only what is parsed makes a diff reviewable and makes it obvious when the parser starts depending on something new.",
+
+  "docker_desktop_macos_arm": {
+    "ServerVersion": "27.4.0",
+    "OSType": "linux",
+    "Architecture": "aarch64",
+    "Driver": "overlayfs",
+    "CgroupVersion": "2",
+    "CgroupDriver": "cgroupfs",
+    "NCPU": 10,
+    "MemTotal": 8232275968,
+    "Name": "docker-desktop",
+    "ContainersRunning": 0,
+    "Images": 34,
+    "SecurityOptions": ["name=seccomp,profile=unconfined", "name=cgroupns"],
+    "Warnings": []
+  },
+
+  "colima_macos_amd64_on_arm": {
+    "ServerVersion": "26.1.3",
+    "OSType": "linux",
+    "Architecture": "x86_64",
+    "Driver": "overlay2",
+    "CgroupVersion": "2",
+    "CgroupDriver": "systemd",
+    "NCPU": 4,
+    "MemTotal": 4116137984,
+    "Name": "colima",
+    "ContainersRunning": 2,
+    "Images": 11,
+    "SecurityOptions": ["name=seccomp,profile=builtin", "name=cgroupns"]
+  },
+
+  "legacy_linux_cgroup_v1_devicemapper": {
+    "ServerVersion": "20.10.24",
+    "OSType": "linux",
+    "Architecture": "x86_64",
+    "Driver": "devicemapper",
+    "CgroupVersion": "1",
+    "CgroupDriver": "cgroupfs",
+    "NCPU": 2,
+    "MemTotal": 2087763968,
+    "Name": "build-agent-07",
+    "ContainersRunning": 0,
+    "Images": 3,
+    "SecurityOptions": ["name=seccomp,profile=default"],
+    "Warnings": [
+      "WARNING: the devicemapper storage-driver is deprecated, and will be removed in a future release.",
+      "WARNING: No swap limit support"
+    ]
+  },
+
+  "rootless_linux": {
+    "ServerVersion": "27.3.1",
+    "OSType": "linux",
+    "Architecture": "x86_64",
+    "Driver": "overlay2",
+    "CgroupVersion": "2",
+    "CgroupDriver": "systemd",
+    "NCPU": 8,
+    "MemTotal": 16719380480,
+    "Name": "workstation",
+    "ContainersRunning": 1,
+    "Images": 52,
+    "SecurityOptions": [
+      "name=seccomp,profile=builtin",
+      "name=rootless",
+      "name=cgroupns"
+    ]
+  },
+
+  "vfs_fallback": {
+    "ServerVersion": "24.0.7",
+    "OSType": "linux",
+    "Architecture": "x86_64",
+    "Driver": "vfs",
+    "CgroupVersion": "2",
+    "NCPU": 2,
+    "MemTotal": 4116137984,
+    "Name": "ci-runner",
+    "SecurityOptions": []
+  },
+
+  "starting_up_partial": {
+    "ServerErrors": ["Cannot connect to the Docker daemon"],
+    "ClientInfo": {"Debug": false}
+  }
+}

@@ -3,6 +3,54 @@
     "ContainerState": {
       "additionalProperties": false,
       "properties": {
+        "backend": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Backend"
+        },
+        "buildx_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Buildx Version"
+        },
+        "cgroup_driver": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cgroup Driver"
+        },
+        "cgroup_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cgroup Version"
+        },
         "compose_version": {
           "anyOf": [
             {
@@ -14,6 +62,30 @@
           ],
           "default": null,
           "title": "Compose Version"
+        },
+        "context_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Context Name"
+        },
+        "dangling_images": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dangling Images"
         },
         "docker_cli_version": {
           "anyOf": [
@@ -31,6 +103,42 @@
           "default": false,
           "title": "Docker Daemon Ok",
           "type": "boolean"
+        },
+        "endpoint_kind": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Endpoint Kind"
+        },
+        "engine_cpus": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Engine Cpus"
+        },
+        "engine_memory_bytes": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Engine Memory Bytes"
         },
         "errors": {
           "default": [],
@@ -52,6 +160,14 @@
           "default": null,
           "title": "Kubectl Version"
         },
+        "other_runtimes": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Other Runtimes",
+          "type": "array"
+        },
         "podman_version": {
           "anyOf": [
             {
@@ -63,6 +179,90 @@
           ],
           "default": null,
           "title": "Podman Version"
+        },
+        "reclaimable_bytes": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reclaimable Bytes"
+        },
+        "rootless": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rootless"
+        },
+        "server_arch": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Server Arch"
+        },
+        "server_os": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Server Os"
+        },
+        "server_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Server Version"
+        },
+        "storage_driver": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Storage Driver"
+        },
+        "unused_volumes": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unused Volumes"
         }
       },
       "title": "ContainerState",

@@ -7,6 +7,12 @@
  */
 import { expect, test } from '@playwright/test'
 
+import { serveReport } from './fixture'
+
+test.beforeEach(async ({ page }) => {
+  await serveReport(page)
+})
+
 test.describe('command palette', () => {
   test('opens on the keyboard shortcut and navigates', async ({ page }) => {
     await page.goto('/#/home')

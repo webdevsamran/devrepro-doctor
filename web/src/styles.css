@@ -744,6 +744,57 @@
   .table tbody tr:last-child :is(td, th) { border-bottom: none; }
   .row-critical { background: var(--sev-error-soft); }
 
+  /* --- key/value lists --- */
+  /*
+     A `dl` rather than a two-column table. These are labelled facts about one
+     thing, which is what a definition list is for, and it means a screen reader
+     announces "Storage driver, overlay2" instead of reading a table header row
+     it has to remember. `grid` on the row keeps the values aligned without the
+     table layout algorithm.
+  */
+  .kv { margin: 0; }
+  .kv-row {
+    display: grid;
+    grid-template-columns: minmax(7rem, 12rem) 1fr;
+    gap: var(--sp-3);
+    padding: 0.3rem 0;
+    border-bottom: 1px solid var(--border);
+    align-items: baseline;
+  }
+  .kv-row:last-child { border-bottom: none; }
+  .kv-key {
+    color: var(--fg-muted);
+    font-size: 0.8125rem;
+    margin: 0;
+  }
+  .kv-hint {
+    display: block;
+    color: var(--fg-subtle);
+    font-size: 0.75rem;
+  }
+  .kv-value {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+  /* Below this the two columns stop being two columns worth having. */
+  @media (max-width: 30rem) {
+    .kv-row { grid-template-columns: 1fr; gap: 0; }
+  }
+
+  /* A list that carries structure for assistive technology and no bullets. */
+  .reset {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+  }
+
   /* --- diff viewer --- */
   .dropzone {
     border: 1.5px dashed var(--border-strong);
@@ -912,7 +963,12 @@
     color: var(--fg-muted);
   }
   .state-icon { font-size: 2rem; opacity: 0.5; margin-bottom: var(--sp-3); }
-  .state-error h2 { color: var(--sev-error); }
+  /* `-ink`, not the fill. `--sev-error` is tuned to read as a colour on a chart
+     and against its own soft tint; on the page background at 18.8px/650 it
+     measures 4.0:1, which is under AA and not large-text either -- large needs
+     bold at that size. This is the most important heading in the app when it
+     appears, and it was the least readable. */
+  .state-error h2 { color: var(--sev-error-ink); }
 
   .spinner {
     width: 1.75rem;
@@ -1051,6 +1107,12 @@
      table stretches its track rather than being contained. */
   .grid > * { min-width: 0; }
   .grid-2 { grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); }
+  /* `.grid-2` is auto-fit, so on a wide screen it is a three- or four-column
+     grid whose name says two. That is right for stat cards and wrong for cards
+     holding label/value pairs, which need room for the value before the label
+     column squeezes a version string into three lines. This one really does
+     hold at two. */
+  .grid-pair { grid-template-columns: repeat(auto-fit, minmax(26rem, 1fr)); }
   .grid-3 { grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); }
   .grid-4 { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
   .row { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }

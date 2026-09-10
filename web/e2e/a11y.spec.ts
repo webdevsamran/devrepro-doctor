@@ -16,6 +16,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
 
 import { ALL_ITEMS } from '../src/nav'
+import { serveReport } from './fixture'
 
 const IMPACT = new Set(['serious', 'critical'])
 
@@ -25,6 +26,12 @@ const IMPACT = new Set(['serious', 'critical'])
 // reduced motion by collapsing every duration to 0.01ms, so this measures the
 // end state rather than sleeping and hoping.
 test.use({ reducedMotion: 'reduce' })
+
+// Same reason as the route suite: without a report every page was the error
+// page, and axe was auditing one screen thirty-two times.
+test.beforeEach(async ({ page }) => {
+  await serveReport(page)
+})
 
 for (const item of ALL_ITEMS) {
   test(`${item.id} has no serious accessibility violations`, async ({ page }) => {

@@ -5,7 +5,7 @@
 > `devrepro explain <rule-id>` prints any one of these.
 > `devrepro rules --catalog` lists them all.
 
-Every finding carries a rule id. There are **103** documented ids.
+Every finding carries a rule id. There are **109** documented ids.
 
 Two shapes exist. Most are written out in full where they are emitted.
 Some are composed at runtime from a tool or ecosystem name:
@@ -16,6 +16,36 @@ than exhaustive. `devrepro explain` resolves any prefix.
 
 ## `containers/`
 
+### `containers/arch-emulated`
+
+**The container engine is emulating another architecture**
+
+*What it means.* The daemon reports a different CPU architecture from the host, so every build and every container runs through qemu.
+
+*Why it matters.* It works, which is why nobody notices. It is also roughly ten times slower, and the usual cause is a base image with no manifest for the host architecture -- so one line in a Dockerfile silently turns a one-minute build into a twenty-minute one.
+
+*How to fix it.* Use a base image that publishes your architecture, or pass `--platform` explicitly so the emulation is a decision rather than a surprise. If the target really is the other architecture, nothing here is wrong.
+
+### `containers/buildkit-unavailable`
+
+**docker buildx is not available**
+
+*What it means.* The daemon answers, but the buildx plugin is absent, so builds fall back to the legacy builder.
+
+*Why it matters.* Multi-platform builds, build secrets, cache mounts and `--mount=type=cache` all require BuildKit. A Dockerfile using any of them fails with a syntax error rather than a message about the builder, which sends people looking in the wrong file.
+
+*How to fix it.* Install the buildx plugin from your package manager, or use a Docker distribution that bundles it. Nothing needs changing if no Dockerfile here uses BuildKit features.
+
+### `containers/cgroup-v1`
+
+**The container engine is using cgroup v1**
+
+*What it means.* Resource limits are enforced through the first-generation cgroup interface rather than the unified hierarchy.
+
+*Why it matters.* Memory accounting differs between the two, so a container that is OOM-killed on a v2 CI runner can pass locally on v1 and the other way round. Swap accounting is often absent entirely under v1, which makes `--memory` mean something different from what the docs say.
+
+*How to fix it.* Enable unified cgroups on the host, or switch it on in Docker Desktop's settings. On a distribution still defaulting to v1, `systemd.unified_cgroup_hierarchy=1` on the kernel command line does it.
+
 ### `containers/devcontainer-required`
 
 **Policy requires a devcontainer definition**
@@ -25,6 +55,16 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* The team decided one-command reproducible environments are the standard here, and this repository does not meet it.
 
 *How to fix it.* Run `devrepro generate devcontainer` for a reviewable draft, then adjust and commit it.
+
+### `containers/disk-reclaimable`
+
+**Container storage holds a large amount of reclaimable space**
+
+*What it means.* The daemon's own accounting says a substantial share of its images, volumes and build cache is unreferenced.
+
+*Why it matters.* Running out of space mid-build produces one of the least informative errors in the ecosystem -- `no space left on device`, from a step that has nothing to do with the cause -- and it usually arrives with tens of gigabytes of dangling layers sitting behind it. Reporting it before it becomes that error is the only useful moment.
+
+*How to fix it.* `docker system prune -a --volumes` reclaims it. This tool does not run it and will not offer to: pruning deletes data, and which data is expendable is not something a diagnostic can know.
 
 ### `containers/docker-daemon-error`
 
@@ -116,6 +156,16 @@ than exhaustive. `devrepro explain` resolves any prefix.
 
 *How to fix it.* Install it, or remove the requirement from the manifest if it is no longer real. Check `devrepro which <tool>` first -- the tool may be installed but shadowed or off PATH in this shell.
 
+### `containers/multiple-runtimes`
+
+**More than one container engine is installed**
+
+*What it means.* Two or more of Docker Desktop, Colima, Rancher Desktop, OrbStack, Podman, Lima and minikube resolve on PATH.
+
+*Why it matters.* This is not a fault -- plenty of people keep Colima beside Docker Desktop deliberately. It is worth knowing because it makes `docker context` load-bearing: a context pointing at a stopped VM produces exactly the error you would get with no daemon at all, and the obvious fix (start Docker Desktop) then changes nothing.
+
+*How to fix it.* `docker context ls` shows which engine `docker` currently talks to, and `docker context use <name>` switches it.
+
 ### `containers/state-unknown`
 
 **Container state could not be determined**
@@ -125,6 +175,16 @@ than exhaustive. `devrepro explain` resolves any prefix.
 *Why it matters.* Reported as unknown rather than healthy. A diagnostic that guesses is worse than one that admits the gap.
 
 *How to fix it.* Run `docker info` by hand to see what it says.
+
+### `containers/storage-driver-legacy`
+
+**The storage driver is deprecated, removed, or has no copy-on-write**
+
+*What it means.* The daemon is using a storage driver that current engines no longer recommend or no longer ship.
+
+*Why it matters.* `aufs` and `devicemapper` are removed in recent Docker releases, so an upgrade will stop the daemon starting. `vfs` is the one that surprises people: it is correct, it is what you get when nothing else is available, and it copies the entire filesystem for every layer.
+
+*How to fix it.* Move to overlay2. Changing the storage driver discards existing images and containers, so do it when you can afford to rebuild rather than in the middle of something.
 
 ### `containers/version-mismatch`
 

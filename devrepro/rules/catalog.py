@@ -133,6 +133,80 @@ _COMPOSED: dict[str, tuple[str, str, str, str]] = {
 }
 
 _LITERAL: dict[str, tuple[str, str, str, str]] = {
+    "containers/arch-emulated": (
+        "The container engine is emulating another architecture",
+        "The daemon reports a different CPU architecture from the host, so every "
+        "build and every container runs through qemu.",
+        "It works, which is why nobody notices. It is also roughly ten times "
+        "slower, and the usual cause is a base image with no manifest for the "
+        "host architecture -- so one line in a Dockerfile silently turns a "
+        "one-minute build into a twenty-minute one.",
+        "Use a base image that publishes your architecture, or pass `--platform` "
+        "explicitly so the emulation is a decision rather than a surprise. If "
+        "the target really is the other architecture, nothing here is wrong.",
+    ),
+    "containers/cgroup-v1": (
+        "The container engine is using cgroup v1",
+        "Resource limits are enforced through the first-generation cgroup "
+        "interface rather than the unified hierarchy.",
+        "Memory accounting differs between the two, so a container that is "
+        "OOM-killed on a v2 CI runner can pass locally on v1 and the other way "
+        "round. Swap accounting is often absent entirely under v1, which makes "
+        "`--memory` mean something different from what the docs say.",
+        "Enable unified cgroups on the host, or switch it on in Docker Desktop's "
+        "settings. On a distribution still defaulting to v1, "
+        "`systemd.unified_cgroup_hierarchy=1` on the kernel command line does it.",
+    ),
+    "containers/storage-driver-legacy": (
+        "The storage driver is deprecated, removed, or has no copy-on-write",
+        "The daemon is using a storage driver that current engines no longer "
+        "recommend or no longer ship.",
+        "`aufs` and `devicemapper` are removed in recent Docker releases, so an "
+        "upgrade will stop the daemon starting. `vfs` is the one that surprises "
+        "people: it is correct, it is what you get when nothing else is "
+        "available, and it copies the entire filesystem for every layer.",
+        "Move to overlay2. Changing the storage driver discards existing images "
+        "and containers, so do it when you can afford to rebuild rather than "
+        "in the middle of something.",
+    ),
+    "containers/disk-reclaimable": (
+        "Container storage holds a large amount of reclaimable space",
+        "The daemon's own accounting says a substantial share of its images, "
+        "volumes and build cache is unreferenced.",
+        "Running out of space mid-build produces one of the least informative "
+        "errors in the ecosystem -- `no space left on device`, from a step that "
+        "has nothing to do with the cause -- and it usually arrives with tens of "
+        "gigabytes of dangling layers sitting behind it. Reporting it before it "
+        "becomes that error is the only useful moment.",
+        "`docker system prune -a --volumes` reclaims it. This tool does not run "
+        "it and will not offer to: pruning deletes data, and which data is "
+        "expendable is not something a diagnostic can know.",
+    ),
+    "containers/multiple-runtimes": (
+        "More than one container engine is installed",
+        "Two or more of Docker Desktop, Colima, Rancher Desktop, OrbStack, "
+        "Podman, Lima and minikube resolve on PATH.",
+        "This is not a fault -- plenty of people keep Colima beside Docker "
+        "Desktop deliberately. It is worth knowing because it makes `docker "
+        "context` load-bearing: a context pointing at a stopped VM produces "
+        "exactly the error you would get with no daemon at all, and the "
+        "obvious fix (start Docker Desktop) then changes nothing.",
+        "`docker context ls` shows which engine `docker` currently talks to, "
+        "and `docker context use <name>` switches it.",
+    ),
+    "containers/buildkit-unavailable": (
+        "docker buildx is not available",
+        "The daemon answers, but the buildx plugin is absent, so builds fall "
+        "back to the legacy builder.",
+        "Multi-platform builds, build secrets, cache mounts and `--mount=type="
+        "cache` "
+        "all require BuildKit. A Dockerfile using any of them fails with a "
+        "syntax error rather than a message about the builder, which sends "
+        "people looking in the wrong file.",
+        "Install the buildx plugin from your package manager, or use a Docker "
+        "distribution that bundles it. Nothing needs changing if no Dockerfile "
+        "here uses BuildKit features.",
+    ),
     "lockfiles/tool-too-old": (
         "The package manager is older than the lockfile format",
         "This lockfile is written in a format version that the installed package manager predates.",

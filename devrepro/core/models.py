@@ -204,6 +204,38 @@ class ContainerState(_FrozenModel):
     kubectl_version: str | None = None
     errors: tuple[str, ...] = ()
 
+    # --- what is actually behind `docker` -----------------------------------
+    #
+    # Docker Desktop, Colima, Rancher Desktop, OrbStack, Podman's machine and a
+    # plain Linux daemon all answer the same CLI, and they differ on
+    # file-sharing performance, on which host paths bind-mount at all, and on
+    # how much memory the VM was given. "Docker works there but not here" is
+    # usually one of those, not a daemon that is down.
+    backend: str | None = None
+    #: The *kind* of daemon endpoint (`unix`, `npipe`, `tcp`, `ssh`), never the
+    #: endpoint. A Colima socket path contains the username, and a snapshot is
+    #: something people share.
+    endpoint_kind: str | None = None
+    context_name: str | None = None
+    server_version: str | None = None
+    server_os: str | None = None
+    server_arch: str | None = None
+    storage_driver: str | None = None
+    cgroup_version: str | None = None
+    cgroup_driver: str | None = None
+    rootless: bool | None = None
+    engine_cpus: int | None = None
+    engine_memory_bytes: int | None = None
+    buildx_version: str | None = None
+    #: Reclaimable bytes as the daemon itself computes them. A build that dies
+    #: on "no space left on device" usually has tens of gigabytes of dangling
+    #: layers behind it, and the daemon already knows.
+    reclaimable_bytes: int | None = None
+    dangling_images: int | None = None
+    unused_volumes: int | None = None
+    #: Other container engines installed, whichever one is currently answering.
+    other_runtimes: tuple[str, ...] = ()
+
 
 class WslState(_FrozenModel):
     available: bool = False
