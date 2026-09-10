@@ -84,6 +84,77 @@ INFO/PASS → `note`. Findings carry stable rule IDs (`node/version-mismatch`,
 when available. Run `devrepro rules` for the packs, and see
 `scripts/capture_readme_example.py` for the id shapes the docs guard accepts.
 
+## 2a. Annotations, for repositories SARIF cannot reach
+
+SARIF is the better format, and uploading it from a **private** repository
+requires GitHub Advanced Security. Most teams reading this do not have it, so
+the SARIF section above works beautifully in a demo and does nothing where it
+was needed.
+
+Workflow commands cost nothing and work on every plan. `guard --format
+annotations` writes them to stdout; GitHub reads them out of the log. No token,
+no upload step, no permissions block:
+
+```yaml
+      - run: devrepro guard --format annotations --path .
+```
+
+Two things worth knowing before you turn this on:
+
+**Most findings do not belong on a line of your diff.**
+`containers/docker-daemon-unreachable` is a fact about the runner, not about a
+file, so it is emitted without a `file=` property and GitHub renders it against
+the workflow run instead. Only findings whose own evidence names a
+repository-relative path get anchored to a line. Anchoring the rest to line 1 of
+something would put "Docker is not running" on a line of your source, and that
+is how a team learns to ignore every annotation in the run.
+
+**GitHub renders at most ten annotations per level per step.** Past that, the
+commands are accepted and silently not shown. `devrepro` emits a `::notice`
+saying how many were dropped, so a truncated list does not read as a complete
+one.
+
+For a caller that holds a token, `--format check-run` builds a Check Run payload
+to POST. It is built and never sent -- acquiring the permission to write checks
+is a different product:
+
+```yaml
+      - run: devrepro guard --format check-run > check.json
+      - run: gh api repos/${{ github.repository }}/check-runs --input check.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+## 2b. Merge queues
+
+A merge queue batches several pull requests and merges them together, so the
+diff that matters is the whole batch against the base branch -- not any one
+pull request. `guard --scope changed` already does the right thing; the only
+subtlety is which ref to compare against.
+
+`GITHUB_BASE_REF` is **empty for `merge_group` events**. The base is
+`github.event.merge_group.base_ref`, and passing the wrong one makes the guard
+compare against nothing and pass everything:
+
+```yaml
+on:
+  merge_group:
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # --base needs the history to diff against
+      - run: |
+          devrepro guard --scope changed             --base "${{ github.event.merge_group.base_ref }}"             --path .
+```
+
+`fetch-depth: 0` matters as much as the ref: a shallow checkout has no merge
+base, `git diff` returns nothing, and the gate reports a clean contract for a
+batch that changed every lockfile in the repository.
+
 ## Pull-request comment
 
 `devrepro guard --format markdown` renders the verdict as a comment body and

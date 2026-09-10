@@ -20,6 +20,7 @@ def register_all(app: typer.Typer) -> None:
         compliance,
         diagnostics,
         environment,
+        integration,
         platform,
         project,
         remediation,
@@ -39,6 +40,7 @@ def register_all(app: typer.Typer) -> None:
         platform,
         service,
         compliance,
+        integration,
     ):
         module.register(app)
 

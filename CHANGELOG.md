@@ -9,6 +9,55 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - the surfaces other software consumes
+
+- **`devrepro contract`** publishes what a caller may rely on, as data rather
+  than prose: exit codes with their real meanings, the JSON fields that never
+  move, and -- as importantly -- the list of things deliberately not promised.
+  `check_report()` is importable, so a consumer's own test suite asserts against
+  it instead of against a document somebody read once. A wrapper built on
+  terminal output or on a finding count has built on sand, and this says so
+  before a red build does.
+- **`guard --format annotations`** emits GitHub workflow commands. SARIF is the
+  better format and needs Advanced Security to upload from a private repository,
+  which most teams do not have, so the existing SARIF path works in the demo and
+  does nothing where it was needed. Annotations cost nothing and work on every
+  plan. **Only findings whose evidence names a repository-relative path are
+  anchored to a line** -- a stopped Docker daemon is not a property of your
+  source, and pinning it to line 1 of something is how a team learns to ignore
+  every annotation in the run. The ten-per-level cap is announced rather than
+  applied silently.
+- **`guard --format check-run`** builds a Check Run payload to POST. Built,
+  never sent; the unanchored findings go into `output.text` rather than being
+  given invented line numbers to satisfy the API.
+- **`devrepro pins`** reports whether the update bot can see the files that pin
+  your toolchain. Dependabot has no `package-ecosystem` that reads `.nvmrc` or
+  `.tool-versions` at all, so a repository can have a thorough `dependabot.yml`
+  and a Node version nothing will ever bump. Renovate does read them -- until
+  `enabledManagers` is set, which turns the default-on list into an allowlist.
+  No bot configured is reported as nothing to check, not as a gap.
+- **`devrepro watch`** re-checks when the environment contract changes, and not
+  otherwise. Polling rather than a notification library: the watched set is
+  dozens of files, and the three platforms have three mechanisms with three
+  failure modes -- one of which, the Linux inotify watch limit, this project
+  diagnoses as a problem elsewhere. Debounced, because one editor save is
+  routinely a truncate, a write and a rename.
+- **Merge queues** are documented in `docs/ci-github-actions.md`.
+  `GITHUB_BASE_REF` is empty for `merge_group` events, so a guard that uses it
+  compares against nothing and passes everything; the base is
+  `github.event.merge_group.base_ref`, and `fetch-depth: 0` matters just as much.
+
+### Changed
+
+- `PRODUCT_GAPS.md` records attributed CI-footprint reporting as **cut**, not
+  deferred. The honest number is a fraction of one job, and presenting it as a
+  headline turns a diagnostic tool into a dashboard about itself. `devrepro
+  bench` already answers the version of the question that matters.
+- `ExitCode` gained a `MEANINGS` mapping. Python keeps only a class docstring,
+  so `ExitCode.BLOCKED.__doc__` returns the same text for every member -- reading
+  it at runtime would have shipped a contract document giving all five codes the
+  same meaning.
+
 ### Added - evidence somebody outside the team can actually use
 
 Three commands, `docs/COMPLIANCE.md`, and one rule pack. All offline.

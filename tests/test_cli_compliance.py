@@ -242,3 +242,41 @@ def test_a_declined_control_prints_why_it_was_declined() -> None:
 
     assert "[out-of-scope] SLSA/Build.L2" in result.output
     assert "Why: Level 2 requires a build service" in result.output
+
+
+# ------------------------------------------------------------------ pins/watch
+
+
+def test_pins_reports_an_unwatched_toolchain_pin(tmp_path: Path) -> None:
+    """A complete dependabot.yml and a Node version nothing will ever bump."""
+    (tmp_path / ".nvmrc").write_text("22\n", encoding="utf-8")
+    (tmp_path / ".github").mkdir()
+    (tmp_path / ".github" / "dependabot.yml").write_text(
+        'version: 2\nupdates:\n  - package-ecosystem: "npm"\n    directory: "/"\n',
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["pins", "--path", str(tmp_path)])
+
+    assert result.exit_code == ExitCode.READY_WITH_WARNINGS
+    assert "[unwatched] .nvmrc" in result.output
+
+
+def test_pins_says_nothing_to_check_when_there_is_no_bot(tmp_path: Path) -> None:
+    (tmp_path / ".nvmrc").write_text("22\n", encoding="utf-8")
+
+    result = runner.invoke(app, ["pins", "--path", str(tmp_path)])
+
+    assert result.exit_code == ExitCode.READY
+    assert "nothing to check against" in result.output
+
+
+def test_watch_once_lists_the_contract_and_exits(tmp_path: Path) -> None:
+    """`--once` is what makes the watcher inspectable without leaving it running."""
+    (tmp_path / "package.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "main.py").write_text("x = 1", encoding="utf-8")
+
+    result = runner.invoke(app, ["watch", "--path", str(tmp_path), "--once", "--json"])
+
+    assert result.exit_code == ExitCode.READY
+    assert json.loads(result.output)["watching"] == ["package.json"]

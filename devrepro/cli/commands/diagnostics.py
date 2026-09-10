@@ -25,6 +25,28 @@ if TYPE_CHECKING:
     from devrepro.core.models import Finding
     from devrepro.project.compose import ComposedPolicy
 
+
+def _empty_check_run() -> dict[str, object]:
+    """A passing Check Run for the case where nothing was scanned.
+
+    `--scope changed` can exit before a scan runs, and a workflow piping this
+    into `gh api` needs a valid payload either way. Returning nothing would
+    turn "no contract change" into a broken CI step, which is the opposite of
+    the point of scoping.
+    """
+    return {
+        "name": "devrepro",
+        "status": "completed",
+        "conclusion": "success",
+        "output": {
+            "title": "devrepro: success",
+            "summary": "No environment-contract file changed; nothing to re-check.",
+            "text": "",
+            "annotations": [],
+        },
+    }
+
+
 #: Rule suffixes produced by a policy requirement. A finding is attributable to
 #: a policy layer only when the policy is what caused it: `python/version-mismatch`
 #: is the paved road's rule, `python/multiple-installations` is a fact about
@@ -288,8 +310,9 @@ def register(app: typer.Typer) -> None:
         output_format: str = typer.Option(
             "text",
             "--format",
-            help="text (default) | json | markdown. markdown is written for a "
-            "pull-request comment.",
+            help="text (default) | json | markdown | annotations | check-run. "
+            "markdown is written for a pull-request comment; annotations are "
+            "GitHub workflow commands; check-run is a payload to POST.",
         ),
     ) -> None:
         """Pre-commit/CI gate: exit 2 when the machine has blockers, else 0.
@@ -325,9 +348,10 @@ def register(app: typer.Typer) -> None:
         # a competing flag: scripts already pass it, and two ways to ask for
         # the same thing is better than breaking them.
         resolved = "json" if json_out else output_format
-        if resolved not in {"text", "json", "markdown"}:
+        known = {"text", "json", "markdown", "annotations", "check-run"}
+        if resolved not in known:
             secho(
-                f"unknown format {output_format!r}; expected 'text', 'json' or 'markdown'.",
+                f"unknown format {output_format!r}; expected one of {', '.join(sorted(known))}.",
                 fg="red",
                 err=True,
             )
@@ -357,7 +381,12 @@ def register(app: typer.Typer) -> None:
                             ),
                             nl=False,
                         )
-                    else:
+                    elif resolved == "check-run":
+                        # An empty payload rather than none: a workflow that
+                        # POSTs whatever this prints must still get a check
+                        # that says "passed", not a parse error.
+                        emit(_empty_check_run(), True)
+                    elif resolved != "annotations":
                         typer.echo("GUARD: ok (no environment-contract change)")
                 raise typer.Exit(ExitCode.READY)
         elif scope != "machine":
@@ -387,6 +416,14 @@ def register(app: typer.Typer) -> None:
                 render_guard_comment(scope=scope, changes=changes, blocking=blocking, scanned=True),
                 nl=False,
             )
+        elif resolved == "annotations":
+            from devrepro.reports.annotations import render_workflow_commands
+
+            typer.echo(render_workflow_commands(report), nl=False)
+        elif resolved == "check-run":
+            from devrepro.reports.annotations import render_check_run
+
+            emit(render_check_run(report), True)
         elif resolved == "json":
             emit(
                 {
