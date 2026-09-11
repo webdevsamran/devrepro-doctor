@@ -44,6 +44,7 @@ mkdocs build --strict
 python scripts/check_docs_site.py --site site
 cd web && npm ci && npm run lint && npm run typecheck && npm test && npm run build
 cd web && npm audit --audit-level=high
+python scripts/check_bundle_size.py
 cd web && npx playwright install --with-deps chromium && npm run e2e
 ```
 

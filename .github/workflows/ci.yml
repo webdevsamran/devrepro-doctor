@@ -99,6 +99,14 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
+      # The size budget below is a Python script, like every other gate in this
+      # repository. Declaring the interpreter here rather than calling `python3`
+      # keeps one spelling of the command across CI, AGENTS.md and a developer's
+      # machine -- `python3` does not exist on Windows, and a manifest line an
+      # agent cannot run is the exact defect this project was built to find.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
@@ -109,6 +117,16 @@ jobs:
       - name: npm audit (fail on high+)
         run: npm audit --audit-level=high
       - run: npm run build
+
+      # The dashboard plan set a 100 KB gzip budget on the initial route and
+      # nothing measured it, which makes it a claim rather than a gate. Vite
+      # prints chunk sizes and fails on none of them. This fails.
+      #
+      # `working-directory` overrides the job default because the script reads
+      # web/dist from the repository root.
+      - name: Initial-route size budget
+        working-directory: .
+        run: python scripts/check_bundle_size.py
 
   # Separate job, one browser, one runner. The vitest suite renders components
   # in jsdom, which never lays anything out -- so a lazy chunk that fails to

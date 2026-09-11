@@ -9,6 +9,74 @@ A correctness pass, in the same spirit as 0.2.0: things the project claimed to
 do, it now actually does. Every item below was found by running the tool, not
 by reading it.
 
+### Added - the two viewport widths the browser suite never saw
+
+The dashboard plan asked for passes at 360, 768, 1280 and 2560 pixels. The
+browser suite ran two viewports -- Desktop Chrome at 1280 and a Pixel 5 at 393 --
+so both ends of that range were untested, and both ends are where the layout
+actually decides something.
+
+**768px is `48rem` exactly**, the breakpoint where the sidebar becomes a bottom
+sheet, and a `max-width` query includes its own boundary. So 768 gets the phone
+layout and 769 does not. `e2e/responsive.spec.ts` asserts both sides of that
+pixel, because a later rewrite to `min-width` queries moves the boundary by one
+and nothing else in the suite would notice.
+
+**2560px is the only width at which `--content-max` does anything.** Below it
+the constraint is invisible; above it, it is the difference between a readable
+column and a 2400px line of prose. The test asserts the column stops growing
+*and* stays centred in what is left, rather than pinned against the sidebar.
+
+Also forced reduced-motion, the last of the plan's manual passes, which guards
+two opposite failures: a sheet that animates for somebody who asked their
+operating system for no animation, and a stylesheet that disables the motion by
+disabling the transform that positions it.
+
+Both new failures were mine and both were timing. The sheet *slides*, so a
+`boundingBox()` taken immediately after a viewport change samples whichever
+animation frame it landed on -- the first version read the sheet's starting
+position as its resting one. Polled now, which is also the more honest
+assertion: what is being claimed is where the layout comes to rest.
+
+Nine tests, and the layout held at every width in both themes without a change
+to a single stylesheet -- which is the outcome a test written after the fact
+should usually have, and the reason to write it anyway.
+
+### Added - a size budget on the initial route, because a number nobody measures is a claim
+
+The dashboard plan set a gate: the initial route under 100 KB gzip. It has been
+under it the entire time -- 83.4 KB today, 16.6 KB spare -- which is exactly why
+it needed `scripts/check_bundle_size.py`. This project's whole argument is that
+unmeasured claims decay silently, and a performance budget in a planning
+document is the purest example of one.
+
+What it counts is what a first-time visitor waits for: the HTML, the entry
+chunk, the stylesheet the document links, and any chunk Vite emitted a
+`modulepreload` for. Lazy route chunks are excluded on purpose -- they are the
+reason the entry is small, and charging for them would make code splitting look
+like a cost.
+
+That preload rule is the entire guard, and the regression it catches is the
+realistic one. Removing a single `lazy()` barely changes the entry chunk's own
+size; what changes is which chunks the document preloads, and those land in the
+first paint. Somebody fixes a flicker by importing a page directly, everything
+still works, and the first paint quietly gains 30 KB. The test for that failure
+is written first in `tests/test_bundle_size.py`; the other nine exist so its
+verdict can be trusted.
+
+Two defects surfaced while writing it, both of them in the new code. `--dist`
+pointed anywhere outside the repository crashed on `relative_to` instead of
+reporting a missing build. And the first version of the test helper built asset
+filenames from Python identifiers, turning `index-abc.js` into `index-abc-js`,
+so every assertion agreed with a measurement of nothing -- the failure this file
+exists to prevent, reproduced inside its own tests on the first attempt.
+
+The frontend CI job gained a pinned `setup-python` to run it. Calling `python3`
+would have avoided the step, and `devrepro agent-check .` immediately scored
+`matches-ci` 0/3 for it: CI would have run a command spelled differently from
+the one `AGENTS.md` tells a developer to run, and `python3` does not exist on
+Windows. One spelling everywhere, and readiness went 76% -> 88%.
+
 ### Added - framework introspection: what a manifest cannot tell you
 
 The `frameworks` rule pack, the twelfth. Every other pack compares a declared
