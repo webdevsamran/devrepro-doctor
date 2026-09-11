@@ -152,6 +152,68 @@ def _verdict(report: ScanReport) -> tuple[str, int]:
     return name, int(code)
 
 
+#: JSON Schema type name -> the Python types it accepts.
+_JSON_TYPES: dict[str, tuple[type, ...]] = {
+    "string": (str,),
+    "boolean": (bool,),
+    "number": (int, float),
+    "integer": (int,),
+    "object": (dict,),
+    "array": (list,),
+}
+
+
+def validate_arguments(schema: dict[str, Any], arguments: dict[str, Any]) -> None:
+    """Hold a tool call to the schema the tool advertises.
+
+    Every `inputSchema` here already declares `additionalProperties: false` and
+    its `required` keys, and none of it was enforced. That gap matters more for
+    an MCP server than for an HTTP API, because the caller is a model choosing
+    argument names from a description.
+
+    The failure is quiet and confident. `agent_readiness` takes `project`;
+    `path` is the commoner word and the likelier guess. Passing `path` used to
+    return a perfectly well-formed answer -- about the configured root, not
+    about the directory that was asked for. For a tool whose entire question is
+    "can an agent work *here*", silently answering about somewhere else is the
+    worst shape a wrong answer can take.
+
+    `refresh` had the same problem from the other side: `bool("false")` is
+    `True`, so a string re-scanned when it was asked not to.
+
+    The error names what was accepted, because the caller can correct itself if
+    it is told how.
+    """
+    properties: dict[str, Any] = schema.get("properties", {})
+
+    if schema.get("additionalProperties") is False:
+        unknown = sorted(set(arguments) - set(properties))
+        if unknown:
+            accepted = ", ".join(sorted(properties)) or "no arguments"
+            raise McpError(
+                INVALID_PARAMS,
+                f"unknown argument(s): {', '.join(unknown)}",
+                data={"accepted": sorted(properties), "hint": f"This tool takes {accepted}."},
+            )
+
+    for key in schema.get("required", []):
+        if key not in arguments:
+            raise McpError(INVALID_PARAMS, f"{key!r} is required")
+
+    for key, value in arguments.items():
+        expected = properties.get(key, {}).get("type")
+        allowed = _JSON_TYPES.get(expected or "")
+        if allowed is None:
+            continue
+        # `bool` is a subclass of `int`, so a number field would accept `true`
+        # without this and a truthy string would sail through a boolean one.
+        if isinstance(value, bool) != (expected == "boolean") or not isinstance(value, allowed):
+            raise McpError(
+                INVALID_PARAMS,
+                f"{key!r} must be a {expected}, got {type(value).__name__}",
+            )
+
+
 def resolve_within(root: Path, candidate: str | None) -> Path:
     """Resolve a path argument against the configured root, or refuse it.
 
@@ -293,9 +355,11 @@ def _call_tool(
             data={"reason": REFUSED_TOOLS[name]},
         )
 
-    known = {tool["name"] for tool in tool_definitions()}
-    if name not in known:
+    definition = next((tool for tool in tool_definitions() if tool["name"] == name), None)
+    if definition is None:
         raise McpError(METHOD_NOT_FOUND, f"unknown tool {name!r}")
+
+    validate_arguments(definition["inputSchema"], arguments)
 
     refresh = bool(arguments.get("refresh", False))
 

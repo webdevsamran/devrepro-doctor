@@ -42,6 +42,32 @@ Nine tests, and the layout held at every width in both themes without a change
 to a single stylesheet -- which is the outcome a test written after the fact
 should usually have, and the reason to write it anyway.
 
+### Fixed - the MCP server advertised argument validation it did not do
+
+Every tool's `inputSchema` declares `additionalProperties: false` and its
+`required` keys. Neither was enforced. There was even a test asserting the
+declaration, with a comment saying *"a client sending a stray argument learns
+about it rather than having it silently ignored"* — which described the schema
+and not the server.
+
+This matters more for MCP than for an HTTP API, because the caller is a model
+choosing argument names from a description. `agent_readiness` takes `project`;
+`path` is the commoner word and the likelier guess. Sending `path` returned a
+perfectly well-formed answer — **about the configured root, not about the
+directory that was asked for**. For a tool whose entire question is "can an
+agent work *here*", silently answering about somewhere else is the worst shape a
+wrong answer can take.
+
+`refresh` failed from the other side: `bool("false")` is `True`, so a string
+re-scanned when it was told not to.
+
+Found by driving the server over stdio the way a client does, which is also how
+the `devrepro serve` blank page above turned up. Both had tests; neither had
+ever been run as a program.
+
+The error names what it would have accepted, because a caller that can be told
+`accepted: ["project", "refresh"]` can correct itself.
+
 ### Fixed - `devrepro serve` served a blank page
 
 The console's own error state says *"Run `devrepro serve` and open this page from

@@ -280,6 +280,55 @@ def test_every_tool_has_a_schema_and_a_description() -> None:
         assert tool["inputSchema"]["additionalProperties"] is False
 
 
+def test_a_stray_argument_is_refused_rather_than_ignored(tmp_path: Path) -> None:
+    """The test above asserted the declaration. This one asserts the behaviour.
+
+    `additionalProperties: false` was advertised in every schema and enforced in
+    none of them, so the comment on that test -- "a client sending a stray
+    argument learns about it rather than having it silently ignored" -- was a
+    description of what the schema said, not of what the server did.
+    """
+    error = call("which", {"command": "python"}, root=tmp_path)["error"]
+    assert error["code"] == INVALID_PARAMS
+    assert "command" in error["message"]
+    # The caller is a model choosing names from a description, so the error has
+    # to say what it could have used instead.
+    assert "tool" in error["data"]["accepted"]
+
+
+def test_the_likeliest_wrong_name_is_the_one_that_mattered(tmp_path: Path) -> None:
+    """`agent_readiness` takes `project`. `path` is the commoner word.
+
+    Passing `path` used to return a well-formed answer about the configured
+    root rather than about the directory asked for -- and for a tool whose
+    whole question is "can an agent work *here*", an answer about somewhere
+    else is the worst shape a wrong answer can take.
+    """
+    error = call("agent_readiness", {"path": "."}, root=tmp_path)["error"]
+    assert error["code"] == INVALID_PARAMS
+    assert error["data"]["accepted"] == ["project", "refresh"]
+
+
+def test_a_missing_required_argument_is_refused(tmp_path: Path) -> None:
+    error = call("which", {}, root=tmp_path)["error"]
+    assert error["code"] == INVALID_PARAMS
+    assert "tool" in error["message"]
+
+
+def test_a_boolean_sent_as_a_string_does_not_silently_re_scan(tmp_path: Path) -> None:
+    """`bool("false")` is `True`, so the string re-scanned when asked not to."""
+    scanner = CountingScanner()
+    error = call("doctor", {"refresh": "false"}, root=tmp_path, scanner=scanner)["error"]
+    assert error["code"] == INVALID_PARAMS
+    assert "boolean" in error["message"]
+
+
+def test_a_correct_call_still_works(tmp_path: Path) -> None:
+    # A validator that rejects everything would pass every test above.
+    payload = call("agent_readiness", {"project": "."}, root=tmp_path)["result"]
+    assert payload["structuredContent"]["verdict"]
+
+
 def test_explain_answers_from_the_rule_catalogue(tmp_path: Path) -> None:
     payload = call("explain", {"rule_id": "containers/cgroup-v1"}, root=tmp_path)["result"][
         "structuredContent"
