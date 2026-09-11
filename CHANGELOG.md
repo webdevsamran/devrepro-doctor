@@ -42,6 +42,40 @@ Nine tests, and the layout held at every width in both themes without a change
 to a single stylesheet -- which is the outcome a test written after the fact
 should usually have, and the reason to write it anyway.
 
+### Fixed - two controls whose name was not what they said
+
+The console claimed WCAG 2.2 AA. The axe run asked for `wcag2a`, `wcag2aa`,
+`wcag21a` and `wcag21aa` -- **no 2.2 tags at all** -- so neither criterion 2.2
+adds that axe can test was ever run. One of them is `target-size` (SC 2.5.8,
+AA), tagged `wcag22aa` and simply absent from the list. The other is
+`label-content-name-mismatch` (**SC 2.5.3, Level A**), which axe ships
+`experimental` and therefore disabled, so no tag list can reach it; it has to be
+enabled by name.
+
+Turning both on found two real faults, on every route, in the shell:
+
+- The command palette button read **"Jump to…"** and was named **"Open command
+  palette"**. Somebody driving this console by voice could say the words printed
+  on the screen and have nothing happen. That is the example SC 2.5.3 exists
+  for.
+- Every copy button was named `Copy ${label}` where the label already began with
+  the word — so a screen reader announced **"Copy Copy as Markdown"**, and the
+  default was **"Copy Copy"**.
+
+Both are named by their own visible text now. The magnifier, the ⌘K chip and the
+copy glyph moved from `aria-hidden` spans into CSS, which is where they belonged:
+`aria-hidden` hides something from assistive technology and not from the person
+looking at the screen, so those glyphs still counted as visible label text and no
+accessible name could contain them without becoming unspeakable. The shortcut is
+advertised through `aria-keyshortcuts`, which is what that attribute is for.
+`target-size` passed everywhere on the first run.
+
+Also measured, once, rather than assumed: Lighthouse scores this console
+**100 / 100 / 96** on performance, accessibility and best practices, against the
+production build. `PRODUCT_GAPS.md` records the number and why Lighthouse is not
+a CI gate — its performance score moves several points between runs on a shared
+runner, and everything that would genuinely regress is gated directly instead.
+
 ### Added - a size budget on the initial route, because a number nobody measures is a claim
 
 The dashboard plan set a gate: the initial route under 100 KB gzip. It has been

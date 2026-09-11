@@ -43,6 +43,7 @@ planned behind the same `ServerDB` call sites.
 | An interactive TUI | Deferred with a reason. Every cross-platform TUI toolkit is a dependency -- `curses` is not on Windows, and Textual and its peers bring a render loop, an async runtime and a theme system into a tool whose value proposition is that it does not accumulate moving parts. What a TUI would buy is triage: filter findings, expand evidence, jump to a fix. The web console does that today over a sanitized report, offline, with a command palette -- and `devrepro doctor --json` pipes into whatever a terminal user already prefers. If somebody is working over SSH on a machine with no browser, `--json` and `jq` is the honest answer and it needs nothing from us. |
 | Runtime profiling via the Chrome DevTools Protocol | Not built, deliberately. This is `react-doctor`'s territory, it does it well, and it reached 14,800 stars doing it. Driving CDP to profile a running app would mean attaching a debugger to somebody's process -- the furthest thing from read-only in this whole document -- to answer a question about *application* performance rather than about the machine. The boundary is the product: this tool explains why the app will not build; a profiler explains why it is slow once it does. `docs/interop.md` links there rather than competing. |
 | A hosted rule-pack registry | Deferred with a reason, not built. Entry points already are the registration mechanism: install a package and `devrepro plugins` lists it, with nothing to submit to and nobody to approve it. A registry adds a service to run, a moderation policy to write and a supply-chain surface to defend -- and would currently list zero packs, which is worse than no registry because it advertises an empty ecosystem. `templates/rule-pack/` and `devrepro rules-test` are what an author actually needs first. |
+| Lighthouse in CI | Measured, not automated. It scores this console **100 performance, 100 accessibility, 96 best practices** against the production build -- above the 95 the dashboard plan asked for -- and the number is recorded here rather than gated on. Lighthouse is ~40 MB of devDependency and its performance score moves several points between runs on a shared runner, so a `>= 95` gate would be the kind that fails at random and gets switched off. What would actually regress is gated directly instead: transfer size by `scripts/check_bundle_size.py`, accessibility by axe on every route at WCAG 2.2 AA, and console errors by the route suite. The one point Best Practices loses is `errors-in-console`, from `/api/report` and `/api/fleet` failing when the console is previewed with no `devrepro serve` behind it -- the documented demo-fixture fallback, doing what it is supposed to do. |
 | Attributed CI footprint / carbon reporting | Cut, not deferred. Measuring the seconds a scan adds to a CI run is easy; the honest number is a fraction of one job, and presenting it as a headline turns a diagnostic tool into a dashboard about itself. `devrepro bench` already reports where a scan spends its time, for the case where that number actually matters -- somebody deciding whether to run it on every push. |
 
 ## Where we are ahead
@@ -70,6 +71,12 @@ planned behind the same `ServerDB` call sites.
   a colour below the contrast threshold, a scroll container no keyboard can
   reach and a layout that overflows at 390px all passed them; each of those was
   real and each was found the day the browser suite was added.
+- WCAG 2.2 AA including SC 2.5.3, Label in Name -- the criterion axe ships
+  disabled because it is experimental, so a tag list alone never reaches it. It
+  is enabled by name here, and it immediately found two controls whose
+  accessible name did not contain the words printed on them. A layout that
+  claims 2.2 while testing 2.0 and 2.1 tags is the ordinary way this criterion
+  goes unchecked.
 - An environment bill of materials in CycloneDX: the toolchain a build ran on,
   not the dependencies it links against, with executable paths deliberately
   absent so the file can be handed to an auditor outside the company.

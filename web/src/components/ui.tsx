@@ -184,17 +184,26 @@ export function CopyButton({ text, label = 'Copy' }: { text: string; label?: str
 
   return (
     <>
+      {/* No `aria-label`. It used to be `Copy ${label}`, which made the default
+          name "Copy Copy" and the others "Copy Copy as Markdown" -- a stutter
+          nobody sees and every screen reader says. The button's own text is
+          already the right name.
+
+          The glyph moved to CSS for the same reason as the palette button's:
+          `aria-hidden` hides it from assistive technology and not from the
+          person looking at the screen, so it still counted as visible label
+          text under WCAG 2.2 SC 2.5.3 and no accessible name could contain it
+          without becoming unspeakable. */}
       <button
-        className="btn btn-sm"
+        className="btn btn-sm btn-copy"
+        data-copied={copied}
         onClick={() => {
           navigator.clipboard?.writeText(text).then(
             () => setCopied(true),
             () => setCopied(false),
           )
         }}
-        aria-label={`Copy ${label}`}
       >
-        <span aria-hidden="true">{copied ? '✓' : '⧉'}</span>
         {copied ? 'Copied' : label}
       </button>
       {/* Announced once, then removed, so a screen reader hears the result of

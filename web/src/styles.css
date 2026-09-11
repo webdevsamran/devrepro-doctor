@@ -1104,6 +1104,48 @@
   .palette-group { color: var(--fg-subtle); font-size: 0.75rem; margin-left: auto; }
   .palette-empty { padding: var(--sp-5); text-align: center; color: var(--fg-muted); font-size: 0.875rem; }
 
+  /* The palette button's magnifier and shortcut chip.
+   *
+   * Drawn rather than marked up, because both are decoration and the button's
+   * text content is the thing its accessible name has to match (WCAG 2.2 SC
+   * 2.5.3). As elements they were `aria-hidden`, which hides them from a screen
+   * reader and not from a person looking at the screen -- so they still counted
+   * as visible label text, and the name could never contain them without
+   * becoming unspeakable.
+   *
+   * The chip repeats `kbd`'s styling rather than sharing it; a pseudo-element
+   * cannot inherit another selector's rules, and three declarations duplicated
+   * is cheaper than a class that exists to be worn by nothing. */
+  .btn-palette::before {
+    content: '⌕';
+    font-size: 1rem;
+    line-height: 1;
+  }
+  .btn-palette::after {
+    content: '⌘K';
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    border-bottom-width: 2px;
+    border-radius: var(--radius-sm);
+    padding: 0.05rem 0.3rem;
+    color: var(--fg-muted);
+  }
+
+  /* The copy button's glyph, drawn rather than marked up -- same reason as
+   * `.btn-palette` above, and the state lives in `data-copied` so the tick and
+   * the word change together. */
+  .btn-copy::before {
+    content: '⧉';
+    font-size: 0.9rem;
+    line-height: 1;
+  }
+  .btn-copy[data-copied='true']::before {
+    content: '✓';
+    color: var(--sev-pass);
+  }
+
   kbd {
     font-family: var(--font-mono);
     font-size: 0.6875rem;

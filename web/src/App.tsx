@@ -25,6 +25,14 @@ import type { ScanReport } from './types'
  * URLs work in all three, and losing the third would remove the zero-setup
  * path for someone who has been handed a report and a folder.
  */
+/**
+ * The palette button's visible text, and the stem of its accessible name.
+ *
+ * One constant because WCAG 2.2 SC 2.5.3 relates the two: the name must contain
+ * the label. Two literals satisfy that only until somebody edits one of them.
+ */
+const PALETTE_LABEL = 'Jump to…'
+
 export default function App() {
   return (
     <HashRouter>
@@ -134,13 +142,23 @@ function Shell() {
         <div className="spacer" />
 
         <button
-          className="btn btn-sm"
+          className="btn btn-sm btn-palette"
           onClick={() => setPaletteOpen(true)}
-          aria-label="Open command palette"
+          /* WCAG 2.2 SC 2.5.3, Label in Name: the accessible name must contain
+             the visible text, or somebody driving this by voice says the words
+             on the screen and nothing happens. This button read "Jump to…" and
+             was named "Open command palette" -- the criterion's own example of
+             the failure. The name is now the label, and the label is the only
+             text in the button: the magnifier and the ⌘K chip are decoration,
+             so they are drawn by CSS rather than marked `aria-hidden` in the
+             markup. That is also what stopped axe disagreeing -- it counts
+             aria-hidden text as visible, correctly, because it still is. */
+          aria-label={PALETTE_LABEL}
+          /* The right home for a shortcut: announced as one, and not part of
+             the name a voice user has to pronounce. */
+          aria-keyshortcuts="Control+K Meta+K"
         >
-          <span aria-hidden="true">⌕</span>
-          <span className="sidebar-label">Jump to…</span>
-          <kbd>⌘K</kbd>
+          <span className="sidebar-label">{PALETTE_LABEL}</span>
         </button>
 
         <button
