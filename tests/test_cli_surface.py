@@ -18,10 +18,15 @@ anyone remembering to extend this file.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 from devrepro.cli.app import app
 from devrepro.core.exit_codes import ExitCode
 from typer.testing import CliRunner
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 runner = CliRunner()
 
@@ -57,6 +62,27 @@ SAFE_TO_INVOKE = (
     "project",
     "rules",
     "self-test",
+    # Added after a manual sweep found `devrepro bundle` raising
+    # `AttributeError` on every real report. Nothing invoked it, so nothing
+    # could have known -- and its own tests passed against a fixture shaped like
+    # the code rather than like the scanner. These are the rest of the bounded,
+    # read-only commands that were only ever `--help`-tested.
+    "advisories",
+    "contract",
+    "notify",
+    "pins",
+    "repro-rate",
+)
+
+#: Safe and bounded, but they write into the working directory, so they run
+#: inside a temporary one. Excluding them for that reason is how `bundle` stayed
+#: uninvoked; a fixture directory is cheaper than a crash nobody sees.
+SAFE_BUT_WRITES = (
+    "bundle",
+    "evidence",
+    "init",
+    "reproduce",
+    "snapshot",
 )
 
 #: Commands whose first parameter is required, used to pin the usage-error
@@ -101,6 +127,32 @@ def test_safe_commands_support_json(name: str) -> None:
     result = runner.invoke(app, [name, "--json"])
     assert result.exit_code in CONTRACT_EXIT_CODES
     assert result.exception is None or isinstance(result.exception, SystemExit)
+
+
+@pytest.mark.parametrize("name", SAFE_BUT_WRITES)
+def test_commands_that_write_do_not_crash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str
+) -> None:
+    """The same guard, in a directory they are allowed to write to.
+
+    `devrepro bundle` raised `AttributeError` here and exited 1 -- which this
+    project publishes as READY_WITH_WARNINGS, so a crash reported itself to CI
+    as a run that had gone fine with notes.
+    """
+    manifest = chr(10).join(["[project]", 'name = "probe"', 'version = "0"', ""])
+    # Something to detect, so these exercise the real path rather than the
+    # "no project here" early return.
+    (tmp_path / "pyproject.toml").write_text(manifest, encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(app, [name])
+
+    assert result.exception is None or isinstance(result.exception, SystemExit), (
+        f"`devrepro {name}` raised {result.exception!r}"
+    )
+    assert result.exit_code in CONTRACT_EXIT_CODES, (
+        f"`devrepro {name}` exited {result.exit_code}, which is not in the "
+        f"documented contract {sorted(int(c) for c in CONTRACT_EXIT_CODES)}"
+    )
 
 
 @pytest.mark.parametrize("name", REQUIRES_AN_ARGUMENT)

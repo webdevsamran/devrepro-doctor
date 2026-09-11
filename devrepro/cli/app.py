@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import contextlib
 import sys
+import traceback
 
 import click
 import typer
@@ -125,6 +126,23 @@ def main() -> None:
         if isinstance(code, int):
             sys.exit(code)
         sys.exit(int(bool(code)))
+    except Exception:
+        # An unexpected exception used to reach the interpreter, which exits 1 --
+        # and 1 is READY_WITH_WARNINGS in this project's published contract. So a
+        # crash reported itself to CI as a successful run that had some notes.
+        #
+        # That is the `ci-diff` defect generalised. Fixing the crash fixed one
+        # command; nothing made a crash *say* it was a crash, and `INTERNAL_ERROR`
+        # existed in the contract with no path that could produce it. `devrepro
+        # bundle` raising `AttributeError` and exiting 1 is how this surfaced
+        # again, in a different command, months later.
+        #
+        # Typer tags the exception for its own traceback hook and re-raises, so
+        # this is the first point at which the exit code can still be chosen.
+        # The traceback is printed rather than swallowed: a diagnostics tool that
+        # hides its own stack trace is worse than one that crashes loudly.
+        traceback.print_exc()
+        sys.exit(ExitCode.INTERNAL_ERROR)
 
 
 if __name__ == "__main__":

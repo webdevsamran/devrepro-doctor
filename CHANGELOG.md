@@ -42,6 +42,54 @@ Nine tests, and the layout held at every width in both themes without a change
 to a single stylesheet -- which is the outcome a test written after the fact
 should usually have, and the reason to write it anyway.
 
+### Fixed - `devrepro bundle` crashed, and called the crash a warning
+
+Invoking all 35 commands no test invokes found one: `devrepro bundle` raised
+`AttributeError: 'list' object has no attribute 'items'` on every real report.
+
+Its exporter had been written against a report shape this project does not
+produce, and its test fixture had been written to match the exporter — so the
+two agreed with each other and neither agreed with the scanner. Four separate
+wrong assumptions:
+
+- `tools` is a **list** of installations, not a mapping keyed by name. This is
+  the crash.
+- There is no `found` flag. A tool that resolves to nothing is absent; one that
+  resolves without a parseable version has `version: null`.
+- The platform is `platform.os_name`, not `os.name` — and the fallback
+  `str(report.get("platform", ""))` would have pasted the entire platform
+  dictionary into the guide as the name of an operating system.
+- `state` is `BLOCKED`. The comparison was against `"blocker"`, so this file had
+  **never once reported a blocker** and instead told every reader "No open
+  blockers were recorded in the sanitized report."
+
+That last one is why this is worse than a stack trace. A crash stops; a setup
+guide that says the coast is clear gets read, believed and acted on. On this
+machine the bundle now names the real blocker
+(`containers/docker-daemon-pipe-missing`) and the versions that actually ran,
+including `python 3.14.7` rather than the App Execution Alias that shadows it.
+
+The fixture is now dumped from a real `ScanReport`, so a field renamed in the
+model breaks the test — which is the only thing that makes this unrepeatable.
+
+### Fixed - a crash reported itself as READY_WITH_WARNINGS
+
+`devrepro bundle` exited **1** while raising. 1 is READY_WITH_WARNINGS in this
+project's published contract, so an internal error announced itself to CI as a
+successful run that had some notes. `INTERNAL_ERROR = 3` was documented with no
+code path that could produce it.
+
+This is the `ci-diff` defect generalised. Fixing that crash fixed one command;
+nothing made a crash *say* it was a crash, so the next one behaved identically
+months later. `main()` now maps an unhandled exception to 3 and prints the
+traceback — a diagnostics tool that hides its own stack trace is worse than one
+that crashes loudly.
+
+Ten more commands are invoked by the suite rather than only `--help`-tested,
+including the five that write files, which now run in a temporary directory
+instead of being skipped for it. Skipping them for that reason is exactly how
+`bundle` stayed uninvoked.
+
 ### Fixed - the MCP server advertised argument validation it did not do
 
 Every tool's `inputSchema` declares `additionalProperties: false` and its

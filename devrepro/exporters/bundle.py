@@ -35,34 +35,67 @@ def _sha256(data: bytes) -> str:
 
 
 def build_setup_steps(report: dict[str, Any]) -> list[str]:
-    """Derive ordered, machine-tailored setup steps from a sanitized report."""
+    """Derive ordered, machine-tailored setup steps from a sanitized report.
+
+    Every read below was once addressed to a report shape this project does not
+    produce, and the test fixture had been written to match the code rather than
+    the scanner -- so it agreed, and `devrepro bundle` raised `AttributeError`
+    on the first real report it ever saw.
+
+    `tools` is a list of installations, not a mapping keyed by name. There is no
+    `found` flag; a tool that resolves to nothing is absent, and one that
+    resolves without a parseable version has `version: null`. The platform lives
+    under `platform.os_name`, and `report.get("platform", "")` returned the
+    whole dictionary, which `str()` would have pasted into the guide as the name
+    of an operating system. And `state` is `BLOCKED`; comparing it to
+    `"blocker"` meant this file had never once reported a blocker, and instead
+    told every reader that none had been recorded.
+
+    That last one is the reason this is worth more than a stack trace. A crash
+    stops; a setup guide that says "no open blockers" on a machine with one is
+    read, believed and acted on.
+    """
     steps: list[str] = []
-    os_name = str(report.get("os", {}).get("name", "") or report.get("platform", ""))
+    platform = report.get("platform")
+    os_name = str(platform.get("os_name", "") or "") if isinstance(platform, dict) else ""
     if os_name:
         steps.append(f"1. Confirm you are on the same OS family as the author: {os_name}.")
 
-    tools = report.get("tools") or {}
-    missing = [
-        name
-        for name, info in sorted(tools.items())
-        if isinstance(info, dict) and not info.get("found", True)
-    ]
-    if missing:
-        steps.append("2. Install missing toolchains: " + ", ".join(missing) + ".")
-    else:
-        steps.append("2. All declared toolchains were found on the source machine.")
+    raw_tools = report.get("tools") or []
+    tools = [entry for entry in raw_tools if isinstance(entry, dict)]
 
-    versions = {
-        name: info.get("version")
-        for name, info in sorted(tools.items())
-        if isinstance(info, dict) and info.get("version")
-    }
-    if versions:
-        pretty = ", ".join(f"{k} {v}" for k, v in versions.items())
+    # Two installations of the same tool is the normal case on Windows, where an
+    # App Execution Alias shadows a real interpreter. The active one is what the
+    # author's machine actually ran, so that is the version to match.
+    active: dict[str, str] = {}
+    for entry in tools:
+        name = str(entry.get("name") or "")
+        version = entry.get("version")
+        if name and version and (entry.get("is_active") or name not in active):
+            active[name] = str(version)
+
+    unversioned = sorted(
+        {
+            str(entry.get("name"))
+            for entry in tools
+            if entry.get("name") and not entry.get("version")
+        }
+        - set(active)
+    )
+    if unversioned:
+        steps.append(
+            "2. These resolved on the author's machine but reported no version, so pin "
+            "them deliberately: " + ", ".join(unversioned) + "."
+        )
+    else:
+        steps.append("2. Every toolchain found on the author's machine reported a version.")
+
+    if active:
+        pretty = ", ".join(f"{name} {version}" for name, version in sorted(active.items()))
         steps.append(f"3. Match tool versions where the project pins them: {pretty}.")
 
-    findings = report.get("findings") or []
-    blockers = [f for f in findings if str(f.get("state", "")) == "blocker"]
+    findings = [f for f in (report.get("findings") or []) if isinstance(f, dict)]
+    blockers = [f for f in findings if str(f.get("state", "")).upper() == "BLOCKED"]
     if blockers:
         steps.append(
             "4. Resolve known blockers first: "
