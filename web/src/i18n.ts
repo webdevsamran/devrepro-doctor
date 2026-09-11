@@ -29,34 +29,65 @@
 
 export type Locale = 'en'
 
-/** Every string the shell renders. Flat keys: a nested catalogue reads better
- * and diffs worse, and a translator works in the diff. */
+/**
+ * Every string the shell renders -- and only strings it renders.
+ *
+ * Flat keys: a nested catalogue reads better and diffs worse, and a translator
+ * works in the diff.
+ *
+ * The first version of this file was written without looking at the components,
+ * and it showed. It carried `state.empty: 'Nothing here yet'` for an empty state
+ * that says "No {what} in this report.", six `severity.*` labels for badges that
+ * deliberately print the uppercase enum so they match the CLI and the rule docs,
+ * and an `action.retry` for a button that does not exist. A catalogue nobody
+ * renders from is a catalogue that is wrong the moment it is written, and this
+ * one was wrong on arrival.
+ *
+ * Every entry below is now the exact template a component passes to `t`, and
+ * `tests/i18n.test.ts` fails on any key nothing uses.
+ */
 export const CATALOGUE = {
   en: {
+    // --- shell ---
+    'nav.skip': 'Skip to content',
     'nav.sections': 'Sections',
+    'nav.home': 'DevRepro Doctor, home',
     'nav.jump': 'Jump to…',
     'nav.collapse': 'Collapse sidebar',
     'nav.expand': 'Expand sidebar',
-    'action.copy': 'Copy',
-    'action.copied': 'Copied',
-    'action.copyMarkdown': 'Copy as Markdown',
-    'action.print': 'Print / Save as PDF',
-    'action.retry': 'Retry',
-    'state.loading': 'Loading',
-    'state.empty': 'Nothing here yet',
-    'state.error': 'Something went wrong',
-    'state.demo': 'DEMO DATA',
+    'nav.breadcrumb': 'Breadcrumb',
+
+    // The theme button announced `Theme: dark.` -- the enum, lower-cased, as
+    // stored. These are the words for it.
+    'theme.cycle': 'Theme: {name}. Click to change.',
     'theme.light': 'Light',
     'theme.dark': 'Dark',
     'theme.system': 'System',
-    'severity.blocked': 'Blocked',
-    'severity.error': 'Error',
-    'severity.warn': 'Warning',
-    'severity.info': 'Info',
-    'severity.pass': 'Pass',
-    'severity.unknown': 'Unknown',
+
+    // --- actions ---
+    'action.copy': 'Copy',
+    'action.copied': 'Copied',
+    'action.copyMarkdown': 'Copy as Markdown',
+    'action.copyAnnounce': '{label} copied to clipboard',
+    'action.print': 'Print / Save as PDF',
+    'action.filterSeverity': 'Filter by severity',
+    'action.searchFindings': 'Search findings',
+
+    // --- states ---
+    'state.loading': 'Loading {what}…',
+    'state.loadingDefault': 'sanitized scan data',
+    'state.loadingView': 'Loading view…',
+    'state.errorTitle': 'Could not load report',
+    'state.empty': 'No {what} in this report.',
+    'state.demo':
+      'DEMO DATA — {what} is not available from this machine. Nothing here reflects your environment.',
+
+    // --- counts ---
+    // `plural` rather than `n === 1 ? ... : ...` at the call site: English has
+    // two forms and most of the languages anybody adds next do not.
     'findings.count_one': '{n} finding',
     'findings.count_other': '{n} findings',
+    'findings.showing': '{count} of {total} shown. Filters are in the URL, so this view can be linked to.',
   },
 } as const satisfies Record<Locale, Record<string, string>>
 
@@ -125,4 +156,30 @@ export function plural(
   const catalogue: Record<string, string> = CATALOGUE[locale] ?? CATALOGUE[FALLBACK]
   const chosen = catalogue[exact] !== undefined ? exact : fallbackKey
   return translate(chosen, { n }, locale)
+}
+
+/**
+ * The locale this session renders in, resolved once.
+ *
+ * There is no switcher: with one catalogue a switcher is a control that changes
+ * nothing. `resolveLocale()` reads the browser, so adding a second catalogue is
+ * the only change a second language needs.
+ */
+export const LOCALE: Locale = resolveLocale()
+
+/**
+ * Look up a message in the session locale.
+ *
+ * Typed to `MessageKey`, so a key that is not in the catalogue fails the
+ * typecheck rather than rendering `nav.jomp` to a user. `translate` keeps its
+ * wider signature because the fallback behaviour it documents -- return the key
+ * -- is what a runtime-composed key needs.
+ */
+export function t(key: MessageKey, values: Record<string, string | number> = {}): string {
+  return translate(key, values, LOCALE)
+}
+
+/** A pluralised count in the session locale. */
+export function tn(key: 'findings.count', n: number): string {
+  return plural(key, n, LOCALE)
 }

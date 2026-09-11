@@ -3,12 +3,11 @@
  * generated environment preview and the plugin catalog. Enterprise console
  * pages live in pages4.tsx. Demo fallbacks always show a visible DEMO banner.
  */
-import { useState } from 'react'
 import {
   loadDriftTimeline, loadGeneratedEnv, loadGpuAi,
   loadPlugins, loadShellStartup, useAsync2, type WithDemo,
 } from '../api/console'
-import { Badge, Card, EmptyState } from '../components/ui'
+import { Badge, Card, CopyButton, EmptyState } from '../components/ui'
 import type { ScanReport } from '../types'
 
 function Page({ title, children }: { title: string; children: React.ReactNode }) {
@@ -48,24 +47,6 @@ export function AsyncDemo<T>({ fn, render }: {
       {result.demo && <DemoBanner />}
       {render(result.data as T)}
     </>
-  )
-}
-
-export function CopyBlock({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false)
-  return (
-    <button
-      type="button"
-      className="btn"
-      onClick={() => {
-        navigator.clipboard.writeText(text).then(() => {
-          setCopied(true)
-          setTimeout(() => setCopied(false), 1500)
-        })
-      }}
-    >
-      {copied ? 'Copied!' : 'Copy'}
-    </button>
   )
 }
 
@@ -406,7 +387,7 @@ export function GeneratedEnvPage() {
             <Card key={f.target} title={f.target}>
               {f.review_required && <p className="badge badge-warn">REVIEW REQUIRED before committing</p>}
               <pre tabIndex={0}><code>{f.content}</code></pre>
-              <CopyBlock text={f.content} />
+              <CopyButton text={f.content} />
             </Card>
           ))}
         </>

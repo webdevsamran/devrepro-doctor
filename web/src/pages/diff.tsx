@@ -23,6 +23,7 @@
  *    eventually disagree in front of a user.
  */
 import { useCallback, useMemo, useState } from 'react'
+import { t } from '../i18n'
 import { useSearchParams } from 'react-router-dom'
 
 import { CopyButton, EmptyState } from '../components/ui'
@@ -221,7 +222,7 @@ export function DiffPage() {
     <>
       <div className="row-between">
         <h2 className="mb-0">Environment diff</h2>
-        {diff && <CopyButton text={diffToMarkdown(visible)} label="Copy as Markdown" />}
+        {diff && <CopyButton text={diffToMarkdown(visible)} label={t('action.copyMarkdown')} />}
       </div>
 
       {!diff && (

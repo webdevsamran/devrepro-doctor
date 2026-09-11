@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { t, tn } from '../i18n'
 import { useSearchParams } from 'react-router-dom'
 import { MeterRow, ScoreRadial, StackedBar } from '../components/charts'
 import { scorePercent } from '../types'
@@ -353,7 +354,7 @@ export function FindingsPage({ report }: PageProps) {
       <div className="row-between">
         <h2 className="mb-0">Findings</h2>
         <div className="row">
-          <CopyButton text={findingsToMarkdown(visible)} label="Copy as Markdown" />
+          <CopyButton text={findingsToMarkdown(visible)} label={t('action.copyMarkdown')} />
         </div>
       </div>
 
@@ -363,7 +364,7 @@ export function FindingsPage({ report }: PageProps) {
           placeholder="Search rule, summary or component…"
           value={query}
           onChange={(e) => update('q', e.target.value)}
-          aria-label="Search findings"
+          aria-label={t('action.searchFindings')}
         />
         <div className="row mt-4">
           <SeverityFilter selected={activeStates} counts={counts} onToggle={toggle} />
@@ -383,9 +384,16 @@ export function FindingsPage({ report }: PageProps) {
             </select>
           </label>
         </div>
-        <p className="tiny subtle mt-4 mb-0">
-          Showing {visible.length} of {report.findings.length}. Filters are in the URL, so
-          this view can be linked to.
+        {/* A live region, because filtering is the one thing on this page that
+            changes the result without moving focus: a sighted user watches the
+            list shrink and a screen-reader user previously heard nothing at
+            all. The count is pluralised through `Intl.PluralRules` rather than
+            an `n === 1` check at the call site. */}
+        <p className="tiny subtle mt-4 mb-0" role="status" aria-live="polite">
+          {t('findings.showing', {
+            count: tn('findings.count', visible.length),
+            total: report.findings.length,
+          })}
         </p>
       </div>
 

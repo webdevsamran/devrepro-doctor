@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { t } from '../i18n'
 
 import type { Finding, ScanReport } from '../types'
 
@@ -105,10 +106,10 @@ export function ExportBar({ report }: { report: ScanReport }) {
   return (
     <div className="export-bar">
       <button type="button" className="btn" onClick={copyMarkdown}>
-        {copied ? '✓ Copied' : 'Copy as Markdown'}
+        {copied ? `✓ ${t('action.copied')}` : t('action.copyMarkdown')}
       </button>
       <button type="button" className="btn" onClick={() => window.print()}>
-        Print / Save as PDF
+        {t('action.print')}
       </button>
       <span className="muted export-note">
         Markdown, because the reason to export a diagnostic is to paste it into an issue — and an

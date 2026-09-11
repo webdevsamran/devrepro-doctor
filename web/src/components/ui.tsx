@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import { t } from '../i18n'
 import type { Finding, FindingState } from '../types'
 
 export function Badge({ state }: { state: FindingState | string }) {
@@ -94,11 +95,11 @@ export function Stat({
   )
 }
 
-export function Loading({ what = 'sanitized scan data' }: { what?: string }) {
+export function Loading({ what = t('state.loadingDefault') }: { what?: string }) {
   return (
     <div className="state" role="status" aria-live="polite">
       <div className="spinner" aria-hidden="true" />
-      <p>Loading {what}…</p>
+      <p>{t('state.loading', { what })}</p>
     </div>
   )
 }
@@ -113,7 +114,7 @@ export function Loading({ what = 'sanitized scan data' }: { what?: string }) {
 export function RouteSkeleton() {
   return (
     <div className="stack" aria-busy="true" aria-live="polite">
-      <span className="visually-hidden">Loading view…</span>
+      <span className="visually-hidden">{t('state.loadingView')}</span>
       <div className="skeleton" style={{ height: '1.5rem', width: '14rem' }} />
       <div className="grid grid-2">
         {[0, 1, 2, 3].map((i) => (
@@ -134,7 +135,7 @@ export function ErrorState({ message }: { message: string }) {
       <div className="state-icon" aria-hidden="true">
         ⚠
       </div>
-      <h2>Could not load report</h2>
+      <h2>{t('state.errorTitle')}</h2>
       <p className="muted">{message}</p>
       <p className="small muted">
         Run <code>devrepro serve</code> and open this page from the local server, or place a
@@ -151,7 +152,7 @@ export function EmptyState({ what, hint }: { what: string; hint?: string }) {
       <div className="state-icon" aria-hidden="true">
         ○
       </div>
-      <p>No {what} in this report.</p>
+      <p>{t('state.empty', { what })}</p>
       {hint && <p className="small subtle">{hint}</p>}
     </div>
   )
@@ -167,13 +168,18 @@ export function DemoBanner({ what }: { what: string }) {
   return (
     <p className="demo-banner" role="status">
       <span aria-hidden="true">◑</span>
-      DEMO DATA — {what} is not available from this machine. Nothing here reflects your
-      environment.
+      {t('state.demo', { what })}
     </p>
   )
 }
 
-export function CopyButton({ text, label = 'Copy' }: { text: string; label?: string }) {
+export function CopyButton({
+  text,
+  label = t('action.copy'),
+}: {
+  text: string
+  label?: string
+}) {
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -204,13 +210,13 @@ export function CopyButton({ text, label = 'Copy' }: { text: string; label?: str
           )
         }}
       >
-        {copied ? 'Copied' : label}
+        {copied ? t('action.copied') : label}
       </button>
       {/* Announced once, then removed, so a screen reader hears the result of
           an action that is otherwise purely visual. */}
       {copied && (
         <span role="status" aria-live="polite" className="visually-hidden">
-          {label} copied to clipboard
+          {t('action.copyAnnounce', { label })}
         </span>
       )}
     </>
@@ -229,7 +235,7 @@ export function SeverityFilter({
   onToggle: (s: FindingState) => void
 }) {
   return (
-    <div className="row" role="group" aria-label="Filter by severity">
+    <div className="row" role="group" aria-label={t('action.filterSeverity')}>
       {SEVERITIES.map((s) => (
         <label key={s} className={selected.has(s) ? 'chip chip-on' : 'chip'}>
           <input type="checkbox" checked={selected.has(s)} onChange={() => onToggle(s)} />

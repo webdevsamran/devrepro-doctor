@@ -13,6 +13,7 @@ import { loadReport } from './api/report'
 import { CommandPalette, usePaletteShortcut } from './components/CommandPalette'
 import { ErrorState, Loading, RouteSkeleton } from './components/ui'
 import { useTheme } from './hooks/useTheme'
+import { t } from './i18n'
 import { GROUP_OF, NAV_GROUPS, itemById } from './nav'
 import { HomePage, PLAIN_PAGES, REPORT_PAGES } from './routes'
 import type { ScanReport } from './types'
@@ -25,14 +26,6 @@ import type { ScanReport } from './types'
  * URLs work in all three, and losing the third would remove the zero-setup
  * path for someone who has been handed a report and a folder.
  */
-/**
- * The palette button's visible text, and the stem of its accessible name.
- *
- * One constant because WCAG 2.2 SC 2.5.3 relates the two: the name must contain
- * the label. Two literals satisfy that only until somebody edits one of them.
- */
-const PALETTE_LABEL = 'Jump to…'
-
 export default function App() {
   return (
     <HashRouter>
@@ -82,14 +75,14 @@ function Shell() {
   return (
     <div className="app" data-sidebar={collapsed ? 'collapsed' : 'expanded'}>
       <a href="#main" className="skip-link">
-        Skip to content
+        {t('nav.skip')}
       </a>
 
-      <aside className="sidebar" data-open={sheetOpen} aria-label="Sections">
+      <aside className="sidebar" data-open={sheetOpen} aria-label={t('nav.sections')}>
         {/* The label is explicit because `.brand-text` is hidden below 68rem
             and the mark is decorative, which left the link with no accessible
             name at all on tablet and phone widths. */}
-        <Link to="/home" className="brand" aria-label="DevRepro Doctor, home">
+        <Link to="/home" className="brand" aria-label={t('nav.home')}>
           <span className="brand-mark" aria-hidden="true">
             ◉
           </span>
@@ -124,12 +117,12 @@ function Shell() {
             setCollapsed((c) => !c)
             setSheetOpen((s) => !s)
           }}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? t('nav.expand') : t('nav.collapse')}
         >
           ☰
         </button>
 
-        <nav aria-label="Breadcrumb" className="small muted truncate">
+        <nav aria-label={t('nav.breadcrumb')} className="small muted truncate">
           {current && GROUP_OF[current.id] !== current.label && (
             <>
               <span>{GROUP_OF[current.id]}</span>
@@ -152,20 +145,23 @@ function Shell() {
              text in the button: the magnifier and the ⌘K chip are decoration,
              so they are drawn by CSS rather than marked `aria-hidden` in the
              markup. That is also what stopped axe disagreeing -- it counts
-             aria-hidden text as visible, correctly, because it still is. */
-          aria-label={PALETTE_LABEL}
+             aria-hidden text as visible, correctly, because it still is.
+
+             Name and label are the same catalogue lookup, so a translation
+             cannot satisfy one and break the other. */
+          aria-label={t('nav.jump')}
           /* The right home for a shortcut: announced as one, and not part of
              the name a voice user has to pronounce. */
           aria-keyshortcuts="Control+K Meta+K"
         >
-          <span className="sidebar-label">{PALETTE_LABEL}</span>
+          <span className="sidebar-label">{t('nav.jump')}</span>
         </button>
 
         <button
           className="btn btn-ghost btn-icon"
           onClick={cycle}
-          aria-label={`Theme: ${theme}. Click to change.`}
-          title={`Theme: ${theme}`}
+          aria-label={t('theme.cycle', { name: t(`theme.${theme}`) })}
+          title={t('theme.cycle', { name: t(`theme.${theme}`) })}
         >
           {theme === 'system' ? '◐' : theme === 'light' ? '☀' : '☾'}
         </button>

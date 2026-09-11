@@ -42,6 +42,68 @@ Nine tests, and the layout held at every width in both themes without a change
 to a single stylesheet -- which is the outcome a test written after the fact
 should usually have, and the reason to write it anyway.
 
+### Fixed - `devrepro serve` served a blank page
+
+The console's own error state says *"Run `devrepro serve` and open this page from
+the local server."* Doing that rendered nothing at all, and had for as long as
+the fallback server existed. Nothing in the repository imported
+`devrepro/cli/server.py`, so nothing could have noticed.
+
+One conditional: every file that was not `.html` went out as
+`application/octet-stream`, and a browser refuses to execute a module script
+with that media type. The page loads, the script is rejected, and what is left
+is an empty `<div id="root">` — a broken server that looks exactly like a broken
+app. That path is not an edge case either: it is the dependency-free fallback,
+taken whenever the optional FastAPI extra is absent, which is the default this
+project advertises.
+
+Pulling the routing into `static_response()` so it could be tested at all found
+two more:
+
+- **Every miss fell back to `index.html` with a 200.** A mistyped asset URL
+  answered a request for JavaScript with HTML, and the browser's complaint was
+  a syntax error in the bundle — pointing at the wrong thing entirely. Only
+  extensionless paths fall back now, because those are client-side routes; a
+  missing file is a 404.
+- **The request path was joined to the directory unresolved**, so `..` walked
+  out of the built console and served anything the process could read. Browsers
+  normalise that away before sending, but this server does not only talk to
+  browsers, and it runs on a machine whose whole selling point is that its
+  diagnostics stay on it. Also `?v=2` counted as part of the filename, which the
+  index fallback then hid.
+
+Media types are a written-out table rather than `mimetypes.guess_type`, which
+reads the Windows registry for `.js` and returned `None` for `.map` on the
+machine this was found on. A console that boots depending on a registry key is
+not one anybody can support.
+
+Thirteen tests, where there were none for this module.
+
+### Added - the i18n catalogue now describes the console
+
+`src/i18n.ts` shipped a catalogue, a lookup, locale negotiation, plural rules
+via `Intl`, and a test that every locale has the same keys. All of it correct,
+and **nothing rendered from it**. Every string it defined was also hardcoded in
+a component, which made it a document that was wrong the moment it was written —
+and it was: `state.empty: 'Nothing here yet'` for an empty state that reads "No
+{what} in this report.", six `severity.*` labels for badges that deliberately
+print the uppercase enum so they match the CLI and the rule docs, and an
+`action.retry` for a button that does not exist.
+
+The catalogue now holds the exact templates the components pass to `t()`, and
+the shell, the shared components and the export bar render from it. Two
+assertions in `i18n-drift.test.ts` keep it honest: an entry nothing renders is a
+lie waiting to happen, and a literal in a component is an entry that will never
+be translated. Both fired on real conditions while being written.
+
+Two things fell out of it. `platform.tsx` had its own copy button —
+`'Copied!'` where the shared one says `'Copied'`, with no live-region
+announcement and no handling for a refused clipboard; it is the shared component
+now. And the findings page's "Showing 14 of 32" line was not a live region, so
+filtering told a screen-reader user nothing. It is `role="status"` now and reads
+**"14 findings of 32 shown"**, pluralised through `Intl.PluralRules` — which is
+also the first thing to use the `plural()` helper this file shipped unused.
+
 ### Fixed - two controls whose name was not what they said
 
 The console claimed WCAG 2.2 AA. The axe run asked for `wcag2a`, `wcag2aa`,
