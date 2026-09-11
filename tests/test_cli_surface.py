@@ -30,6 +30,8 @@ if TYPE_CHECKING:
 
 runner = CliRunner()
 
+_ROOT_DIR = __import__("pathlib").Path(__file__).resolve().parent.parent
+
 CONTRACT_EXIT_CODES = {
     ExitCode.READY,
     ExitCode.READY_WITH_WARNINGS,
@@ -177,3 +179,43 @@ def test_missing_argument_is_usage_error_not_blocked(name: str) -> None:
 def test_unknown_command_and_flag_are_usage_errors() -> None:
     assert runner.invoke(app, ["nosuchcommand"]).exit_code == ExitCode.USAGE_ERROR
     assert runner.invoke(app, ["--bogus-flag"]).exit_code == ExitCode.USAGE_ERROR
+
+
+def test_python_m_devrepro_goes_through_main() -> None:
+    """The two entry points have to be the same program.
+
+    `devrepro` (the installed script) is `devrepro.cli.app:main`. `python -m
+    devrepro` used to call `app()` directly, so it skipped everything `main()`
+    does: the Windows console encoding fix -- shipped because one U+2192 in a
+    remediation hint ended `devrepro check` in a `UnicodeEncodeError` -- and the
+    mapping of an unhandled exception to `INTERNAL_ERROR` rather than to the
+    interpreter's 1, which this project publishes as READY_WITH_WARNINGS.
+
+    And `python -m devrepro` is the form this repository's own documentation
+    uses throughout, because it works without installing the package. The entry
+    point people actually type was the one without the error handling.
+
+    Asserted by parsing rather than by searching for a substring: this file
+    would otherwise pass on the sentence above, which names both functions.
+    """
+    import ast
+
+    source = (_ROOT_DIR / "devrepro" / "__main__.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+
+    imported = {
+        alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom) and node.module == "devrepro.cli.app"
+        for alias in node.names
+    }
+    assert "main" in imported, "__main__ must import main, not app"
+    assert "app" not in imported, "importing app invites calling it"
+
+    called = {
+        node.func.id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    }
+    assert "main" in called
+    assert "app" not in called

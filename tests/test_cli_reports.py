@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 from devrepro.cli.app import app
+from devrepro.core.exit_codes import ExitCode
 from devrepro.core.models import (
     DiffClassification,
     EnvironmentDiff,
@@ -215,3 +216,88 @@ def test_cli_scan_formats(tmp_path: Path, fmt: str, marker: str) -> None:
     assert result.exit_code in (0, 1, 2)
     if out.is_file():
         assert marker in out.read_text(encoding="utf-8")
+
+
+def _snapshot_json() -> str:
+    """A snapshot, which is the file people hand `report` by mistake.
+
+    Both are JSON, both come out of this tool, and `snapshot` is the
+    better-known command. `ScanReport` forbids extra fields, so this used to
+    fail with three `extra_forbidden` errors and a link to the pydantic
+    documentation -- which explains that `compilers` is not permitted, and says
+    nothing about which command produces the file the reader wanted.
+    """
+    payload = json.loads(render_json(_report()))
+    payload["compilers"] = []
+    payload["virtualenvs"] = []
+    payload["requirements_fingerprint"] = []
+    return json.dumps(payload)
+
+
+def test_report_on_a_snapshot_names_the_file_and_the_right_command(tmp_path: Path) -> None:
+    src = tmp_path / "a.json"
+    src.write_text(_snapshot_json(), encoding="utf-8")
+
+    result = runner.invoke(app, ["report", str(src)])
+
+    assert result.exit_code == ExitCode.USAGE_ERROR
+    assert "is a snapshot, not a scan report" in result.output
+    assert "devrepro scan -o report.json" in result.output
+    assert "pydantic" not in result.output
+
+
+def test_report_on_something_that_is_not_json_at_all(tmp_path: Path) -> None:
+    src = tmp_path / "notes.json"
+    src.write_text("not json", encoding="utf-8")
+
+    result = runner.invoke(app, ["report", str(src)])
+
+    assert result.exit_code == ExitCode.USAGE_ERROR
+    assert "not readable JSON" in result.output
+
+
+def test_report_on_json_that_is_neither_says_what_is_wrong(tmp_path: Path) -> None:
+    src = tmp_path / "other.json"
+    src.write_text('{"hello": "world"}', encoding="utf-8")
+
+    result = runner.invoke(app, ["report", str(src)])
+
+    assert result.exit_code == ExitCode.USAGE_ERROR
+    assert "is not a scan report" in result.output
+
+
+def test_export_copies_a_snapshot_rather_than_failing_to_render_it(tmp_path: Path) -> None:
+    """`export` accepts reports and snapshots alike, by its own docstring.
+
+    It chose between them with `'"findings"' in raw`, which a snapshot also
+    satisfies -- so a snapshot took the report branch and raised the same
+    validation error.
+    """
+    src = tmp_path / "a.json"
+    src.write_text(_snapshot_json(), encoding="utf-8")
+    out_dir = tmp_path / "exported"
+
+    result = runner.invoke(app, ["export", str(src), "--out-dir", str(out_dir)])
+
+    assert result.exit_code == ExitCode.READY
+    assert (out_dir / "a.json").is_file()
+
+
+def test_sign_snapshot_without_a_key_is_a_usage_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`verify-snapshot` has always handled this; `sign-snapshot` did not.
+
+    Running the pair in sequence answered the same missing environment variable
+    twice in two different languages: one sentence naming the variable, and one
+    traceback through typer's internals ending in that same sentence.
+    """
+    monkeypatch.delenv("DEVREPRO_SIGNING_KEY", raising=False)
+    src = tmp_path / "a.json"
+    src.write_text(render_json(_report()), encoding="utf-8")
+
+    result = runner.invoke(app, ["sign-snapshot", str(src)])
+
+    assert result.exit_code == ExitCode.USAGE_ERROR
+    assert "DEVREPRO_SIGNING_KEY" in result.output
+    assert result.exception is None or isinstance(result.exception, SystemExit)

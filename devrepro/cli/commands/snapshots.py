@@ -186,9 +186,19 @@ def register(app: typer.Typer) -> None:
 
         The signing key is read from $DEVREPRO_SIGNING_KEY and never printed.
         """
-        from devrepro.snapshots.signing import key_from_env, sign_file
+        from devrepro.snapshots.signing import SigningError, key_from_env, sign_file
 
-        sig = sign_file(snapshot_path, key_from_env(), key_id=key_id)
+        # `verify-snapshot` below has always handled this; signing did not, so
+        # running the two commands in sequence answered the same missing
+        # environment variable twice in two different languages -- one sentence
+        # naming the variable, and one traceback through typer's internals
+        # ending in the same sentence. A missing env var is something the person
+        # at the keyboard can fix, which makes it USAGE_ERROR and not a crash.
+        try:
+            sig = sign_file(snapshot_path, key_from_env(), key_id=key_id)
+        except SigningError as exc:
+            typer.echo(f"signing failed: {exc}", err=True)
+            raise typer.Exit(ExitCode.USAGE_ERROR) from exc
         typer.echo(f"signature written: {sig}")
         raise typer.Exit(ExitCode.READY)
 

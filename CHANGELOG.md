@@ -42,6 +42,44 @@ Nine tests, and the layout held at every width in both themes without a change
 to a single stylesheet -- which is the outcome a test written after the fact
 should usually have, and the reason to write it anyway.
 
+### Fixed - `python -m devrepro` was a different program from `devrepro`
+
+`devrepro` is `devrepro.cli.app:main`. `python -m devrepro` called `app()`
+directly, so it skipped everything `main()` does:
+
+- `_make_output_encoding_non_fatal()`, shipped because a single U+2192 in a
+  remediation hint ended `devrepro check` in a `UnicodeEncodeError` on the
+  Windows console;
+- and the mapping of an unhandled exception to `INTERNAL_ERROR` rather than the
+  interpreter's 1.
+
+`python -m devrepro` is the form this repository's own documentation uses
+throughout — AGENTS.md, the verification steps, every reproduction in this
+changelog — because it works without installing the package. **The entry point
+people actually type was the one without the error handling.** Asserted now by
+parsing `__main__.py`, not by searching it for a word.
+
+### Fixed - three commands that answered a mistake with a stack trace
+
+Running the documented workflow end to end — snapshot, diff, sign, verify,
+report, export — turned up three places where an ordinary user error produced
+Python internals:
+
+- **`sign-snapshot` with no `DEVREPRO_SIGNING_KEY`** dumped a traceback, while
+  `verify-snapshot` had always answered the identical error with one sentence
+  naming the variable. Running the pair in sequence got both answers, in two
+  different languages, about the same missing environment variable.
+- **`report` given a snapshot** failed with three pydantic `extra_forbidden`
+  errors and a link to the pydantic documentation — which explains that
+  `compilers` is not permitted, and says nothing about which command produces
+  the file the reader wanted. Both files are JSON, both come out of this tool,
+  and `snapshot` is the better-known command, so this is the obvious mistake to
+  make. It now says so and names `devrepro scan -o report.json`.
+- **`export` given a snapshot** had the same crash for a different reason: it
+  chose its branch with `'"findings"' in raw`, which a snapshot also satisfies.
+  Its docstring says it accepts reports *and* snapshots; it copies the file now,
+  which is what that sentence promised.
+
 ### Fixed - `devrepro bundle` crashed, and called the crash a warning
 
 Invoking all 35 commands no test invokes found one: `devrepro bundle` raised
