@@ -65,13 +65,23 @@ def probe(
     table: dict[str, CommandResult] | None = None,
     *,
     env: dict[str, str] | None = None,
+    jdk_roots: tuple[Path, ...] = (),
 ) -> SdkProbe:
+    """A probe whose whole world is the fixture.
+
+    `jdk_roots` defaults to empty on purpose. The JDK scan used to read
+    `/usr/lib/jvm` unconditionally, so `java/multiple-jdks` fired from this
+    synthetic Linux context on any host that had one -- which is every Linux CI
+    runner. Three tests here asserted "the probe says nothing" and passed only
+    on Windows, where that directory does not exist.
+    """
     ctx = ProbeContext(
         runner=ArgvRunner(table or {}),
         platform="linux",
         platform_info=PlatformInfo(os_name="Linux", os_version="1", arch="x86_64"),
         project_dir=root,
         env=env if env is not None else {"PATH": "/usr/bin"},
+        extra={"jdk_search_roots": jdk_roots},
     )
     return SdkProbe(ctx)
 
@@ -269,3 +279,50 @@ def test_every_finding_carries_evidence(tmp_path: Path) -> None:
     for finding in probe(tmp_path, {"dotnet --list-sdks": ok(LIST_SDKS)}).run().findings:
         assert finding.evidence, finding.rule_id
         assert finding.component, finding.rule_id
+
+
+# ------------------------------------------------------------- JDK counting
+
+
+def _jdk_dir(root: Path, *names: str) -> Path:
+    """A directory shaped like `/usr/lib/jvm`: one subdirectory per JDK."""
+    jvm = root / "jvm"
+    for name in names:
+        (jvm / name / "bin").mkdir(parents=True, exist_ok=True)
+    return jvm
+
+
+def test_several_jdks_side_by_side_are_reported(tmp_path: Path) -> None:
+    """Never covered before, because the scan could not be pointed anywhere.
+
+    Which JDK a build uses depends on JAVA_HOME, on PATH and on the toolchain
+    block in the build file -- three settings that routinely disagree, and the
+    failure is an UnsupportedClassVersionError naming none of them.
+    """
+    jvm = _jdk_dir(tmp_path, "java-17-openjdk", "java-21-openjdk", "java-8-openjdk")
+    found = probe(tmp_path, jdk_roots=(jvm,)).run().findings
+    jdks = [f for f in found if f.rule_id == "java/multiple-jdks"]
+    assert len(jdks) == 1
+    assert jdks[0].state is FindingState.INFO
+    assert "3" in jdks[0].summary
+
+
+def test_one_jdk_is_not_a_finding(tmp_path: Path) -> None:
+    jvm = _jdk_dir(tmp_path, "java-21-openjdk")
+    ids_found = [f.rule_id for f in probe(tmp_path, jdk_roots=(jvm,)).run().findings]
+    assert "java/multiple-jdks" not in ids_found
+
+
+def test_a_root_that_does_not_exist_is_not_an_error(tmp_path: Path) -> None:
+    """A machine without SDKMAN, or a Windows machine, has none of these."""
+    absent = tmp_path / "nowhere"
+    ids_found = [f.rule_id for f in probe(tmp_path, jdk_roots=(absent,)).run().findings]
+    assert "java/multiple-jdks" not in ids_found
+
+
+def test_a_file_among_the_jdk_directories_is_not_counted(tmp_path: Path) -> None:
+    """`/usr/lib/jvm` commonly holds `.jinfo` files beside the directories."""
+    jvm = _jdk_dir(tmp_path, "java-21-openjdk")
+    (jvm / "java-21-openjdk.jinfo").write_text("x", encoding="utf-8")
+    ids_found = [f.rule_id for f in probe(tmp_path, jdk_roots=(jvm,)).run().findings]
+    assert "java/multiple-jdks" not in ids_found

@@ -42,6 +42,55 @@ Nine tests, and the layout held at every width in both themes without a change
 to a single stylesheet -- which is the outcome a test written after the fact
 should usually have, and the reason to write it anyway.
 
+### Fixed - reading another machine's PATH depended on the machine reading it
+
+The first CI run over this work failed on **every POSIX leg** and passed on
+every Windows one. Five tests, and underneath them two functions that took a
+`platform` argument and then ignored it.
+
+`normalize_path` called `os.path` — the path module of whatever machine
+happened to be running. `analyse_shims` built parent directories with
+`pathlib.Path`, which is host-flavoured for the same reason. **They hid each
+other**: both sides of every comparison were mangled identically, so the results
+matched and the suite passed. Fixing the first exposed the second, which is the
+usual way the second of two compensating errors is found.
+
+This is not cosmetic. The whole premise here is that one machine's report is
+read somewhere else — a snapshot diffed on a colleague's laptop, a fleet console
+rendering Windows agents from a Linux server. In that deployment:
+
+- A **Windows PATH analysed on Linux** kept its backslashes, so
+  `manager_for_path` stopped recognising `.pyenv/shims` at all and every shim
+  conflict became invisible — in exactly the place where somebody else's
+  machine is the thing being explained.
+- A **Linux PATH analysed on Windows** was lower-cased by `ntpath.normcase`, so
+  `/opt/Tools` and `/opt/tools` — two different directories on a case-sensitive
+  filesystem — were reported as duplicate PATH entries.
+
+Both now select their path module from the argument, and
+`tests/test_path_analysis_is_host_independent.py` asserts the only property that
+would have caught either: same input, same answer, either host.
+
+Two test defects came out with them.
+
+**The case-sensitivity test had never run green anywhere.** It created `Alpha`
+and `alpha` and expected the detector to compare them — but the detector
+re-cases with `swapcase()`, and `"Alpha".swapcase()` is `"aLPHA"`. On Linux it
+took a different branch and failed the assertion; on Windows the two names
+folded together and it skipped. Fixed to use a real `swapcase()` pair, and the
+branch it had been accidentally exercising now has a test of its own.
+
+**The SDK probe read the host instead of its context.** The JDK scan walked
+`/usr/lib/jvm`, `/Library/Java/JavaVirtualMachines` and `Path.home()`
+unconditionally, so `java/multiple-jdks` fired from a fully synthetic Linux
+fixture on any machine that had one — which is every Linux CI runner. Three
+tests asserting "this probe says nothing here" passed only on Windows. The
+search roots are platform-gated and come from `ctx.env` now, with
+`ctx.extra["jdk_search_roots"]` overriding — the same seam `allow_network` uses,
+and the thing that lets a scan point at a mounted filesystem such as a WSL
+distro inspected from Windows. Four tests cover the JDK count, which nothing
+could do before.
+
 ### Fixed - an audit for stub code, and the three things it found
 
 A sweep for anything registered-but-inert: parsed every Python file for

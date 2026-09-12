@@ -4,7 +4,9 @@
 
 from __future__ import annotations
 
+import ntpath
 import os
+import posixpath
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -17,10 +19,17 @@ __all__ = [
     "build_path_analysis",
     "explain_resolution",
     "normalize_path",
+    "parent_dir",
     "path_separator",
     "profile_locations",
     "split_path",
 ]
+
+
+#: The platform string this process is running on, in the same vocabulary the
+#: rest of this module uses. Only for deciding whether a reported path can be
+#: resolved against a real filesystem.
+_HOST_PLATFORM = "windows" if os.name == "nt" else "linux"
 
 
 def path_separator(platform: str) -> str:
@@ -31,12 +40,51 @@ def split_path(raw: str, platform: str) -> list[str]:
     return [p for p in raw.split(path_separator(platform)) if p.strip()]
 
 
+def parent_dir(path: str, platform: str) -> str:
+    """The containing directory of a path belonging to *platform*.
+
+    `Path(path).parent` uses the flavour of the host, so on Windows
+    `/usr/bin/python` came back separated by backslashes -- a string that
+    then matched no entry in the Linux PATH it came from, and every shim
+    index resolved to -1.
+
+    The `normalize_path` bug above hid this one: that function was also
+    host-flavoured, so both sides were mangled identically and compared
+    equal. Fixing one exposed the other, which is the usual way the second
+    of two compensating errors gets found.
+    """
+    return ntpath.dirname(path) if platform == "windows" else posixpath.dirname(path)
+
+
 def normalize_path(entry: str, platform: str) -> str:
-    norm = os.path.normcase(os.path.normpath(entry))
-    if platform != "windows":
-        # keep forward slashes canonical on POSIX
-        norm = norm.replace(os.sep, "/")
-    return norm
+    r"""Normalise a PATH entry using *that platform's* rules, not the host's.
+
+    This took a `platform` argument and then called `os.path`, which is the
+    path module of whatever machine happened to be running -- so the argument
+    described the answer without affecting it.
+
+    The consequences run in both directions, and both matter because this
+    project's whole premise is reading one machine's report on another:
+
+    * A Windows PATH analysed on Linux kept its backslashes, because
+      `posixpath` does not treat them as separators. `manager_for_path` then
+      failed to recognise `.pyenv\\shims`, so the fleet console and every
+      snapshot diff rendered on a Linux server silently stopped attributing
+      shims to their version manager.
+    * A Linux PATH analysed on Windows was **lower-cased** by
+      `ntpath.normcase`, so `/opt/Tools` and `/opt/tools` -- two different
+      directories on a case-sensitive filesystem -- were reported as duplicate
+      PATH entries.
+
+    Selecting the module from the argument makes the result a pure function of
+    (entry, platform) on any host, which is what every caller already assumed.
+    """
+    # Written out rather than selected into a variable: mypy infers the union
+    # of two modules as `Any`, and `--strict` is right to object to a function
+    # that promises `str` and returns whatever a module attribute gave back.
+    if platform == "windows":
+        return ntpath.normcase(ntpath.normpath(entry))
+    return posixpath.normcase(posixpath.normpath(entry))
 
 
 def build_path_analysis(
@@ -132,10 +180,20 @@ def explain_resolution(
         lines.append(f"  install source: {active.install_source}")
     entries = split_path(raw_path, platform)
     if active.exe_path:
-        exe_norm = os.path.normcase(str(Path(active.exe_path).resolve()))
+        # Same correction as `normalize_path`: this compares a reported
+        # executable path against a reported PATH, and both belong to the
+        # machine the report came from rather than to the one rendering it.
+        # `Path(...).resolve()` stays host-based on purpose -- it is only
+        # reached for a path that exists here, and resolving symlinks needs a
+        # real filesystem.
+        module = ntpath if platform == "windows" else posixpath
+        exe_raw = active.exe_path
+        exe_norm = module.normcase(
+            str(Path(exe_raw).resolve()) if platform == _HOST_PLATFORM else module.normpath(exe_raw)
+        )
         for idx, directory in enumerate(entries):
-            dir_norm = os.path.normcase(os.path.normpath(directory))
-            if exe_norm.startswith(dir_norm + os.sep) or exe_norm.startswith(dir_norm + "/"):
+            dir_norm = module.normcase(module.normpath(directory))
+            if exe_norm.startswith(dir_norm + module.sep) or exe_norm.startswith(dir_norm + "/"):
                 lines.append(
                     f"  wins because its directory is entry #{idx} in PATH "
                     "(earlier entries take precedence)."

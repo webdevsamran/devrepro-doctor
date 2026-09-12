@@ -64,19 +64,47 @@ def test_two_files_differing_only_in_case_means_case_sensitive(tmp_path: Path) -
     file and conclude the filesystem folds case -- exactly backwards. The real
     question is whether the two names are the *same file*.
     """
-    (tmp_path / "Alpha").write_text("one", encoding="utf-8")
+    # The pair has to be a `swapcase()` pair, because that is the transform the
+    # detector applies. The first version of this test used "Alpha" and "alpha"
+    # -- and `"Alpha".swapcase()` is `"aLPHA"`, so the detector never compared
+    # the two files this fixture created. On Linux it took the "does not
+    # resolve" branch and failed the assertion; on Windows the two names folded
+    # together and it skipped. It had never once run green anywhere.
+    first, second = "Alpha", "Alpha".swapcase()
+    assert second == "aLPHA", "swapcase is what the detector uses; keep them in step"
+
+    (tmp_path / first).write_text("one", encoding="utf-8")
     try:
-        (tmp_path / "alpha").write_text("two", encoding="utf-8")
+        (tmp_path / second).write_text("two", encoding="utf-8")
     except OSError:  # pragma: no cover - platform-dependent
         pytest.skip("filesystem refused two names differing only in case")
 
-    both_exist_separately = (tmp_path / "Alpha").read_text(encoding="utf-8") == "one"
+    both_exist_separately = (tmp_path / first).read_text(encoding="utf-8") == "one"
     if not both_exist_separately:
         pytest.skip("filesystem folded the two names together")
 
     result = detect_case_sensitivity(tmp_path)
     assert result.sensitive is True
     assert "different files" in result.detail
+
+
+def test_a_lone_entry_whose_recased_name_is_absent_is_also_case_sensitive(
+    tmp_path: Path,
+) -> None:
+    """The realistic branch, and the one the suite never reached.
+
+    Ordinary directories do not contain `swapcase()` pairs. What they contain
+    is one file whose re-cased name simply does not resolve -- which is the
+    same verdict by a different route, and was untested because the other test
+    was accidentally exercising it while asserting the wrong message.
+    """
+    (tmp_path / "Alpha").write_text("one", encoding="utf-8")
+    if (tmp_path / "aLPHA").exists():
+        pytest.skip("filesystem folds case; the re-cased name resolves")
+
+    result = detect_case_sensitivity(tmp_path)
+    assert result.sensitive is True
+    assert "names are distinct" in result.detail
 
 
 def test_empty_directory_reports_unknown_rather_than_guessing(tmp_path: Path) -> None:

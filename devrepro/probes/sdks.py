@@ -204,17 +204,44 @@ class SdkProbe(Probe):
                 matches = _java_version(from_home) == _java_version(from_path)
 
         candidates = 0
-        for directory in (
-            Path.home() / ".sdkman" / "candidates" / "java",
-            Path("/usr/lib/jvm"),
-            Path("/Library/Java/JavaVirtualMachines"),
-        ):
+        for directory in self._jdk_search_roots():
             try:
                 candidates += sum(1 for entry in directory.iterdir() if entry.is_dir())
             except OSError:
                 continue
 
         return {"home": home, "matches": matches, "count": candidates}
+
+    def _jdk_search_roots(self) -> tuple[Path, ...]:
+        """Where JDKs live, according to the context rather than to this process.
+
+        These were three absolute paths plus `Path.home()`, evaluated
+        unconditionally. So the probe read the machine *running* it rather than
+        the machine the context describes, and `java/multiple-jdks` fired from a
+        fully synthetic Linux fixture on any host that happened to have
+        `/usr/lib/jvm` -- which is every Linux CI runner. Three tests asserting
+        "this probe says nothing here" passed on Windows and failed on Linux for
+        a reason that had nothing to do with what they were testing.
+
+        Now the roots are platform-gated, the home directory comes from
+        `ctx.env`, and `ctx.extra["jdk_search_roots"]` overrides the lot -- the
+        same seam `allow_network` uses. That override is not a test hook: it is
+        what lets a scan point at a mounted filesystem, such as a WSL distro
+        inspected from Windows.
+        """
+        override = self.ctx.extra.get("jdk_search_roots")
+        if override is not None:
+            return tuple(Path(entry) for entry in override)
+
+        roots: list[Path] = []
+        home = self.ctx.env.get("USERPROFILE" if self.ctx.platform == "windows" else "HOME")
+        if home:
+            roots.append(Path(home) / ".sdkman" / "candidates" / "java")
+        if self.ctx.platform == "linux":
+            roots.append(Path("/usr/lib/jvm"))
+        elif self.ctx.platform == "macos":
+            roots.append(Path("/Library/Java/JavaVirtualMachines"))
+        return tuple(roots)
 
     def _java_findings(self, java: dict[str, object]) -> list[Finding]:
         out: list[Finding] = []

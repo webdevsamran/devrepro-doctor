@@ -20,9 +20,8 @@ resolution path at all.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 
-from devrepro.platforms.base import normalize_path, path_separator
+from devrepro.platforms.base import normalize_path, parent_dir, path_separator
 
 __all__ = [
     "SHIM_MARKERS",
@@ -123,12 +122,12 @@ def analyse_shims(
         if len(candidates) < 2:
             continue
         winner = candidates[0]
-        winner_manager = manager_for_path(str(Path(winner).parent), platform)
+        winner_manager = manager_for_path(parent_dir(winner, platform), platform)
         if winner_manager is not None:
             continue  # a manager already wins; nothing is being bypassed
 
         for other in candidates[1:]:
-            other_dir = str(Path(other).parent)
+            other_dir = parent_dir(other, platform)
             manager = manager_for_path(other_dir, platform)
             if manager is None:
                 continue
@@ -137,7 +136,7 @@ def analyse_shims(
                     tool=tool,
                     manager=manager,
                     winning_path=winner,
-                    winning_index=_index_of(entries, str(Path(winner).parent), platform),
+                    winning_index=_index_of(entries, parent_dir(winner, platform), platform),
                     shim_path=other,
                     shim_index=_index_of(entries, other_dir, platform),
                 )
