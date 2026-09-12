@@ -71,6 +71,7 @@ SAFE_TO_INVOKE = (
     # read-only commands that were only ever `--help`-tested.
     "advisories",
     "contract",
+    "monitor",
     "notify",
     "pins",
     "repro-rate",
@@ -85,6 +86,17 @@ SAFE_BUT_WRITES = (
     "init",
     "reproduce",
     "snapshot",
+)
+
+#: Commands that block when invoked bare, with the bounded mode that does not.
+#:
+#: "It runs until interrupted" is a reason to leave the bare form out of the
+#: list above. It is not a reason for the bounded form to go untested, and that
+#: conflation is how `bundle` and the two `server-*` commands stayed uninvoked
+#: long enough to ship a crash and a Python dict printed at a human.
+BOUNDED_MODES = (
+    ("watch", ("--once",)),
+    ("monitor", ("--schedule", "cron")),
 )
 
 #: Commands whose first parameter is required, used to pin the usage-error
@@ -155,6 +167,18 @@ def test_commands_that_write_do_not_crash(
         f"`devrepro {name}` exited {result.exit_code}, which is not in the "
         f"documented contract {sorted(int(c) for c in CONTRACT_EXIT_CODES)}"
     )
+
+
+@pytest.mark.parametrize(
+    ("name", "args"), BOUNDED_MODES, ids=lambda v: v if isinstance(v, str) else ""
+)
+def test_a_blocking_command_still_has_a_mode_that_returns(name: str, args: tuple[str, ...]) -> None:
+    result = runner.invoke(app, [name, *args])
+    assert result.exception is None or isinstance(result.exception, SystemExit), (
+        f"`devrepro {name} {' '.join(args)}` raised {result.exception!r}"
+    )
+    assert result.exit_code in CONTRACT_EXIT_CODES
+    assert result.output.strip(), "a bounded mode that prints nothing proves nothing"
 
 
 @pytest.mark.parametrize("name", REQUIRES_AN_ARGUMENT)
