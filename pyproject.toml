@@ -5,14 +5,25 @@ build-backend = "hatchling.build"
 [project]
 name = "devrepro-doctor"
 version = "0.2.0"
-description = "Cross-platform diagnostics, reproducibility auditing and safe repair planning for developer machines, project toolchains, SDKs, containers and build dependencies."
+description = "Find out why a repository will not build on this machine: cross-platform developer-environment diagnostics, reproducibility snapshots, machine-to-machine diffs and AI-agent readiness. Read-only, no telemetry."
 readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.11"
 authors = [{ name = "@webdevsamran" }]
 keywords = [
+  # What it is
   "diagnostics", "reproducibility", "developer-tools", "toolchain",
   "environment", "works-on-my-machine", "snapshots", "diff",
+  "developer-experience", "devex", "devops", "platform-engineering",
+  # What people search for when it breaks
+  "environment-drift", "configuration-drift", "dependency-check",
+  "troubleshooting", "developer-onboarding", "path", "wsl", "windows",
+  "containers", "devcontainer", "docker", "gpu", "cuda",
+  # The agent wedge
+  "ai-agents", "agent-readiness", "agents-md", "model-context-protocol", "mcp",
+  # Supply chain and compliance
+  "sbom", "cyclonedx", "slsa", "in-toto", "sigstore", "supply-chain-security",
+  "cyber-resilience-act",
 ]
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -26,7 +37,14 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
   "Topic :: Software Development :: Build Tools",
+  "Topic :: Software Development :: Quality Assurance",
+  "Topic :: Software Development :: Testing",
+  "Topic :: System :: Installation/Setup",
   "Topic :: System :: Systems Administration",
+  "Topic :: Utilities",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: MacOS",
   "Typing :: Typed",
 ]
 dependencies = [

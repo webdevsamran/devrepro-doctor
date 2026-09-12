@@ -1,8 +1,9 @@
 site_name: DevRepro Doctor
 site_description: >
-  Cross-platform diagnostics, reproducibility auditing and safe repair
-  planning for developer machines, project toolchains, SDKs, containers
-  and build dependencies.
+  Find out why a repository will not build on this machine. Cross-platform
+  developer-environment diagnostics, reproducibility snapshots,
+  machine-to-machine diffs and AI-agent readiness checks for Windows, Linux,
+  macOS and WSL. Read-only, no telemetry.
 site_url: https://webdevsamran.github.io/devrepro-doctor/
 repo_url: https://github.com/webdevsamran/devrepro-doctor
 repo_name: webdevsamran/devrepro-doctor

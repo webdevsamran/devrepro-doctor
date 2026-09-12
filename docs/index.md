@@ -1,11 +1,21 @@
 # DevRepro Doctor 🩺
 
-**Project-aware developer-environment diagnostics, reproducibility
-snapshots, machine-to-machine diffs and explainable safe remediation.**
+**Find out why this repository will not build on *this* machine.**
 
-"Works on my machine" is not one bug — it's a *class* of bugs.
-DevRepro Doctor answers all of them in a single read-only scan, then tells
-you what can be fixed **safely**.
+Project-aware developer-environment diagnostics, reproducibility snapshots,
+machine-to-machine diffs, AI-agent readiness checks and explainable safe
+remediation — for Windows, Linux, macOS and WSL.
+
+"Works on my machine" is not one bug, it is a *class* of bugs: a PATH order
+nobody can see, a toolchain version that satisfies every declared range and
+still breaks, a Docker CLI whose daemon is unreachable, a CI pin that no local
+machine matches. DevRepro Doctor answers all of them in a single **read-only**
+scan, explains each with evidence, and tells you what can be fixed **safely**.
+
+It also answers a newer question: **can an AI coding agent work in this
+repository at all?** `devrepro agent-check` resolves the commands your
+`AGENTS.md`, `CLAUDE.md` and `.cursorrules` declare, reports the CI gates no
+manifest mentions, and shows the blast radius of a session before one starts.
 
 ```bash
 pip install git+https://github.com/webdevsamran/devrepro-doctor
@@ -34,10 +44,22 @@ devrepro doctor            # full read-only diagnostic scan
   Risk-tiered remediation plans with preconditions, exact changes and
   rollback guidance. Dry-run by default.
 
+- :material-robot: **Agent readiness**  
+  Whether an automated contributor can work here: declared commands that do
+  not resolve, CI gates no manifest mentions, and what a session could reach.
+
+- :material-shield-lock: **Compliance evidence**  
+  in-toto attestations, CRA / EO 14028 / SSDF control mapping and a CycloneDX
+  BOM for the *toolchain* rather than the dependencies.
+
 </div>
 
 ## Where to go next
 
+- [Install](INSTALL.md) — every channel and its real status
+- [Agent readiness](AGENT-READINESS.md) — the check no other tool performs
+- [Troubleshooting](TROUBLESHOOTING.md) — start from the symptom
+- [Rule catalogue](RULES.md) — every rule id, what it means and how to fix it
 - [Architecture](architecture.md) — module map and data flow
 - [GitHub Actions & SARIF](ci-github-actions.md) — gate CI and surface findings on PRs
 - [Interoperability](interop.md) — how we relate to Nix, mise, Devbox, devenv…

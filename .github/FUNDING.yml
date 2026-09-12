@@ -1,0 +1,12 @@
+# Renders the "Sponsor" button on the repository page.
+#
+# `github` only, on purpose. Every other key here (patreon, open_collective,
+# ko_fi, tidelift, liberapay, custom) would name an account that does not
+# exist, and a sponsor button that leads to a 404 is worse than no button --
+# it is the same failure this project exists to find in other people's
+# documentation.
+#
+# The button appears once GitHub Sponsors is enabled for the account at
+# https://github.com/sponsors/webdevsamran. Until then this file is inert and
+# harmless, and it is checked in so the button appears the moment it is.
+github: [webdevsamran]

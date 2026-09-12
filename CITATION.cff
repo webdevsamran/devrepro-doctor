@@ -10,15 +10,41 @@ authors:
 repository-code: "https://github.com/webdevsamran/devrepro-doctor"
 url: "https://github.com/webdevsamran/devrepro-doctor"
 abstract: >-
-  Cross-platform diagnostics, reproducibility auditing and safe repair
-  planning for developer machines, project toolchains, SDKs, containers
-  and build dependencies. Read-only by default and privacy-safe.
+  Cross-platform diagnostics, reproducibility auditing, machine-to-machine
+  environment diffs, AI-agent readiness assessment and safe repair planning
+  for developer machines, project toolchains, SDKs, containers and build
+  dependencies. Determines why a given repository fails to build on a given
+  machine, emits a pinned container that reproduces the failure, and reports
+  whether an automated contributor can operate in the repository safely.
+  Read-only by default, with no telemetry: every scan stays on the machine
+  that produced it.
 keywords:
   - reproducibility
   - developer-environment
   - diagnostics
   - toolchain
   - works-on-my-machine
+  - developer-experience
+  - ai-agents
+  - agent-readiness
+  - agents-md
+  - model-context-protocol
+  - environment-drift
+  - configuration-drift
+  - devops
+  - platform-engineering
+  - software-supply-chain
+  - sbom
+  - cyclonedx
+  - slsa
+  - in-toto
+  - developer-onboarding
+  - wsl
+  - windows
+  - containers
+  - devcontainer
+  - static-analysis
+  - cli
 license: Apache-2.0
 version: 0.2.0
 date-released: '2026-09-07'
