@@ -29,6 +29,7 @@ so a test drives it to completion instead of waiting on wall-clock seconds.
 from __future__ import annotations
 
 import fnmatch
+import hashlib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -120,21 +121,33 @@ def watched_paths(root: Path) -> tuple[Path, ...]:
     return tuple(sorted(found))
 
 
-def fingerprint(paths: Iterable[Path], root: Path) -> dict[str, tuple[float, int]]:
-    """Modification time and size per watched file.
+def fingerprint(paths: Iterable[Path], root: Path) -> dict[str, str]:
+    """A content digest per watched file.
 
-    Size as well as mtime because a filesystem with one-second mtime
-    granularity -- which several network filesystems still have -- loses an
-    edit made within a second of the previous one. Size catches most of those
-    and costs nothing, since both come from the same `stat`.
+    This was modification time and size, and its own docstring conceded that
+    size "catches most" of the edits a coarse mtime loses. The ones it does not
+    catch are the ones this tool watches for: `"node": "18"` becoming
+    `"node": "20"` in a `package.json`, a digest changing inside a lockfile, a
+    pinned version edited in a workflow. Every one of those is the same length
+    as what it replaced, and an editor that writes within the filesystem's mtime
+    granularity makes the whole change invisible. CI caught it on three of four
+    Windows legs and missed it on the fourth, which is the signature of a race
+    rather than a platform.
+
+    Content is the only fingerprint with no such gap. The cost is bounded by
+    what is watched: `watched_paths` returns environment-contract files only --
+    manifests, lockfiles, workflows, `.devrepro.toml` -- a handful of files
+    read once per poll interval, which is seconds. blake2b because it is faster
+    than SHA-256 here and nothing about this is a security boundary; it only
+    has to change when the bytes do.
     """
-    out: dict[str, tuple[float, int]] = {}
+    out: dict[str, str] = {}
     for path in paths:
         try:
-            info = path.stat()
-        except OSError:  # pragma: no cover - deleted between listing and stat
+            data = path.read_bytes()
+        except OSError:  # pragma: no cover - deleted or unreadable between listing and read
             continue
-        out[path.relative_to(root).as_posix()] = (info.st_mtime, info.st_size)
+        out[path.relative_to(root).as_posix()] = hashlib.blake2b(data, digest_size=16).hexdigest()
     return out
 
 
@@ -161,7 +174,7 @@ class Change:
         return "; ".join(parts)
 
 
-def _diff(before: dict[str, tuple[float, int]], after: dict[str, tuple[float, int]]) -> Change:
+def _diff(before: dict[str, str], after: dict[str, str]) -> Change:
     return Change(
         added=tuple(sorted(set(after) - set(before))),
         removed=tuple(sorted(set(before) - set(after))),

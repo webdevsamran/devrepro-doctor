@@ -19,6 +19,7 @@ does not control time is a test that hangs or flakes.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path  # noqa: TC003 -- pytest resolves fixture annotations
 
 from devrepro.watch import Change, fingerprint, watch, watched_paths
@@ -94,8 +95,7 @@ def test_the_walk_is_depth_bounded(tmp_path: Path) -> None:
 def test_a_fingerprint_records_size_as_well_as_time(tmp_path: Path) -> None:
     """Several network filesystems have one-second mtime granularity.
 
-    An edit made inside that second is invisible to mtime alone, and size comes
-    from the same `stat` call, so it costs nothing to check both.
+    An edit made inside that second is invisible to mtime alone.
     """
     path = touch(tmp_path / "package.json", "one")
     first = fingerprint([path], tmp_path)
@@ -103,7 +103,34 @@ def test_a_fingerprint_records_size_as_well_as_time(tmp_path: Path) -> None:
     path.write_text("a much longer body", encoding="utf-8")
     second = fingerprint([path], tmp_path)
 
-    assert first["package.json"][1] != second["package.json"][1]
+    assert first["package.json"] != second["package.json"]
+
+
+def test_a_same_length_edit_with_an_unchanged_mtime_is_still_seen(tmp_path: Path) -> None:
+    """The edit the old fingerprint could not see, and the realistic one.
+
+    Modification time plus size missed any change that preserved both -- and
+    the changes this watcher exists for do exactly that: `"node": "18"` becomes
+    `"node": "20"`, a pinned SHA is swapped for another SHA, a version in a
+    workflow is bumped. Same length, and an editor that writes inside the
+    filesystem's mtime granularity leaves the timestamp alone too.
+
+    The mtime is forced back here rather than raced, because the CI failure
+    that found this passed on three Windows legs and failed on the fourth. A
+    test that reproduces it only sometimes is not a test.
+    """
+    path = touch(tmp_path / "package.json", '{"node": "18"}')
+    before = path.stat()
+    first = fingerprint([path], tmp_path)
+
+    path.write_text('{"node": "20"}', encoding="utf-8")
+    os.utime(path, (before.st_atime, before.st_mtime))
+
+    after = path.stat()
+    assert after.st_size == before.st_size, "the fixture must keep the size identical"
+    assert after.st_mtime == before.st_mtime, "the fixture must keep the mtime identical"
+
+    assert fingerprint([path], tmp_path)["package.json"] != first["package.json"]
 
 
 def test_a_file_deleted_mid_walk_does_not_raise(tmp_path: Path) -> None:

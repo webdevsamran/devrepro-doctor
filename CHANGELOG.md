@@ -42,6 +42,25 @@ Nine tests, and the layout held at every width in both themes without a change
 to a single stylesheet -- which is the outcome a test written after the fact
 should usually have, and the reason to write it anyway.
 
+### Fixed - `devrepro watch` could not see the edits it exists for
+
+Its fingerprint was modification time plus size, and its own docstring conceded
+that size "catches most" of the edits a coarse mtime loses. The ones it does not
+catch are precisely the ones this watcher is for: `"node": "18"` becoming
+`"node": "20"`, a pinned SHA swapped for another SHA, a version bumped in a
+workflow. Every one is the same length as what it replaced, and an editor
+writing inside the filesystem's mtime granularity leaves the timestamp alone
+too — so the change was invisible on both axes.
+
+CI found it by failing on three of four Windows legs and passing on the fourth,
+which is the signature of a race rather than a platform.
+
+The fingerprint is a content digest now. The cost is bounded by what is watched
+— `watched_paths` returns environment-contract files only, a handful read once
+per poll interval — and content is the only fingerprint with no such gap. The
+regression test forces the mtime back with `os.utime` rather than racing it: a
+test that reproduces the bug only sometimes is not a test.
+
 ### Fixed - reading another machine's PATH depended on the machine reading it
 
 The first CI run over this work failed on **every POSIX leg** and passed on
