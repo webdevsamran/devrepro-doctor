@@ -58,17 +58,43 @@ Every probe that shells out does so through `core.runner.CommandRunner`.
 Production uses a subprocess-backed runner; tests use fixture recorders.
 This makes the entire suite deterministic and machine-independent.
 
-### 2. Findings are evidence-first
+### 2. A probe describes its context, not the process running it
+
+`ProbeContext` carries the platform, the platform facts, the environment and the
+project directory. Everything a probe reports must derive from those. Anything
+it can only learn by asking the running process -- `platform.machine()`,
+`Path.home()`, a well-known absolute path -- has to be overridable through
+`ctx.extra`, the same way `allow_network` is.
+
+This is not a testing convenience. A report from one machine is routinely read
+on another: a snapshot diffed on a colleague's laptop, a fleet console rendering
+Windows agents from a Linux server. A probe that reads the host answers a
+question nobody asked.
+
+Three instances shipped before the first full CI run caught them, and each
+needed a different platform to surface:
+
+| What it read | What went wrong | Found by |
+|---|---|---|
+| `/usr/lib/jvm`, `Path.home()` | `java/multiple-jdks` fired out of a synthetic Linux fixture on any host that had the directory | every Linux leg |
+| `platform.machine()` | the architecture-mismatch verdict inverted where the runner was arm64 | macOS legs |
+| `os.path` / `pathlib` for a foreign platform's paths | a Windows PATH analysed on Linux lost every shim attribution | every POSIX leg |
+
+The rule that would have prevented all three: **if a probe's answer changes
+when the same context is evaluated on a different machine, that is a bug.** The
+tests for it read the same way -- same input, same answer, either host.
+
+### 3. Findings are evidence-first
 A finding without evidence is rejected at model level. Evidence records the
 command (or file) that produced it plus sanitized output excerpts.
 
-### 3. Privacy gate is structural, not optional
+### 4. Privacy gate is structural, not optional
 `PrivacyGate.sanitize()` is invoked inside the serialization path itself —
 there is no code path that writes machine data without passing through it.
 The gate also scans outputs for probable secrets (token/key patterns) and
 *blocks* export rather than leaking.
 
-### 4. Stable exit codes
+### 5. Stable exit codes
 | Code | Meaning |
 |------|---------|
 | 0 | READY / success |
@@ -76,11 +102,11 @@ The gate also scans outputs for probable secrets (token/key patterns) and
 | 2 | BLOCKED |
 | 3 | Internal error |
 
-### 5. Schemas are versioned
+### 6. Schemas are versioned
 `schemas/*.json` are generated from the Pydantic models. Snapshots embed
 their schema version; loaders validate and refuse unknown future versions.
 
-### 6. Plugin surface is versioned
+### 7. Plugin surface is versioned
 Entry-point groups: `devrepro.probes`, `devrepro.rules`,
 `devrepro.remediations`, `devrepro.project_detectors`, `devrepro.exporters`.
 Plugin API version is reported by `devrepro plugins`; breaking changes bump

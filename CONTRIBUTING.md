@@ -63,6 +63,14 @@ Plugin APIs are versioned: see `docs/PLUGINS.md`.
 
 - Tests must **not depend on the real developer machine**. Use fixtures in
   `tests/fixtures/` and inject fake command runners.
+- A fake runner is not enough on its own. Three probes still read the host
+  around their `ProbeContext` -- a hardcoded `/usr/lib/jvm`, `Path.home()`,
+  `platform.machine()` -- and their tests passed on the author's machine and
+  failed on somebody else's. If a probe must ask the running process something,
+  make it overridable through `ctx.extra` and state both sides in the test. See
+  [ARCHITECTURE.md](ARCHITECTURE.md) decision 2.
+- **If the same context gives a different answer on a different machine, that
+  is the bug** -- in the probe, not in the runner that found it.
 - Use property-based tests (`hypothesis`) for version-range logic, PATH
   normalization, manifest parsers, and sanitization.
 - Every new redaction surface needs a synthetic-secret regression test.
