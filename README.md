@@ -471,6 +471,7 @@ to work today. It diagnoses and explains rather than replacing.
 - [ROADMAP.md](ROADMAP.md) — where this is going
 - [PRODUCT_GAPS.md](PRODUCT_GAPS.md) — what it deliberately does **not** do
 - [CONTRIBUTING.md](CONTRIBUTING.md) — how to help
+- [SUPPORT.md](SUPPORT.md) — getting help, and what to attach to a bug report
 - [SECURITY.md](SECURITY.md) — reporting vulnerabilities
 
 ---
