@@ -42,6 +42,34 @@ Nine tests, and the layout held at every width in both themes without a change
 to a single stylesheet -- which is the outcome a test written after the fact
 should usually have, and the reason to write it anyway.
 
+### Added - `scripts/fill_packaging.py`, so the templates have a way to stop being templates
+
+`packaging/` holds three manifests full of `PLACEHOLDER`, and
+`check_packaging.py` keeps them either wholly templated or wholly real because
+halfway is the state that looks finished and fails on the day somebody first
+installs from it. What was missing was the step between: something that does the
+filling from artefacts that exist, instead of leaving a person to paste four
+URLs and four digests by hand at the moment they are least likely to check.
+
+    python -m build
+    python scripts/fill_packaging.py --version 0.2.0 --dist dist --out build/packaging
+
+Every digest is computed from the file on disk and never passed in, so a
+manifest cannot claim a checksum that does not belong to the artefact its URL
+points at. Output goes to a directory rather than over `packaging/` — the
+templates are what this repository publishes, and the filled manifests belong in
+the tap and bucket repositories that serve them.
+
+**winget is deliberately not filled**: its manifest wants a signed Nullsoft
+installer and this project builds a wheel and an sdist, so generating one would
+mean inventing an `InstallerUrl`. The script says that and exits rather than
+quietly writing two files when you asked for three.
+
+Eleven tests, including that the two scripts agree on what "finished" means, and
+that a stale artefact from a previous version in the same `dist/` is not picked
+up — that one would produce a manifest pointing at the wrong release with a
+checksum that verifies.
+
 ### Fixed - the ABI tests asserted what the author's laptop was
 
 `abi/interpreter-arch-mismatch` compares the context's architecture against the
