@@ -66,20 +66,45 @@ class ArgvRunner:
         return CommandResult(argv, 127, "", "not found")
 
 
-def probe(table: dict[str, CommandResult], *, platform: str, arch: str) -> AbiProbe:
+def probe(
+    table: dict[str, CommandResult],
+    *,
+    platform: str,
+    arch: str,
+    interpreter_arch: str = "x86_64",
+) -> AbiProbe:
+    """Both architectures are stated, neither is inherited from the runner.
+
+    The interpreter architecture used to come from `platform.machine()` of the
+    *test process*, so these tests asserted what the author's laptop happened to
+    be -- one of them said so in a comment: "the test process really is
+    x86_64". On an Apple Silicon runner it is arm64, and every assertion here
+    inverted: the mismatch test found no mismatch and the matching test found
+    one.
+    """
     ctx = ProbeContext(
         runner=ArgvRunner(table),
         platform=platform,  # type: ignore[arg-type]
         platform_info=PlatformInfo(os_name=platform.title(), os_version="1", arch=arch),
         env={"PATH": "/usr/bin"},
+        extra={"interpreter_arch": interpreter_arch},
     )
     return AbiProbe(ctx)
 
 
 def ids(
-    table: dict[str, CommandResult], *, platform: str = "linux", arch: str = "x86_64"
+    table: dict[str, CommandResult],
+    *,
+    platform: str = "linux",
+    arch: str = "x86_64",
+    interpreter_arch: str = "x86_64",
 ) -> list[str]:
-    return [f.rule_id for f in probe(table, platform=platform, arch=arch).run().findings]
+    return [
+        f.rule_id
+        for f in probe(table, platform=platform, arch=arch, interpreter_arch=interpreter_arch)
+        .run()
+        .findings
+    ]
 
 
 def ok(stdout: str = "", stderr: str = "", code: int = 0) -> CommandResult:
@@ -121,9 +146,32 @@ def test_an_unknown_architecture_is_unknowable_not_mismatched() -> None:
 
 
 def test_an_interpreter_on_the_wrong_architecture_is_reported() -> None:
-    found = ids({}, platform="linux", arch="aarch64")
-    # The test process really is x86_64, so the host/interpreter pair differs.
+    # Both sides stated: an x86_64 interpreter on an aarch64 machine.
+    found = ids({}, platform="linux", arch="aarch64", interpreter_arch="x86_64")
     assert "abi/interpreter-arch-mismatch" in found
+
+
+@pytest.mark.parametrize(
+    ("host", "interpreter", "mismatch"),
+    [
+        ("x86_64", "x86_64", False),
+        ("aarch64", "aarch64", False),
+        ("arm64", "arm64", False),
+        ("aarch64", "x86_64", True),
+        ("x86_64", "aarch64", True),
+    ],
+)
+def test_the_verdict_depends_only_on_the_stated_pair(
+    host: str, interpreter: str, mismatch: bool
+) -> None:
+    """Same inputs, same answer, whatever machine runs the suite.
+
+    Half of these rows are the Apple Silicon case, which is the one that broke:
+    an arm64 runner made the mismatch test pass silently and the matching test
+    fail, and neither result had anything to do with the probe.
+    """
+    found = ids({}, platform="linux", arch=host, interpreter_arch=interpreter)
+    assert ("abi/interpreter-arch-mismatch" in found) is mismatch
 
 
 def test_a_matching_architecture_says_nothing() -> None:

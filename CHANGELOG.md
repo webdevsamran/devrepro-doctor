@@ -42,6 +42,28 @@ Nine tests, and the layout held at every width in both themes without a change
 to a single stylesheet -- which is the outcome a test written after the fact
 should usually have, and the reason to write it anyway.
 
+### Fixed - the ABI tests asserted what the author's laptop was
+
+`abi/interpreter-arch-mismatch` compares the context's architecture against the
+running interpreter's, which is right for the product: an x86_64 Python under
+Rosetta on an arm64 Mac is exactly the thing worth reporting.
+
+The tests, though, stated only one side of the pair and let the other come from
+`platform.machine()` of the test process. One of them said so out loud — *"The
+test process really is x86_64"*. On an Apple Silicon runner it is arm64, so
+every assertion inverted: the mismatch test found no mismatch, and the matching
+test found one.
+
+The interpreter architecture is overridable through `ctx.extra` now — the same
+seam as `allow_network` and `jdk_search_roots` — and both sides are stated in
+every test. A parametrised case covers the Apple Silicon pairs specifically,
+because those are the ones that were wrong.
+
+That is three probes in this release reading the host instead of their context.
+They were invisible from a Windows workstation and each took a different CI leg
+to surface: Linux found the JDK scan, macOS found this, and a Windows race found
+the watcher.
+
 ### Fixed - `devrepro watch` could not see the edits it exists for
 
 Its fingerprint was modification time plus size, and its own docstring conceded

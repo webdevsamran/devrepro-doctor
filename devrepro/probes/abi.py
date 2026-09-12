@@ -69,7 +69,14 @@ class AbiProbe(Probe):
         # translation is the emulated architecture. `uname -m` reports the same
         # thing for the same reason, so neither alone can detect translation --
         # that is what the sysctl below is for.
-        interpreter_arch = platform.machine() or None
+        #
+        # Overridable, because this is the one value in the probe that comes
+        # from the running process rather than from the context, and a test
+        # that cannot set it can only assert what the machine running it
+        # happens to be. The tests here did exactly that -- "the test process
+        # really is x86_64" -- and inverted on every Apple Silicon runner.
+        override = self.ctx.extra.get("interpreter_arch")
+        interpreter_arch = (str(override) if override else platform.machine()) or None
         host_arch = self.ctx.platform_info.arch or interpreter_arch
 
         translated: bool | None = None
