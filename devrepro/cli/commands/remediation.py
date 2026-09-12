@@ -10,6 +10,48 @@ from devrepro.cli.common import JsonOption, PolicyOption, emit, load_policy_or_n
 from devrepro.core.errors import DevReproError
 from devrepro.core.exit_codes import ExitCode
 
+#: How long a single remediation command may run before it is abandoned.
+#: Generous, because these are installs and configuration writes rather than
+#: version probes -- and bounded, because a wedged command inside `--yes`
+#: leaves the machine half-changed with no way back to the prompt.
+REMEDIATION_TIMEOUT_SECONDS = 300.0
+
+
+def _run_remediation_command(command: tuple[str, ...]) -> int:
+    """Actually run one remediation command, and say so while doing it.
+
+    This used to be `lambda cmd: 0` -- a function that reported success for
+    every command without running any of them. No planned step carries commands
+    today, so it was unreachable, which is the only reason it survived. It is
+    still the worst possible thing to leave in place: the first time somebody
+    wires a command to a step, `devrepro fix --yes` would report `executed` for
+    a command that never ran, on a path where the user has explicitly asked for
+    execution and will not check.
+
+    Printed before it runs, not after. If a command hangs or takes the machine
+    down with it, the last line on screen has to be the one that says what was
+    running.
+    """
+    from devrepro.core.runner import SubprocessRunner
+
+    typer.secho(f"  $ {' '.join(command)}", fg=typer.colors.CYAN, err=True)
+    result = SubprocessRunner().run(list(command), timeout=REMEDIATION_TIMEOUT_SECONDS)
+    if result.not_found:
+        typer.secho(f"    {command[0]}: not found on PATH", fg=typer.colors.YELLOW, err=True)
+    elif result.timed_out:
+        typer.secho(
+            f"    timed out after {REMEDIATION_TIMEOUT_SECONDS:.0f}s",
+            fg=typer.colors.YELLOW,
+            err=True,
+        )
+    elif result.returncode != 0 and result.stderr.strip():
+        # The command's own words. A remediation that failed is a thing the
+        # person has to act on, and "rc=1" does not tell them what to do.
+        typer.secho(
+            f"    {result.stderr.strip().splitlines()[0]}", fg=typer.colors.YELLOW, err=True
+        )
+    return result.returncode
+
 
 def register(app: typer.Typer) -> None:
     """Attach remediation/plugin commands to the root app."""
@@ -65,7 +107,7 @@ def register(app: typer.Typer) -> None:
         report = run_scan()
         steps = build_plan(list(report.findings))
         try:
-            results = execute_plan(steps, confirmed=yes, executor=lambda cmd: 0)
+            results = execute_plan(steps, confirmed=yes, executor=_run_remediation_command)
         except DevReproError as exc:
             typer.secho(f"refused: {exc.message}", fg=typer.colors.YELLOW, err=True)
             raise typer.Exit(ExitCode.USAGE_ERROR) from exc

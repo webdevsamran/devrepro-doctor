@@ -167,7 +167,11 @@ def symlink_support() -> SymlinkSupport:
         return SymlinkSupport(True, "POSIX: symlink creation is unprivileged.")
 
     try:
-        import winreg  # type: ignore[import-not-found]
+        # Windows-only module: present for mypy on Windows, absent on the
+        # Linux and macOS legs of the matrix. `unused-ignore` makes the
+        # comment correct on all three rather than on whichever one the
+        # author happened to be using.
+        import winreg  # type: ignore[import-not-found,unused-ignore]
 
         key_path = r"SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock"
         with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path) as key:  # type: ignore[attr-defined]

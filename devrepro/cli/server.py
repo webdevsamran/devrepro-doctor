@@ -138,20 +138,26 @@ def serve(*, host: str = "127.0.0.1", port: int = 8642) -> None:
     _assert_loopback(host)
 
     web_dist = Path(__file__).resolve().parents[2] / "web" / "dist"
+    # Every ignore in this block carries `unused-ignore` as well, because
+    # these imports are optional: mypy sees them as missing on a machine
+    # without the extra and as perfectly typed on one with it. Without the
+    # second code, `mypy --strict` passes or fails depending on what happens
+    # to be installed -- which is the class of problem this project exists
+    # to diagnose, and it was live in this file.
     try:
-        from fastapi import FastAPI  # type: ignore[import-not-found]
-        from fastapi.responses import JSONResponse  # type: ignore[import-not-found]
-        from fastapi.staticfiles import StaticFiles  # type: ignore[import-not-found]
+        from fastapi import FastAPI  # type: ignore[import-not-found,unused-ignore]
+        from fastapi.responses import JSONResponse  # type: ignore[import-not-found,unused-ignore]
+        from fastapi.staticfiles import StaticFiles  # type: ignore[import-not-found,unused-ignore]
     except ImportError:
         pass
     else:
         fastapi_app = FastAPI(title="DevRepro Doctor (local)", version="1")
 
-        @fastapi_app.get("/api/report")  # type: ignore[untyped-decorator]
+        @fastapi_app.get("/api/report")  # type: ignore[untyped-decorator,unused-ignore]
         def api_report() -> JSONResponse:
             return JSONResponse(build_api_payload())
 
-        @fastapi_app.get("/api/health")  # type: ignore[untyped-decorator]
+        @fastapi_app.get("/api/health")  # type: ignore[untyped-decorator,unused-ignore]
         def api_health() -> dict[str, str]:
             return {"status": "ok", "privacy": "localhost-only"}
 

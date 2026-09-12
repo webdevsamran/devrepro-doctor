@@ -1044,12 +1044,25 @@
 
   /* --- demo banner: a diagnostics tool must never let fixture data pass for
      a real reading, so it is labelled loudly rather than subtly. --- */
+  /* The one component in this console that must never be skimmed past, so it
+   * is the last one that can afford to be hard to read.
+   *
+   * It used `--sev-warn` as text, which is the *fill* colour. On a 14% warn
+   * tint that measures 4.43 on `--surface`, 4.25 on `--bg` and 4.05 on
+   * `--surface-2` -- under the 4.5 AA needs for 13px bold, on every surface it
+   * appears on. `--sev-warn-ink` exists for exactly this and was already
+   * defined three lines away: 6.13 / 5.89 / 5.61 in light, and in dark it
+   * aliases `--sev-warn` so nothing changes there (6.24 - 8.15).
+   *
+   * Found by consolidating two DemoBanner implementations into one: the other
+   * pages had been using a second banner built from `.badge-warn`, so the
+   * shared one was never audited on the routes that now use it. */
   .demo-banner {
     display: flex;
     align-items: center;
     gap: var(--sp-2);
     background: var(--sev-warn-soft);
-    color: var(--sev-warn);
+    color: var(--sev-warn-ink);
     border: 1px solid color-mix(in srgb, var(--sev-warn) 30%, transparent);
     border-radius: var(--radius-sm);
     padding: var(--sp-2) var(--sp-3);

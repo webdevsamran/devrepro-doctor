@@ -42,6 +42,48 @@ Nine tests, and the layout held at every width in both themes without a change
 to a single stylesheet -- which is the outcome a test written after the fact
 should usually have, and the reason to write it anyway.
 
+### Fixed - an audit for stub code, and the three things it found
+
+A sweep for anything registered-but-inert: parsed every Python file for
+empty-bodied callables, checked that all 13 advertised rule packs are the 13
+registered ones, and that all 174 documented rule ids carry a real title, cause
+and fix. Clean, with three exceptions worth their own entries.
+
+**`devrepro fix` passed `executor=lambda cmd: 0`** — a function that reports
+success for every command without running any of them. No planned step carries
+commands today, so it was unreachable, which is the only reason it survived a
+correctness pass that fixed everything around it. It is still the worst thing to
+leave in place: the first time somebody wires a command to a step, `fix --yes`
+reports `executed` for a command that never ran, on the one path where the user
+has explicitly asked for execution and will not check. It runs the command now,
+through the project's own `SubprocessRunner`, printing each one **before** it
+runs — if a command hangs, the last line on screen has to name it.
+
+**`mypy --strict` passed or failed depending on which optional packages happened
+to be installed.** `devrepro/cli/server.py` carried five
+`# type: ignore[import-not-found]` comments for the FastAPI extra. Correct on a
+machine without FastAPI, and five `unused-ignore` errors on a machine with it —
+which is what this environment became. The `uvicorn` import three lines below
+already had the right `[import-not-found,unused-ignore]` pattern. A type-check
+that depends on what is installed is "works on my machine" inside the gate meant
+to prevent it, so `tests/test_type_ignores_are_portable.py` now checks all 177
+source files.
+
+**Two `DemoBanner` implementations, and the shared one failed WCAG AA.** A page
+imported `AsyncDemo` from *another page*, which carried its own banner with
+different wording that never went through the catalogue. Consolidating them into
+`components/ui.tsx` immediately failed axe on six routes: the shared banner used
+`--sev-warn`, the *fill* colour, as text — 4.43 on `--surface`, 4.25 on `--bg`,
+4.05 on `--surface-2`, all under the 4.5 that 13px bold needs. `--sev-warn-ink`
+was defined three lines away and measures 6.13 / 5.89 / 5.61. The one component
+in this console that must never be skimmed past was the hardest to read.
+
+Consolidating also surfaced a cast: the old wrapper called
+`render(result.data as T)` where `WithDemo.data` is `T | null`, so a null
+payload went straight into `.map()`. Typed as `NonNullable<T>`, the compiler
+demanded the empty state that was always missing, and every banner now names the
+dataset it stood in for.
+
 ### Fixed - `python -m devrepro` was a different program from `devrepro`
 
 `devrepro` is `devrepro.cli.app:main`. `python -m devrepro` called `app()`

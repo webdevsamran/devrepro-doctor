@@ -5,8 +5,7 @@
  * clearly-labelled DEMO fixtures are shown.
  */
 import { loadAgents, loadAuditLog, loadExceptions, loadRetention } from '../api/console'
-import { AsyncDemo } from './platform'
-import { Card, EmptyState } from '../components/ui'
+import { AsyncDemo, Card, EmptyState } from '../components/ui'
 
 function Page({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -22,7 +21,7 @@ export function AuditLogPage() {
   return (
     <Page title="Audit log">
       <p className="muted">Immutable events for policy changes, approvals, enrollment and snapshot publication.</p>
-      <AsyncDemo fn={loadAuditLog} render={(events) => (
+      <AsyncDemo what="audit log entries" fn={loadAuditLog} render={(events) => (
         <table className="table">
           <thead><tr><th>#</th><th>When</th><th>Actor</th><th>Action</th><th>Target</th></tr></thead>
           <tbody>{events.map((e) => (
@@ -45,7 +44,7 @@ export function ExceptionsPage() {
   return (
     <Page title="Policy exceptions">
       <p className="muted">Exception requests carry an expiry, justification and reviewer. Expired or unreviewed exceptions grant nothing.</p>
-      <AsyncDemo fn={loadExceptions} render={(items) => (
+      <AsyncDemo what="policy exceptions" fn={loadExceptions} render={(items) => (
         items.length === 0 ? <EmptyState what="exception requests" /> : (
           <table className="table">
             <thead><tr><th>Policy</th><th>Justification</th><th>Expires</th><th>Reviewer</th><th>Status</th></tr></thead>
@@ -72,7 +71,7 @@ export function AgentsEnrollmentPage() {
   return (
     <Page title="Agents & enrollment">
       <p className="muted">Machines enrolled with single-use tokens; snapshots are sanitized-only at ingestion. Agent mode is opt-in with an explicit outbound endpoint.</p>
-      <AsyncDemo fn={loadAgents} render={(rows) => (
+      <AsyncDemo what="enrolled agents" fn={loadAgents} render={(rows) => (
         <>
           <p className="muted">Enrollment CLI: <code>devrepro enroll --server https://fleet.example.com --token &lt;one-time-token&gt;</code></p>
           <table className="table">
@@ -98,7 +97,7 @@ export function RetentionPage() {
   return (
     <Page title="Retention">
       <p className="muted">Snapshots and audit events are deleted on schedule; deletion itself is audited.</p>
-      <AsyncDemo fn={loadRetention} render={(cfg) => (
+      <AsyncDemo what="retention settings" fn={loadRetention} render={(cfg) => (
         <Card title="Configured windows">
           <ul>
             <li>Snapshots older than <strong>{cfg.snapshot_days} days</strong> are removed.</li>

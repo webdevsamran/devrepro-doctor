@@ -173,6 +173,66 @@ export function DemoBanner({ what }: { what: string }) {
   )
 }
 
+/**
+ * Async data with a demo fallback that can never be mistaken for a reading.
+ *
+ * This lived in `pages/platform.tsx` alongside a second `DemoBanner` of its
+ * own -- so a page imported a shared component from another page, and the two
+ * banners said different things, only one of which went through the catalogue.
+ *
+ * `what` is required rather than optional. The plan's rule for this console is
+ * that a fixture must never look like real data, and a banner that names the
+ * dataset it stood in for is a stronger claim than a generic one: "DEMO DATA --
+ * the audit log is not available from this machine" cannot be skimmed past the
+ * way a bare "DEMO DATA" can.
+ */
+export function AsyncDemo<T>({
+  what,
+  fn,
+  render,
+}: {
+  what: string
+  // `data` is nullable here because `WithDemo` declares it so. The previous
+  // version took `T` and called `render(result.data as T)`, and that cast is
+  // the whole reason this is worth writing down: a null payload went straight
+  // into `events.map(...)` and took the route down with a TypeError. Typed
+  // honestly, the compiler demands the empty state that was always missing.
+  fn: () => Promise<{ data: T | null; demo: boolean; error: string }>
+  // `NonNullable<T>`, so the absence of data is this component's problem and
+  // never the caller's. Every `render` here indexes or maps over what it is
+  // given; none of them should have to ask whether it exists.
+  render: (data: NonNullable<T>) => ReactNode
+}) {
+  const [state, setState] = useState<{ data: NonNullable<T>; demo: boolean } | null>(null)
+  const [empty, setEmpty] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let live = true
+    fn().then(
+      (result) => {
+        if (!live) return
+        if (result.data === null || result.data === undefined) setEmpty(true)
+        else setState({ data: result.data, demo: result.demo })
+      },
+      (err: unknown) => live && setError(err instanceof Error ? err.message : String(err)),
+    )
+    return () => {
+      live = false
+    }
+  }, [fn])
+
+  if (error) return <ErrorState message={error} />
+  if (empty) return <EmptyState what={what} />
+  if (!state) return <Loading what={what} />
+  return (
+    <>
+      {state.demo && <DemoBanner what={what} />}
+      {render(state.data)}
+    </>
+  )
+}
+
 export function CopyButton({
   text,
   label = t('action.copy'),

@@ -5,9 +5,9 @@
  */
 import {
   loadDriftTimeline, loadGeneratedEnv, loadGpuAi,
-  loadPlugins, loadShellStartup, useAsync2, type WithDemo,
+  loadPlugins, loadShellStartup,
 } from '../api/console'
-import { Badge, Card, CopyButton, EmptyState } from '../components/ui'
+import { AsyncDemo, Badge, Card, CopyButton, EmptyState } from '../components/ui'
 import type { ScanReport } from '../types'
 
 function Page({ title, children }: { title: string; children: React.ReactNode }) {
@@ -19,43 +19,12 @@ function Page({ title, children }: { title: string; children: React.ReactNode })
   )
 }
 
-export function DemoBanner() {
-  return (
-    <p className="badge badge-warn" role="note">
-      DEMO DATA — no live report found. Run the matching CLI command or{' '}
-      <code>devrepro serve</code> for real values.
-    </p>
-  )
-}
-
-/** Async wrapper with demo-aware fallback. */
-export function AsyncDemo<T>({ fn, render }: {
-  fn: () => Promise<WithDemo<T>>
-  render: (d: T) => React.ReactNode
-}) {
-  const { result, error } = useAsync2(fn)
-  if (error) {
-    return (
-      <Card title="Data unavailable">
-        <p className="muted">{error}</p>
-      </Card>
-    )
-  }
-  if (!result) return <div className="skeleton" aria-busy="true" aria-label="Loading" />
-  return (
-    <>
-      {result.demo && <DemoBanner />}
-      {render(result.data as T)}
-    </>
-  )
-}
-
 /* ------------------------------------------------------ Shell startup --- */
 export function ShellStartupPage() {
   return (
     <Page title="Shell startup profile">
       <p className="muted">Slow profile scripts and expensive hooks. Secret contents are never displayed (<code>devrepro scan</code>).</p>
-      <AsyncDemo fn={loadShellStartup} render={(d) => (
+      <AsyncDemo what="shell startup profile" fn={loadShellStartup} render={(d) => (
         <>
           <div className="grid grid-3">
             <div className="stat card"><div className="stat-label">Shell</div><div className="stat-value">{d.shell}</div></div>
@@ -321,7 +290,7 @@ export function GpuAiStackPage() {
   return (
     <Page title="GPU / AI stack">
       <p className="muted">Driver/toolkit/runtime compatibility and framework backends. No models are downloaded.</p>
-      <AsyncDemo fn={loadGpuAi} render={(d) => (
+      <AsyncDemo what="GPU or AI stack data" fn={loadGpuAi} render={(d) => (
         <>
           <Card title="GPUs">
             {d.gpus.length === 0 ? <EmptyState what="GPU devices" /> : (
@@ -354,7 +323,7 @@ export function DriftTimelinePage() {
   return (
     <Page title="Drift timeline">
       <p className="muted">Environment changes over time with root-cause hints (<code>devrepro drift</code>).</p>
-      <AsyncDemo fn={loadDriftTimeline} render={(points) => (
+      <AsyncDemo what="drift timeline" fn={loadDriftTimeline} render={(points) => (
         points.length === 0 ? <EmptyState what="snapshot history" /> : (
           <ol className="timeline">
             {points.map((p) => (
@@ -381,7 +350,7 @@ export function GeneratedEnvPage() {
   return (
     <Page title="Generated environment preview">
       <p className="muted">Drafts from <code>devrepro generate</code>. Nothing is written without your review; generated files never overwrite existing ones silently.</p>
-      <AsyncDemo fn={loadGeneratedEnv} render={(files) => (
+      <AsyncDemo what="generated environment files" fn={loadGeneratedEnv} render={(files) => (
         <>
           {files.map((f) => (
             <Card key={f.target} title={f.target}>
@@ -401,7 +370,7 @@ export function PluginCatalogPage() {
   return (
     <Page title="Plugin catalog">
       <p className="muted">Installed extensions per entry-point group with declared capabilities. Plugins performing network or privileged probes must declare it; the UI warns before enabling them.</p>
-      <AsyncDemo fn={loadPlugins} render={(plugins) => (
+      <AsyncDemo what="installed plugins" fn={loadPlugins} render={(plugins) => (
         plugins.length === 0 ? <EmptyState what="installed plugins" /> : (
           <table className="table">
             <thead><tr><th>Name</th><th>Group</th><th>Version</th><th>Capabilities</th><th>Network</th><th>Privileged</th></tr></thead>
