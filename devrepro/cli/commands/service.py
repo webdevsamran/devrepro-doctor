@@ -171,14 +171,23 @@ def register(app: typer.Typer) -> None:
         from devrepro.server.backup import backup_database
 
         result = backup_database(db_path, output)
-        emit(
-            {
-                "archive": str(result.path),
-                "members": result.members,
-                "sha256": result.sha256,
-            },
-            json_out,
-        )
+        payload = {
+            "archive": str(result.path),
+            "members": result.members,
+            "sha256": result.sha256,
+        }
+        if json_out:
+            emit(payload, True)
+        else:
+            # A Python dict repr is not a human interface. The same fault was
+            # fixed in `check`, `generate` and `rules`; it survived here because
+            # nothing invoked this command, and an operator reading it is
+            # usually restoring a fleet database under time pressure.
+            typer.echo(f"archive:  {result.path}")
+            typer.echo(f"members:  {result.members}")
+            typer.echo(f"sha256:   {result.sha256}")
+            typer.echo("")
+            typer.echo(f"Restore with: devrepro server-restore {result.path} <target>")
         raise typer.Exit(ExitCode.READY)
 
     @app.command("server-restore")
@@ -194,9 +203,16 @@ def register(app: typer.Typer) -> None:
         try:
             restored = restore_database(archive, target, overwrite=overwrite)
         except RestoreError as exc:
-            typer.echo(f"restore refused: {exc}", err=True)
+            message = str(exc)
+            if "refusing to overwrite" in message:
+                # The library cannot know what this CLI calls the flag.
+                message += "; pass --overwrite to replace it"
+            typer.echo(f"restore refused: {message}", err=True)
             raise typer.Exit(ExitCode.USAGE_ERROR) from exc
-        emit({"restored": str(restored)}, json_out)
+        if json_out:
+            emit({"restored": str(restored)}, True)
+        else:
+            typer.echo(f"restored: {restored}")
         raise typer.Exit(ExitCode.READY)
 
 

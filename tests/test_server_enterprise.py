@@ -10,6 +10,7 @@ import pytest
 if TYPE_CHECKING:
     from pathlib import Path
 
+from devrepro.core.exit_codes import ExitCode
 from devrepro.server.auth import (
     AuthError,
     OidcConfig,
@@ -267,3 +268,98 @@ class TestBackupRestore:
         fake.write_bytes(buf.getvalue())
         with pytest.raises(RestoreError):
             restore_database(fake, tmp_path / "t.db")
+
+
+class TestBackupRestoreThroughTheCli:
+    """The wrapper around those functions, which nothing had ever invoked.
+
+    `server-backup` and `server-restore` were excluded from the CLI surface
+    tests for needing a database, and being excluded is how a command goes
+    years without anybody reading its output. Both defects below are the kind
+    that only appear when you run it: a Python dict printed at a human, and an
+    error telling an operator to pass a keyword argument to a terminal.
+    """
+
+    def test_backup_prints_a_human_interface_not_a_dict(
+        self, seeded_db: Path, tmp_path: Path
+    ) -> None:
+        from devrepro.cli.app import app
+        from typer.testing import CliRunner
+
+        archive = tmp_path / "backup.tar.gz"
+        result = CliRunner().invoke(app, ["server-backup", str(seeded_db), "-o", str(archive)])
+
+        assert result.exit_code == ExitCode.READY
+        assert archive.is_file()
+        # The fault this repository already fixed in `check`, `generate` and
+        # `rules`, still present here because nothing invoked the command.
+        assert "{'archive'" not in result.output
+        assert "sha256:" in result.output
+        assert "server-restore" in result.output, "tell them the next command"
+
+    def test_backup_json_is_still_json(self, seeded_db: Path, tmp_path: Path) -> None:
+        from devrepro.cli.app import app
+        from typer.testing import CliRunner
+
+        archive = tmp_path / "backup.tar.gz"
+        result = CliRunner().invoke(
+            app, ["server-backup", str(seeded_db), "-o", str(archive), "--json"]
+        )
+        payload = json.loads(result.output)
+        assert payload["sha256"] and payload["members"] >= 1
+
+    def test_restore_over_an_existing_database_names_the_flag(
+        self, seeded_db: Path, tmp_path: Path
+    ) -> None:
+        """It said "pass overwrite=True" -- a Python keyword argument.
+
+        There is a `--overwrite` flag. An operator restoring a fleet database
+        under time pressure cannot act on the name of a function parameter.
+        """
+        from devrepro.cli.app import app
+        from typer.testing import CliRunner
+
+        archive = tmp_path / "backup.tar.gz"
+        backup_database(seeded_db, archive)
+
+        result = CliRunner().invoke(app, ["server-restore", str(archive), str(seeded_db)])
+
+        assert result.exit_code == ExitCode.USAGE_ERROR
+        assert "--overwrite" in result.output
+        assert "overwrite=True" not in result.output
+
+    def test_restore_with_the_flag_succeeds(self, seeded_db: Path, tmp_path: Path) -> None:
+        from devrepro.cli.app import app
+        from typer.testing import CliRunner
+
+        archive = tmp_path / "backup.tar.gz"
+        backup_database(seeded_db, archive)
+
+        result = CliRunner().invoke(
+            app, ["server-restore", str(archive), str(seeded_db), "--overwrite"]
+        )
+
+        assert result.exit_code == ExitCode.READY
+        assert "restored:" in result.output
+        assert seeded_db.is_file()
+
+    def test_a_target_under_another_name_explains_why(
+        self, seeded_db: Path, tmp_path: Path
+    ) -> None:
+        """The restored file keeps the name it was backed up under.
+
+        "archive contains no database file named 'x.db'" is true and tells the
+        reader nothing about what to do instead.
+        """
+        from devrepro.cli.app import app
+        from typer.testing import CliRunner
+
+        archive = tmp_path / "backup.tar.gz"
+        backup_database(seeded_db, archive)
+
+        result = CliRunner().invoke(
+            app, ["server-restore", str(archive), str(tmp_path / "renamed.db")]
+        )
+
+        assert result.exit_code == ExitCode.USAGE_ERROR
+        assert "the name it was backed up under" in result.output

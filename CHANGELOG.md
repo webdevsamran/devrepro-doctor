@@ -42,6 +42,31 @@ Nine tests, and the layout held at every width in both themes without a change
 to a single stylesheet -- which is the outcome a test written after the fact
 should usually have, and the reason to write it anyway.
 
+### Fixed - the two enterprise commands nobody had ever run
+
+`server-backup` and `server-restore` were excluded from the CLI surface tests
+for needing a database, and being excluded is how a command goes a long time
+without anybody reading its output. Running them found two defects, both of the
+kind that only appear when you actually run the thing:
+
+- **`server-backup` printed a Python dict repr.** `{'archive': '...',
+  'members': 1, 'sha256': '...'}`. This repository has already fixed that fault
+  in `check`, `generate` and `rules`, and left a comment each time saying a dict
+  repr is not a human interface. It now prints the three fields and the restore
+  command to run next.
+- **`server-restore` told the operator to `pass overwrite=True`.** That is a
+  Python keyword argument. There is a `--overwrite` flag, and somebody restoring
+  a fleet database under time pressure cannot act on the name of a function
+  parameter. The library message names the condition; the CLI adds the flag,
+  because only the CLI knows what it is called.
+
+The "wrong target name" error also explains itself now: the restored file keeps
+the name it was backed up under, which "archive contains no database file named
+'x.db'" was true about and unhelpful for.
+
+Five CLI-level tests, where the library functions had coverage and the wrapper
+around them had none.
+
 ### Added - `scripts/fill_packaging.py`, so the templates have a way to stop being templates
 
 `packaging/` holds three manifests full of `PLACEHOLDER`, and

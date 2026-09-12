@@ -91,7 +91,10 @@ def restore_database(archive: Path, target_db: Path, *, overwrite: bool = False)
     if not archive.is_file():
         raise RestoreError(f"archive not found: {archive}")
     if target_db.exists() and not overwrite:
-        raise RestoreError(f"refusing to overwrite existing {target_db}; pass overwrite=True")
+        # Names the condition, not the keyword. The CLI adds the flag; a
+        # library message that says `pass overwrite=True` is an instruction
+        # nobody at a terminal can follow.
+        raise RestoreError(f"refusing to overwrite existing {target_db}")
 
     try:
         with tarfile.open(archive, "r:gz") as tf:
@@ -149,7 +152,11 @@ def restore_database(archive: Path, target_db: Path, *, overwrite: bool = False)
 
     main_name = target_db.name
     if main_name not in extracted:
-        raise RestoreError(f"archive contains no database file named '{main_name}'")
+        raise RestoreError(
+            f"archive contains no database file named '{main_name}'. "
+            "The restored file keeps the name it was backed up under, so the "
+            "target has to use that name."
+        )
 
     target_db.parent.mkdir(parents=True, exist_ok=True)
     for name, blob in extracted.items():
