@@ -31,6 +31,12 @@ site/
 # Editors / OS
 .vscode/
 .idea/
+# Editor and assistant working directories. Local tooling configuration is
+# nobody else's business and does not belong in a published repository.
+.claude/
+.cursor/
+.aider*
+.continue/
 .DS_Store
 Thumbs.db
 
