@@ -301,3 +301,68 @@ def test_sign_snapshot_without_a_key_is_a_usage_error(
     assert result.exit_code == ExitCode.USAGE_ERROR
     assert "DEVREPRO_SIGNING_KEY" in result.output
     assert result.exception is None or isinstance(result.exception, SystemExit)
+
+
+# ------------------------------------------------- markdown table escaping ---
+
+
+def test_a_windows_path_before_a_pipe_does_not_break_the_table() -> None:
+    r"""The defect `_cell`'s own docstring described and did not prevent.
+
+    It escaped the pipe and not the backslash, so `C:\tools\|shadowed` became
+    `C:\tools\|shadowed` -- an escaped backslash followed by a live pipe. The
+    cell split anyway, on exactly the value the escaping was added for. The
+    same bug existed three times in the TypeScript console, where CodeQL
+    flagged it; this copy was never flagged, and `report --format markdown` is
+    the output people paste into an issue.
+    """
+    from devrepro.reports.renderers import _cell
+
+    backslash = chr(92)
+    escaped = _cell(f"C:{backslash}tools{backslash}|shadowed")
+
+    # Every pipe in the output is escaped: preceded by an odd number of
+    # backslashes. That is the property the table actually depends on.
+    for index, character in enumerate(escaped):
+        if character != "|":
+            continue
+        run = 0
+        back = index - 1
+        while back >= 0 and escaped[back] == backslash:
+            run += 1
+            back -= 1
+        assert run % 2 == 1, f"bare pipe at {index} in {escaped!r}"
+
+
+def test_unescaping_a_cell_returns_what_went_in() -> None:
+    """Escaping has to be reversible, or the reader is shown something else."""
+    import re
+
+    from devrepro.reports.renderers import _cell
+
+    backslash = chr(92)
+    original = f"C:{backslash}Users{backslash}dev{backslash}bin | shadowed"
+    # Undo one level of escaping, the way a Markdown renderer does: a backslash
+    # followed by any character becomes that character.
+    unescaped = re.sub(r"\\(.)", r"\1", _cell(original))
+    assert unescaped == original
+
+
+def test_a_cell_folds_every_newline_form() -> None:
+    """A row ends at a line break, so a multi-line summary ended the table.
+
+    `\r\n` as well as `\n`: a manifest read on Windows carries carriage
+    returns, and replacing only the newline left a stray `\r` in the cell.
+    """
+    from devrepro.reports.renderers import _cell
+
+    assert _cell("one" + chr(10) + "two") == "one two"
+    assert _cell("one" + chr(13) + chr(10) + "two") == "one two"
+    assert _cell("one" + chr(13) + "two") == "one two"
+    assert chr(13) not in _cell("one" + chr(13) + chr(10) + "two")
+
+
+def test_a_plain_cell_is_untouched() -> None:
+    from devrepro.reports.renderers import _cell
+
+    assert _cell("node 18.19.0 does not satisfy >=20") == "node 18.19.0 does not satisfy >=20"

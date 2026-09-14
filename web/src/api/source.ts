@@ -41,6 +41,21 @@
 const ALLOWED_PROTOCOLS = new Set(['http:', 'https:', 'file:'])
 
 /**
+ * Forms that can leave this origin, rejected before the string is parsed.
+ *
+ * A same-origin path never carries a scheme and never begins with `//`. Every
+ * way of escaping the origin does one or the other: `https://elsewhere`,
+ * `//elsewhere`, `data:…`, `javascript:…`.
+ *
+ * The origin comparison below is the authoritative check and this does not
+ * replace it — `URL` is the only thing that correctly resolves userinfo and
+ * suffix confusion, and both are tested. This rejects the obvious forms first,
+ * so the answer does not depend on a parser agreeing with a reader about what
+ * `http://a@b/c` means.
+ */
+const ESCAPES_ORIGIN = /^[a-z][a-z0-9+.-]*:|^\/\//i
+
+/**
  * Resolve a `?src=` value against the page, or return `null` to refuse it.
  *
  * `here` is passed in rather than read from `window` so this is a pure
@@ -48,6 +63,7 @@ const ALLOWED_PROTOCOLS = new Set(['http:', 'https:', 'file:'])
  */
 export function resolveSource(raw: string | null, here: string): string | null {
   if (!raw) return null
+  if (ESCAPES_ORIGIN.test(raw)) return null
 
   let page: URL
   let resolved: URL

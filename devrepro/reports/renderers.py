@@ -242,14 +242,38 @@ def _guard_footer(scope: str) -> str:
 
 
 def _cell(text: str) -> str:
-    """Make a string safe inside a Markdown table cell.
+    r"""Make a string safe inside a Markdown table cell.
 
     A remediation hint can contain a pipe (a shell pipeline, a PATH on Windows)
     and a summary can contain a newline. Either one silently breaks the table
     into something unreadable, which is worse than the finding being absent
     because it looks like the tool is broken.
+
+    This escaped the pipe and not the backslash, and the docstring above names
+    the input that makes that fail: a PATH on Windows. `C:\tools\|shadowed`
+    became `C:\tools\\|shadowed`, which a renderer reads as an escaped backslash
+    followed by a live pipe -- so the cell split anyway, on precisely the value
+    the escaping was added for.
+
+    Backslashes first, then pipes. Reversed, the second pass would escape the
+    backslashes the first had just inserted and double every one of them.
+
+    The same defect existed three times in the TypeScript console, where CodeQL
+    flagged it as an incomplete escape. It was not flagged here, which is worth
+    saying: `devrepro report --format markdown` is the output people paste into
+    an issue, so this copy mattered at least as much as those.
     """
-    return text.replace("|", r"\|").replace("\n", " ").strip()
+    return (
+        text.replace("\\", "\\\\")
+        .replace("|", r"\|")
+        # `\r\n` as well as `\n`: a report rendered from a manifest read on
+        # Windows carries carriage returns, and replacing only the newline left
+        # a stray `\r` inside the cell.
+        .replace("\r\n", " ")
+        .replace("\n", " ")
+        .replace("\r", " ")
+        .strip()
+    )
 
 
 def render_junit(report: ScanReport) -> str:

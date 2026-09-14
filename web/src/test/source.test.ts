@@ -75,6 +75,27 @@ describe('resolveSource', () => {
     expect(resolveSource('./report.json', onDisk)).toBe('file:///C:/reports/report.json')
   })
 
+  it('rejects a scheme or an authority before parsing at all', () => {
+    // Defence in depth, and the half that does not depend on a parser and a
+    // reader agreeing about what a URL means. The origin comparison is still
+    // the authoritative check -- it is the only thing that catches userinfo and
+    // suffix confusion -- but nothing legitimate here carries a scheme or
+    // begins with `//`, so those are refused before `URL` sees them.
+    expect(resolveSource('https://example.invalid/x.json', PAGE)).toBeNull()
+    expect(resolveSource('//example.invalid/x.json', PAGE)).toBeNull()
+    expect(resolveSource('data:application/json,{}', PAGE)).toBeNull()
+    expect(resolveSource('HTTPS://EXAMPLE.INVALID/x.json', PAGE)).toBeNull()
+
+    // And the forms it must not touch: an absolute path and a relative one are
+    // both same-origin and both stay.
+    expect(resolveSource('/exports/report.json', PAGE)).toBe(
+      'http://localhost:3000/exports/report.json',
+    )
+    expect(resolveSource('exports/report.json', PAGE)).toBe(
+      'http://localhost:3000/exports/report.json',
+    )
+  })
+
   it('returns null rather than throwing on nonsense', () => {
     expect(resolveSource('http://[', PAGE)).toBeNull()
     expect(resolveSource(null, PAGE)).toBeNull()

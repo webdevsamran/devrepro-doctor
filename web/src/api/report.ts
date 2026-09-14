@@ -8,6 +8,7 @@ import type { ScanReport } from '../types'
  */
 
 import { sourceOverride } from './source'
+
 export async function loadReport(): Promise<ScanReport> {
   // `?src=` is attacker-supplied: it arrives in a link. Confined to this
   // origin before it reaches `fetch`, because the page renders whatever comes
