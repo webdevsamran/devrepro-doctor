@@ -96,6 +96,34 @@ describe('resolveSource', () => {
     )
   })
 
+  it.each([
+    // Every one of these resolves to `http://example.invalid` and NONE of
+    // them is caught by the pre-parse regex: a leading backslash is not a
+    // scheme and not `//`, and leading whitespace defeats an anchored
+    // pattern. Browsers normalise backslashes to slashes in a URL
+    // authority, which is the part a reader does not expect and a parser
+    // does.
+    //
+    // They are refused by the origin comparison alone. That is the reason
+    // the comparison is the authoritative check and the regex is only a
+    // fast first pass -- swap the order of importance and four of these
+    // get through.
+    '\\\\example.invalid/x.json',
+    '/\\example.invalid/x.json',
+    '\\/example.invalid/x.json',
+    ' //example.invalid/x.json',
+  ])('refuses an escape the pre-parse check cannot see: %j', (candidate) => {
+    expect(resolveSource(candidate, PAGE)).toBeNull()
+  })
+
+  it('allows percent-encoded slashes, which are a path and not an authority', () => {
+    // The converse, and the reason this is a parser question rather than a
+    // string question: `%2f%2f` looks like `//` and is not.
+    expect(resolveSource('%2f%2fexample.invalid/x.json', PAGE)).toBe(
+      'http://localhost:3000/%2f%2fexample.invalid/x.json',
+    )
+  })
+
   it('returns null rather than throwing on nonsense', () => {
     expect(resolveSource('http://[', PAGE)).toBeNull()
     expect(resolveSource(null, PAGE)).toBeNull()

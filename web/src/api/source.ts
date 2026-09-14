@@ -35,6 +35,23 @@
  * The resolved URL is returned rather than the caller's string so that what
  * gets fetched is the thing that was checked, with no second resolution in
  * between that could differ.
+ *
+ * ---
+ *
+ * **`js/client-side-request-forgery` still reports `report.ts`, and that is
+ * expected.** The data flow it describes is real: there, the query parameter
+ * names the report file, so the URL fetched genuinely derives from it. (The
+ * other two loaders resolve *hardcoded* paths against a validated base, which
+ * is why the same query stopped reporting them.) What the alert cannot see is
+ * that the value is confined to this origin on the way through, because an
+ * origin comparison is not a barrier CodeQL models.
+ *
+ * That is a scanner-modelling limit, not an open hole, and the difference is
+ * checkable rather than asserted: `src/test/source.test.ts` refuses eight
+ * distinct escapes, including four that no string check catches. Do not
+ * "simplify" this by deleting the origin comparison in favour of the regex —
+ * `\\example.invalid` is not a scheme and does not begin with `//`, and it
+ * resolves to `http://example.invalid`.
  */
 
 /** Schemes a report may be read over. Anything else cannot be a saved file. */

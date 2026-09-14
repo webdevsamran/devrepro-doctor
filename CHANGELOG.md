@@ -89,8 +89,23 @@ the rest as loose prose.
 The fourth was in a test: `path.replace('../', '')` strips the first occurrence
 wherever it falls rather than a prefix. Anchored.
 
-27 frontend tests added, including a property check that no output can contain a
-pipe preceded by an even number of backslashes.
+35 frontend tests added, including a property check that no escaped output can
+contain a pipe preceded by an even number of backslashes, and eight distinct
+attempts to escape the origin.
+
+Four of those eight are the reason the origin comparison stays the
+authoritative check rather than the regex: a leading backslash is not a scheme
+and does not begin with `//`, browsers normalise it to a slash inside an
+authority, and `\example.invalid/x.json` therefore resolves to
+`http://example.invalid`. A string check alone lets all four through.
+
+**One alert remains open, and is expected to.**
+`js/client-side-request-forgery` still reports `report.ts`, where the query
+parameter names the report file and so the fetched URL really does derive from
+it — the other two loaders resolve hardcoded paths against a validated base,
+which is why they stopped reporting. The confinement it cannot see is an origin
+comparison, which CodeQL does not model as a barrier. The reasoning and the
+eight refusals that back it are recorded in `web/src/api/source.ts`.
 
 ### Fixed - the two enterprise commands nobody had ever run
 
