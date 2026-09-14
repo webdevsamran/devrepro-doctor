@@ -39,6 +39,18 @@ describe('resolveSource', () => {
   })
 
   it.each([
+    // The two bypasses an origin check is usually got with. `URL` parses both
+    // correctly -- the first has userinfo `localhost:3000` on the host
+    // `example.invalid`, the second a host merely *starting* with it -- but a
+    // check written against `href.startsWith(...)` or a hostname substring
+    // would accept both, and those are the checks people write.
+    'http://localhost:3000@example.invalid/clean.json',
+    'https://localhost:3000.example.invalid/clean.json',
+  ])('refuses a host that only looks like this one: %s', (candidate) => {
+    expect(resolveSource(candidate, PAGE)).toBeNull()
+  })
+
+  it.each([
     'data:application/json,{"score":{"total":9,"possible":9}}',
     'javascript:void 0',
     'blob:http://localhost:3000/abcd',
