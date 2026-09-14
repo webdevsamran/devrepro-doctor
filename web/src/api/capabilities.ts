@@ -5,9 +5,9 @@
  */
 
 async function loadJson<T>(paths: string[]): Promise<T> {
-  const params = new URLSearchParams(window.location.search)
-  const src = params.get('src')
-  const candidates = [...(src ? [src.replace(/report\.json$/, '')] : []), ...paths]
+  // `?src=` is confined to this origin, and each relative path is resolved
+  // against it. See `./source.ts` for why both halves are necessary.
+  const candidates = candidatesFor(paths, window.location.search, window.location.href)
   let lastError: unknown = null
   for (const url of candidates) {
     try {
@@ -109,6 +109,8 @@ export const loadFleet = () => loadJson<FleetDashboard>([`${API}/fleet`, './flee
 
 /** Generic async-data hook with loading/error states. */
 import { useEffect, useState } from 'react'
+
+import { candidatesFor } from './source'
 
 export function useAsync<T>(fn: () => Promise<T>): { data: T | null; error: string | null } {
   const [data, setData] = useState<T | null>(null)

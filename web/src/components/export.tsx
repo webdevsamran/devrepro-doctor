@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { t } from '../i18n'
+import { escapeTableCell } from '../markdown'
 
 import type { Finding, ScanReport } from '../types'
 
@@ -65,7 +66,7 @@ export function reportToMarkdown(report: ScanReport, { limit = 25 }: { limit?: n
       // Pipes inside a cell end it, and a rule summary can legitimately carry
       // one — a shell fragment, a PATH. Escaped rather than stripped, so the
       // text still reads correctly.
-      const summary = (finding.summary ?? '').replace(/\|/g, '\\|')
+      const summary = escapeTableCell(finding.summary ?? '')
       lines.push(`| ${finding.state} | \`${finding.rule_id}\` | ${summary} |`)
     }
     if (ordered.length > shown.length) {

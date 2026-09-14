@@ -41,7 +41,11 @@ const FILES = Object.entries(MODULES)
   // as `./name.test.ts` rather than `../test/name.test.ts`. Matching the wrong
   // one of those is why this filter is written by directory and not by prefix.
   .filter(([path]) => !path.startsWith('./') && path !== '../i18n.ts')
-  .map(([path, text]) => ({ path: path.replace('../', ''), text }))
+  // Anchored. `String.prototype.replace` with a string argument replaces the
+  // first occurrence wherever it falls, not a prefix -- so a path that merely
+  // contained `../` would have it cut out of the middle. Every key here does
+  // start with it, which is exactly why the wrong tool went unnoticed.
+  .map(([path, text]) => ({ path: path.replace(/^\.\.\//, ''), text }))
 
 const ALL = FILES.map((file) => file.text).join('\n')
 

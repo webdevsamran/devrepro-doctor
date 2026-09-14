@@ -24,6 +24,7 @@
  */
 import { useCallback, useMemo, useState } from 'react'
 import { t } from '../i18n'
+import { escapeTableCell } from '../markdown'
 import { useSearchParams } from 'react-router-dom'
 
 import { CopyButton, EmptyState } from '../components/ui'
@@ -88,7 +89,7 @@ export function entryKey(entry: DiffEntry, index: number): string {
 
 export function diffToMarkdown(entries: DiffEntry[]): string {
   const NL = String.fromCharCode(10)
-  const escape = (text: string) => text.replace(/\|/g, '\\|')
+  const escape = escapeTableCell
   return [
     '| Classification | Component | Name | A | B |',
     '|---|---|---|---|---|',

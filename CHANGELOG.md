@@ -42,6 +42,56 @@ Nine tests, and the layout held at every width in both themes without a change
 to a single stylesheet -- which is the outcome a test written after the fact
 should usually have, and the reason to write it anyway.
 
+### Security - seven CodeQL alerts, and two of them were real bugs in disguise
+
+**Client-side request forgery, three loaders (medium).** `?src=` went from a URL
+query parameter straight into `fetch`. For most applications that is an
+SSRF-shaped nuisance; here it is worse, because of what this page does with the
+bytes it gets back — it renders them as a reading of *your* machine. A link
+carrying `?src=https://example.invalid/clean.json` produced a confident,
+authoritative, entirely fabricated diagnosis. The dashboard plan states the rule
+that breaks: a fake green score is worse than an empty state, because the empty
+state cannot mislead.
+
+The override is now confined to the origin the console was served from
+(`web/src/api/source.ts`), which costs the feature nothing — a report you were
+handed is a file beside the page, never a URL on somebody else's host. Two
+details a naive origin check would have missed: `data:` and `javascript:` URLs
+carry the opaque origin `"null"`, and **so does a page opened from `file://`** —
+the deployment the README recommends for reading a report off disk. Comparing
+origins alone would have let `?src=data:application/json,{…}` through on exactly
+that deployment, so there is a protocol allowlist as well.
+
+That fix uncovered a **latent bug underneath it**. The override was
+``src.replace(/report\.json$/, '')`` used as a candidate URL by itself, so a
+capability page asking for `env.json` fetched the bare directory, got a listing
+or a 404, and fell through. The `?src=` override silently did nothing on every
+page except the report itself. Each relative path is resolved against the
+override now, which is what that string manipulation was reaching for and needs
+no string manipulation at all.
+
+**Incomplete string escaping, four sites (high).** Three are the same bug in
+three modules: ``text.replace(/\|/g, '\\|')``. A pipe ends a table cell so
+escaping it is necessary, but escaping *only* it is wrong, because the backslash
+doing the escaping is itself Markdown syntax. A value ending in a backslash
+directly before a pipe produces ``\\|``, which renders as an escaped backslash
+followed by a live cell separator — the escaping defeats itself on exactly the
+input it was added for.
+
+Not a hypothetical input for a Windows-first tool. Summaries carry
+`C:\Users\dev\bin`, remediation hints carry shell fragments with pipes, PATH
+values carry both. Now one `escapeTableCell` in `web/src/markdown.ts`, escaping
+backslashes before pipes — order is the entire fix, and a test pins it. It also
+folds newlines, which nothing handled: a table row ends at a line break, so a
+multi-line evidence excerpt did not break one cell, it ended the table and left
+the rest as loose prose.
+
+The fourth was in a test: `path.replace('../', '')` strips the first occurrence
+wherever it falls rather than a prefix. Anchored.
+
+27 frontend tests added, including a property check that no output can contain a
+pipe preceded by an even number of backslashes.
+
 ### Fixed - the two enterprise commands nobody had ever run
 
 `server-backup` and `server-restore` were excluded from the CLI surface tests

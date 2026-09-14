@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { t, tn } from '../i18n'
+import { escapeTableCell } from '../markdown'
 import { useSearchParams } from 'react-router-dom'
 import { MeterRow, ScoreRadial, StackedBar } from '../components/charts'
 import { scorePercent } from '../types'
@@ -267,7 +268,7 @@ function findingsToMarkdown(findings: Finding[]): string {
   const NL = String.fromCharCode(10)
   const rows = findings.map(
     (f) =>
-      `| ${f.state} | \`${f.rule_id}\` | ${f.summary.replace(/\|/g, '\\|')} |`,
+      `| ${f.state} | \`${f.rule_id}\` | ${escapeTableCell(f.summary)} |`,
   )
   return [
     '| State | Rule | Summary |',

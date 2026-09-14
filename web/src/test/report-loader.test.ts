@@ -34,8 +34,28 @@ afterEach(() => {
 describe('loadReport source priority', () => {
   it('uses the ?src= override when present', async () => {
     window.history.replaceState(null, '', '/?src=custom.json')
-    mockFetchSequence({ 'custom.json': { ok: true, body: fakeReport } })
+    // Keyed on the URL that is actually requested, not on the string in the
+    // query. The override is resolved against the page before it reaches
+    // `fetch`, so that what gets fetched is the thing that was security-checked
+    // rather than a second resolution nobody saw.
+    const requested = new URL('custom.json', window.location.href).href
+    mockFetchSequence({ [requested]: { ok: true, body: fakeReport } })
     await expect(loadReport()).resolves.toEqual(fakeReport)
+    window.history.replaceState(null, '', '/')
+  })
+
+  it('ignores a ?src= pointing at another origin', async () => {
+    // The alert CodeQL raised, as a behaviour. A link carrying this parameter
+    // made the console fetch someone else's JSON and render it as a reading of
+    // the reader's own machine -- a confident, authoritative, fabricated
+    // diagnosis. Refused, the page falls through to its real sources.
+    window.history.replaceState(null, '', '/?src=https://example.invalid/clean.json')
+    mockFetchSequence({ './report.json': { ok: true, body: fakeReport } })
+
+    await expect(loadReport()).resolves.toEqual(fakeReport)
+
+    const urls = (fetch as unknown as { mock: { calls: string[][] } }).mock.calls.map((c) => c[0])
+    expect(urls.some((u) => u.includes('example.invalid'))).toBe(false)
     window.history.replaceState(null, '', '/')
   })
 
