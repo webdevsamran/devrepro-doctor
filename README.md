@@ -7,6 +7,7 @@
 [![License](https://img.shields.io/github/license/webdevsamran/devrepro-doctor)](https://github.com/webdevsamran/devrepro-doctor/blob/main/LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](pyproject.toml)
 [![Coverage floor](https://img.shields.io/badge/coverage%20floor-70%25-informational)](pyproject.toml)
+[![M8ven Score](https://m8ven.ai/badge/mcp/webdevsamran-devrepro-doctor-1y4k7m)](https://m8ven.ai/mcp/webdevsamran-devrepro-doctor-1y4k7m)
 <!-- /badges -->
 
 **Cross-platform developer-environment diagnostics, reproducibility snapshots, machine-to-machine diffs, AI-agent readiness checks and explainable safe remediation — for Windows, Linux, macOS and WSL.**
