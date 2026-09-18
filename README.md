@@ -38,6 +38,7 @@ Created, founded and led by **[@webdevsamran](https://github.com/webdevsamran)**
 - [All 55 commands](#all-55-commands)
 - [CI/CD integration](#cicd-integration)
 - [Supply chain and compliance](#supply-chain-and-compliance-sbom-slsa-cra)
+- [Independent monitoring: M8ven](#independent-monitoring-the-m8ven-trust-index)
 - [Extending it](#extending-it-rule-packs-and-plugins)
 - [FAQ](#faq)
 - [How this compares](#how-this-compares)
@@ -380,6 +381,23 @@ is" into evidence you can hand to an auditor:
 
 See [docs/COMPLIANCE.md](docs/COMPLIANCE.md) and
 [docs/ENVIRONMENT-BOM.md](docs/ENVIRONMENT-BOM.md).
+
+---
+
+## Independent monitoring: the M8ven Trust Index
+
+`devrepro mcp` is listed on the **[M8ven Trust Index](https://m8ven.ai/mcp/webdevsamran-devrepro-doctor-1y4k7m)**,
+a third-party registry that continuously audits public MCP servers for
+credential exposure, tool-permission scope and supply-chain risk. The audit is
+re-run on its own schedule, not on ours, and the current grade is the badge at
+the top of this page — it is a live reading, so it can move without a commit
+here.
+
+We link it because an MCP server asks you to trust a process you cannot see,
+and an outside check is worth more than our own assurance. What that server
+actually exposes is written down rather than summarised:
+[docs/MCP-EXPOSURE.md](docs/MCP-EXPOSURE.md) lists every tool, the read-only
+rule, the root confinement and the three things it must never do.
 
 ---
 
